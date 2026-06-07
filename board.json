@@ -1,12 +1,12 @@
 {
   "version": 1,
-  "updated": "2026-06-07T20:14:48Z",
+  "updated": "2026-06-07T20:23:57Z",
   "projects": [
     "General",
     "NEO-015",
     "Kanban"
   ],
-  "next_id": 6,
+  "next_id": 7,
   "cards": [
     {
       "id": "k-001",
@@ -56,6 +56,20 @@
         "2026-06-07T20:08:36Z result: results/k-003.md",
         "2026-06-07T20:08:41Z moved to done"
       ]
+    },
+    {
+      "id": "k-006",
+      "title": "Pay for Stansted",
+      "description": "Pay the Stansted airport parking/booking. Due by midnight tonight.",
+      "project": "General",
+      "assignee": "Ch@o",
+      "status": "todo",
+      "due": "2026-06-07",
+      "skill": null,
+      "result_link": null,
+      "created": "2026-06-07T20:23:57Z",
+      "updated": "2026-06-07T20:23:57Z",
+      "log": []
     }
   ]
 }
