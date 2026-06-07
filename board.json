@@ -1,12 +1,12 @@
 {
   "version": 1,
-  "updated": "2026-06-07T20:40:28.147Z",
+  "updated": "2026-06-07T20:48:48Z",
   "projects": [
     "General",
     "NEO-015",
     "Kanban"
   ],
-  "next_id": 9,
+  "next_id": 10,
   "cards": [
     {
       "id": "k-001",
@@ -89,6 +89,22 @@
       "updated": "2026-06-07T20:36:47.591Z",
       "log": [
         "2026-06-07T20:36:47.591Z moved to done (manual)"
+      ]
+    },
+    {
+      "id": "k-009",
+      "title": "Update Datasite project call notes",
+      "description": "Update the call notes for the Datasite project.",
+      "project": "General",
+      "assignee": "Ch@o",
+      "status": "todo",
+      "due": null,
+      "skill": null,
+      "result_link": null,
+      "created": "2026-06-07T20:48:48Z",
+      "updated": "2026-06-07T20:48:48Z",
+      "log": [
+        "created via skill"
       ]
     }
   ]
