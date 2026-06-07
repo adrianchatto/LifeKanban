@@ -1,18 +1,17 @@
 {
   "version": 1,
-  "updated": "2026-06-07T21:04:45.639Z",
+  "updated": "2026-06-07T21:07:34.047Z",
   "projects": [
     "General",
-    "NEO-015",
-    "Kanban"
+    "Datasite"
   ],
-  "next_id": 18,
+  "next_id": 19,
   "cards": [
     {
       "id": "k-001",
       "title": "Welcome to your Kanban board",
       "description": "This is your board. Create cards, drag them between columns, and assign each to Me (Ch@o) or Claude. Cards assigned to Claude get picked up automatically and processed.",
-      "project": "Kanban",
+      "project": "General",
       "assignee": "Ch@o",
       "status": "done",
       "skill": null,
@@ -29,7 +28,7 @@
       "id": "k-002",
       "title": "Try assigning a card to Claude",
       "description": "Make a card, set the assignee to Claude, and leave it in To Do. Within ~15 minutes the worker moves it to Doing, does the work, then Done with a link to the result.",
-      "project": "Kanban",
+      "project": "General",
       "assignee": "Ch@o",
       "status": "done",
       "skill": null,
@@ -46,7 +45,7 @@
       "id": "k-003",
       "title": "Example: draft a project status summary",
       "description": "Write a one-paragraph status summary for a project called NEO-015 covering progress, risks and next steps. Use placeholder content where real data is unknown.",
-      "project": "NEO-015",
+      "project": "General",
       "assignee": "Claude",
       "status": "done",
       "skill": null,
@@ -95,17 +94,19 @@
       "id": "k-009",
       "title": "Update Datasite project call notes",
       "description": "Update the call notes for the Datasite project.",
-      "project": "General",
+      "project": "Datasite",
       "assignee": "Ch@o",
       "status": "todo",
       "due": "2026-06-08",
       "skill": null,
       "result_link": null,
       "created": "2026-06-07T20:48:48Z",
-      "updated": "2026-06-07T20:49:06.276Z",
+      "updated": "2026-06-07T21:07:34.038Z",
       "log": [
         "created via skill"
-      ]
+      ],
+      "recur": null,
+      "subtasks": []
     },
     {
       "id": "k-010",
@@ -191,6 +192,24 @@
       "result_link": null,
       "created": "2026-06-07T21:04:45.638Z",
       "updated": "2026-06-07T21:04:45.638Z",
+      "log": [
+        "created"
+      ]
+    },
+    {
+      "id": "k-018",
+      "title": "Kanban Docker",
+      "description": "Make the Kanban app a docker application",
+      "project": "General",
+      "assignee": "Ch@o",
+      "status": "todo",
+      "due": "2026-06-08",
+      "recur": null,
+      "subtasks": [],
+      "skill": null,
+      "result_link": null,
+      "created": "2026-06-07T21:06:20.323Z",
+      "updated": "2026-06-07T21:06:20.326Z",
       "log": [
         "created"
       ]

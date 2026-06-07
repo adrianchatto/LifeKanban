@@ -52,7 +52,9 @@
   .badge{font-size:11px;font-weight:600;border-radius:20px;padding:2px 9px;display:inline-flex;align-items:center;gap:5px}
   .badge.me{background:rgba(17,160,107,.12);color:var(--me)}
   .badge.claude{background:rgba(122,92,255,.12);color:var(--claude)}
-  .proj{font-size:11px;color:var(--muted);background:#f1f3f9;border-radius:6px;padding:2px 7px}
+  .proj{font-size:11px;color:var(--muted);background:#f1f3f9;border-radius:6px;padding:2px 7px;display:inline-flex;align-items:center}
+  .pdot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px;flex:none}
+  .projrow input[type=color]{width:30px;height:26px;padding:0;border:1px solid var(--line);border-radius:6px;background:#fff;cursor:pointer}
   .due{font-size:11px;font-weight:600;border-radius:6px;padding:2px 7px;display:inline-flex;align-items:center;gap:4px}
   .due.future{color:var(--muted);background:#f1f3f9}
   .due.soon{color:#9a6b00;background:rgba(224,160,8,.15)}
@@ -273,6 +275,13 @@ function projectsList(){
   (board.cards||[]).forEach(c=>set.add(c.project||"General"));
   return [...set].filter(Boolean).sort();
 }
+const PALETTE=["#3b6cf6","#11a06b","#e0a008","#e0533b","#7a5cff","#0bb4c4","#d6409f","#0ea5e9","#c2410c","#16a34a"];
+function hashStr(s){ let h=0; for(let i=0;i<(s||"").length;i++) h=(h*31+s.charCodeAt(i))>>>0; return h; }
+function projColor(name){
+  const m=board.projectColors||{};
+  if(m[name]) return m[name];
+  return PALETTE[hashStr(name||"")%PALETTE.length];
+}
 
 function render(){
   // filters
@@ -316,7 +325,7 @@ function cardHTML(c){
   return `<article class="card ${c.status==='done'?'is-done':''}" draggable="true" data-id="${c.id}">
     <p class="ttl">${esc(c.title)}</p>
     ${c.description?`<p class="desc">${esc(c.description)}</p>`:""}
-    <div class="row">${who}<span class="proj">${esc(c.project||"General")}</span>${dueBadge(c)}${subProgress(c)}</div>
+    <div class="row">${who}<span class="proj"><span class="pdot" style="background:${projColor(c.project||'General')}"></span>${esc(c.project||"General")}</span>${dueBadge(c)}${subProgress(c)}</div>
     ${extra}
   </article>`;
 }
@@ -467,11 +476,11 @@ function renderCalendar(cards){
       else { const days=Math.round((startOfDay(iso+"T00:00:00")-today)/86400000);
         if(days<0) cls+=" over"; else if(days<=1) cls+=" soon"; }
       if(c.assignee==="Claude") cls+=" claude";
-      return `<div class="${cls}" data-id="${c.id}" title="${esc(c.title)}">${esc(c.title)}</div>`;
+      return `<div class="${cls}" data-id="${c.id}" style="border-left-color:${projColor(c.project||'General')}" title="${esc(c.title)} · ${esc(c.project||'General')}">${esc(c.title)}</div>`;
     }).join("");
     const rchips = recurring.filter(c=>recurOccursOn(c,d)).map(c=>{
       const cls = "calchip recur" + (c.assignee==="Claude"?" claude":"");
-      return `<div class="${cls}" data-id="${c.id}" title="${esc(c.title)} (repeats)">🔁 ${esc(c.title)}</div>`;
+      return `<div class="${cls}" data-id="${c.id}" style="border-left-color:${projColor(c.project||'General')}" title="${esc(c.title)} · ${esc(c.project||'General')} (repeats)">🔁 ${esc(c.title)}</div>`;
     }).join("");
     cells += `<div class="calcell${other}${isToday}"><span class="caldate">${d.getDate()}</span>${chips}${rchips}</div>`;
   }
@@ -659,13 +668,20 @@ document.querySelectorAll("#fAssignee button").forEach(b=>
 $("#fAddProj").onclick=()=>{
   const name=(prompt("New project name:")||"").trim();
   if(!name) return;
-  if(!(board.projects||[]).includes(name)){ (board.projects=board.projects||[]).push(name); pushBoard(); }
+  if(!(board.projects||[]).includes(name)){
+    (board.projects=board.projects||[]).push(name);
+    (board.projectColors=board.projectColors||{})[name]=projColor(name);
+    pushBoard();
+  }
   populateProjectSelect(name);
 };
 $("#projBtn").onclick=openProjects;
 $("#projAdd").onclick=()=>{
   const name=$("#projNew").value.trim(); if(!name) return;
-  if(!(board.projects||[]).includes(name)) (board.projects=board.projects||[]).push(name);
+  if(!(board.projects||[]).includes(name)){
+    (board.projects=board.projects||[]).push(name);
+    (board.projectColors=board.projectColors||{})[name]=projColor(name);
+  }
   $("#projNew").value=""; pushBoard(); renderProjectManager(); render();
 };
 $("#projNew").addEventListener("keydown",e=>{ if(e.key==="Enter"){e.preventDefault();$("#projAdd").click();} });
@@ -678,9 +694,15 @@ function renderProjectManager(){
   $("#projList2").innerHTML = projectsList().map(p=>{
     const n=counts[p]||0;
     const locked = p==="General";
-    return `<div class="projrow"><span>${esc(p)} <span class="proj">${n}</span></span>
+    return `<div class="projrow">
+      <span class="pdot" style="background:${projColor(p)}"></span>
+      <span>${esc(p)} <span class="proj">${n}</span></span>
+      <input type="color" value="${projColor(p)}" data-pc="${esc(p)}" title="Project colour">
       <button class="x" data-p="${esc(p)}" ${locked?"disabled title=\"General cannot be removed\"":""}>×</button></div>`;
   }).join("");
+  $("#projList2").querySelectorAll("input[type=color]").forEach(inp=>
+    inp.onchange=()=>{ (board.projectColors=board.projectColors||{})[inp.dataset.pc]=inp.value;
+      pushBoard(); renderProjectManager(); render(); });
   $("#projList2").querySelectorAll(".x").forEach(b=>{
     if(b.disabled) return;
     b.onclick=()=>removeProject(b.dataset.p);
@@ -691,6 +713,7 @@ function removeProject(p){
   if(!confirm(`Remove project "${p}"?`+(n?`\n${n} card(s) will move to General.`:""))) return;
   (board.cards||[]).forEach(c=>{ if(c.project===p) c.project="General"; });
   board.projects=(board.projects||[]).filter(x=>x!==p);
+  if(board.projectColors) delete board.projectColors[p];
   pushBoard(); renderProjectManager(); render();
 }
 $("#fRepeat").onchange=syncRepeatUI;
