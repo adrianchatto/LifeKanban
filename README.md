@@ -88,3 +88,24 @@ Claude will capture it as a card on this board, assigned to you or to Claude.
 
 Don't hand-edit `board.json` while the board is open — use the UI or let Claude
 use the CLI.
+
+## Pushing to GitHub
+
+The folder is already a git repo, committed, with the remote set to
+`https://github.com/adrianchatto/LifeKanban.git` on branch `main`. I can't push
+from here (no credentials in the sandbox), so do it once from your Mac:
+
+```bash
+cd ~/Documents/Claude/Projects/Kanban
+git push -u origin main
+```
+
+If git asks for a password, use a **Personal Access Token** (GitHub no longer
+accepts your account password). Easiest alternatives:
+
+- With the GitHub CLI: `gh auth login`, then the `git push` above.
+- Or switch to SSH if you have keys set up:
+  `git remote set-url origin git@github.com:adrianchatto/LifeKanban.git`
+  then `git push -u origin main`.
+
+After that, future changes are just `git add -A && git commit -m "..." && git push`.
