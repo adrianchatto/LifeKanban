@@ -115,6 +115,18 @@
   .wd button{border:1px solid var(--line);background:#fff;border-radius:8px;padding:6px 10px;
     font-size:12px;font-weight:600;color:var(--muted);cursor:pointer}
   .wd button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+  .subrow{display:flex;align-items:center;gap:8px;padding:3px 0}
+  .subrow input[type=checkbox]{width:16px;height:16px;flex:none}
+  .subrow span{flex:1;font-size:13px}
+  .subrow.done span{text-decoration:line-through;color:var(--muted)}
+  .subrow .x{border:0;background:none;color:var(--muted);cursor:pointer;font-size:16px;line-height:1}
+  .subprog{font-size:11px;color:var(--muted);background:#f1f3f9;border-radius:6px;padding:2px 7px}
+  .subprog.alldone{color:var(--me);background:rgba(17,160,107,.12)}
+  /* projects manager */
+  .projrow{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--line)}
+  .projrow span{flex:1}
+  .projrow .x{border:0;background:none;color:var(--ok);cursor:pointer;font-size:16px}
+  .projrow .x:disabled{color:var(--line);cursor:default}
   .modal .actions{display:flex;gap:10px;margin-top:20px;align-items:center}
   .modal .actions .spacer{flex:1}
   .danger{color:var(--ok);background:#fff;border:1px solid var(--line)}
@@ -138,6 +150,7 @@
     <button type="button" data-v="calendar">Calendar</button>
   </div>
   <button class="btn" id="refreshBtn" title="Refresh now">↻ Refresh</button>
+  <button class="btn" id="projBtn" title="Add or remove projects">⋮ Projects</button>
   <button class="btn" id="alertBtn" title="Turn on desktop alerts for due dates">🔔 Enable alerts</button>
   <button class="btn primary" id="newBtn">+ New card</button>
   <a class="btn" id="ghLink" href="https://github.com/adrianchatto/LifeKanban" target="_blank"
@@ -151,6 +164,19 @@
 <div class="cal" id="calendar" style="display:none"></div>
 <footer id="foot">Loading…</footer>
 
+<div class="scrim" id="projScrim">
+  <div class="modal" style="width:min(420px,92vw)">
+    <h3>Manage projects</h3>
+    <div id="projList2"></div>
+    <div style="display:flex;gap:6px;margin-top:14px">
+      <input type="text" id="projNew" placeholder="New project name…">
+      <button type="button" class="btn primary" id="projAdd">Add</button>
+    </div>
+    <div class="actions"><div class="spacer"></div>
+      <button class="btn" id="projClose">Close</button></div>
+  </div>
+</div>
+
 <div class="scrim" id="scrim">
   <div class="modal">
     <h3 id="mTitle">New card</h3>
@@ -162,8 +188,10 @@
     <div class="row" style="gap:24px">
       <div style="flex:1">
         <label>Project</label>
-        <input type="text" id="fProject" list="projList" placeholder="General">
-        <datalist id="projList"></datalist>
+        <div style="display:flex;gap:6px">
+          <select id="fProject" style="flex:1"></select>
+          <button type="button" class="btn" id="fAddProj" title="Add a new project">＋</button>
+        </div>
       </div>
       <div>
         <label>Assignee</label>
@@ -193,6 +221,12 @@
       <label>Day of month</label>
       <input type="number" id="fMonthDay" min="1" max="31" value="1" style="width:90px">
     </div>
+    <label>Subtasks</label>
+    <div id="fSubtasks"></div>
+    <div style="display:flex;gap:6px;margin-top:6px">
+      <input type="text" id="fSubInput" placeholder="Add a subtask…">
+      <button type="button" class="btn" id="fSubAdd">Add</button>
+    </div>
     <div class="log" id="mLog" style="display:none"></div>
     <div class="actions">
       <button class="btn danger" id="delBtn" style="display:none">Delete</button>
@@ -213,6 +247,7 @@ const COLUMNS = [
 let board = {cards:[], projects:[]};
 let editing = null, assigneeChoice = "Ch@o", paused = false, dragId = null;
 let recurDays = new Set();   // weekly selection, Mon=0..Sun=6
+let editSubtasks = [];        // [{text, done}] while editing a card
 let showDone = (()=>{ try{return localStorage.getItem("kanban_showdone")==="1";}catch(e){return false;} })();
 let view = (()=>{ try{return localStorage.getItem("kanban_view")||"board";}catch(e){return "board";} })();
 let calCursor = (()=>{ const d=new Date(); return {y:d.getFullYear(), m:d.getMonth()}; })();
@@ -281,7 +316,7 @@ function cardHTML(c){
   return `<article class="card ${c.status==='done'?'is-done':''}" draggable="true" data-id="${c.id}">
     <p class="ttl">${esc(c.title)}</p>
     ${c.description?`<p class="desc">${esc(c.description)}</p>`:""}
-    <div class="row">${who}<span class="proj">${esc(c.project||"General")}</span>${dueBadge(c)}</div>
+    <div class="row">${who}<span class="proj">${esc(c.project||"General")}</span>${dueBadge(c)}${subProgress(c)}</div>
     ${extra}
   </article>`;
 }
@@ -308,6 +343,11 @@ function dueBadge(c){
   const s=dueState(c); if(!s) return "";
   const icon = s.cls==="over"?"⚠":"📅";
   return `<span class="due ${s.cls}">${icon} ${s.txt}</span>`;
+}
+function subProgress(c){
+  const subs=c.subtasks||[]; if(!subs.length) return "";
+  const done=subs.filter(s=>s.done).length;
+  return `<span class="subprog ${done===subs.length?'alldone':''}">☑ ${done}/${subs.length}</span>`;
 }
 
 /* ---- desktop notifications (while board is open) ---- */
@@ -488,9 +528,10 @@ function openNew(){
   editing=null; assigneeChoice="Ch@o";
   $("#mTitle").textContent="New card";
   $("#fId").value=""; $("#fTitle").value=""; $("#fDesc").value="";
-  $("#fProject").value=$("#projFilter").value||"General";
+  populateProjectSelect($("#projFilter").value||"General");
   $("#fDue").value="";
   $("#delBtn").style.display="none"; $("#mLog").style.display="none";
+  editSubtasks=[]; renderSubtasks();
   setSeg(); setRecurControls(null); refreshDatalist(); openScrim();
 }
 function openEdit(id){
@@ -498,18 +539,24 @@ function openEdit(id){
   editing=id; assigneeChoice=c.assignee;
   $("#mTitle").textContent="Edit card";
   $("#fId").value=c.id; $("#fTitle").value=c.title; $("#fDesc").value=c.description||"";
-  $("#fProject").value=c.project||"General";
+  populateProjectSelect(c.project||"General");
   $("#fDue").value=c.due||"";
   $("#delBtn").style.display="inline-block";
+  editSubtasks=(c.subtasks||[]).map(s=>({text:s.text, done:!!s.done})); renderSubtasks();
   setSeg(); setRecurControls(c); refreshDatalist();
   const log = c.log||[];
   $("#mLog").style.display = log.length?"block":"none";
   $("#mLog").innerHTML = "<strong>Activity</strong>"+log.slice(-8).map(l=>`<div>${esc(l)}</div>`).join("");
   openScrim();
 }
-function refreshDatalist(){
-  $("#projList").innerHTML = projectsList().map(p=>`<option value="${esc(p)}">`).join("");
+function populateProjectSelect(sel){
+  const list = projectsList();
+  const cur = (sel!=null && sel!=="") ? sel : ($("#fProject").value || "General");
+  let opts = list.map(p=>`<option ${p===cur?"selected":""}>${esc(p)}</option>`).join("");
+  if(cur && !list.includes(cur)) opts = `<option selected>${esc(cur)}</option>` + opts;
+  $("#fProject").innerHTML = opts;
 }
+function refreshDatalist(){ populateProjectSelect($("#fProject").value); }
 function setSeg(){
   document.querySelectorAll("#fAssignee button").forEach(b=>
     b.classList.toggle("on", b.dataset.v===assigneeChoice));
@@ -543,6 +590,23 @@ function readRecur(){
   if(v==="monthly") return {freq:"monthly", day:Math.min(31,Math.max(1,parseInt($("#fMonthDay").value)||1))};
   return null;
 }
+function renderSubtasks(){
+  $("#fSubtasks").innerHTML = editSubtasks.map((s,i)=>
+    `<div class="subrow ${s.done?'done':''}">
+       <input type="checkbox" data-i="${i}" ${s.done?'checked':''}>
+       <span>${esc(s.text)}</span>
+       <button type="button" class="x" data-x="${i}" title="Remove">×</button>
+     </div>`).join("");
+  $("#fSubtasks").querySelectorAll("input[type=checkbox]").forEach(cb=>
+    cb.onchange=()=>{ editSubtasks[+cb.dataset.i].done=cb.checked; renderSubtasks(); });
+  $("#fSubtasks").querySelectorAll(".x").forEach(b=>
+    b.onclick=()=>{ editSubtasks.splice(+b.dataset.x,1); renderSubtasks(); });
+}
+function addSubtask(){
+  const v=$("#fSubInput").value.trim(); if(!v) return;
+  editSubtasks.push({text:v, done:false});
+  $("#fSubInput").value=""; renderSubtasks(); $("#fSubInput").focus();
+}
 function openScrim(){ paused=true; $("#scrim").classList.add("open"); $("#fTitle").focus(); }
 function closeScrim(){ $("#scrim").classList.remove("open"); setTimeout(()=>paused=false,300); }
 
@@ -555,6 +619,7 @@ function save(){
   if(editing){
     const c=board.cards.find(x=>x.id===editing);
     c.title=title; c.description=desc; c.project=project; c.due=due; c.recur=recur;
+    c.subtasks=editSubtasks.map(s=>({text:s.text, done:!!s.done}));
     if(c.assignee!==assigneeChoice){
       (c.log=c.log||[]).push(new Date().toISOString()+" assigned to "+assigneeChoice);
       c.assignee=assigneeChoice;
@@ -566,7 +631,7 @@ function save(){
     board.cards.push({
       id:"k-"+String(n).padStart(3,"0"),
       title, description:desc, project, assignee:assigneeChoice,
-      status:"todo", due, recur, skill:null, result_link:null,
+      status:"todo", due, recur, subtasks:editSubtasks.map(s=>({text:s.text, done:!!s.done})), skill:null, result_link:null,
       created:new Date().toISOString(), updated:new Date().toISOString(),
       log:["created"]
     });
@@ -591,7 +656,46 @@ $("#delBtn").onclick=del;
 $("#scrim").addEventListener("click",e=>{if(e.target===$("#scrim"))closeScrim();});
 document.querySelectorAll("#fAssignee button").forEach(b=>
   b.onclick=()=>{assigneeChoice=b.dataset.v;setSeg();});
+$("#fAddProj").onclick=()=>{
+  const name=(prompt("New project name:")||"").trim();
+  if(!name) return;
+  if(!(board.projects||[]).includes(name)){ (board.projects=board.projects||[]).push(name); pushBoard(); }
+  populateProjectSelect(name);
+};
+$("#projBtn").onclick=openProjects;
+$("#projAdd").onclick=()=>{
+  const name=$("#projNew").value.trim(); if(!name) return;
+  if(!(board.projects||[]).includes(name)) (board.projects=board.projects||[]).push(name);
+  $("#projNew").value=""; pushBoard(); renderProjectManager(); render();
+};
+$("#projNew").addEventListener("keydown",e=>{ if(e.key==="Enter"){e.preventDefault();$("#projAdd").click();} });
+$("#projClose").onclick=()=>$("#projScrim").classList.remove("open");
+$("#projScrim").addEventListener("click",e=>{ if(e.target===$("#projScrim")) $("#projScrim").classList.remove("open"); });
+function openProjects(){ renderProjectManager(); $("#projScrim").classList.add("open"); $("#projNew").focus(); }
+function renderProjectManager(){
+  const counts={};
+  (board.cards||[]).forEach(c=>{ counts[c.project]=(counts[c.project]||0)+1; });
+  $("#projList2").innerHTML = projectsList().map(p=>{
+    const n=counts[p]||0;
+    const locked = p==="General";
+    return `<div class="projrow"><span>${esc(p)} <span class="proj">${n}</span></span>
+      <button class="x" data-p="${esc(p)}" ${locked?"disabled title=\"General cannot be removed\"":""}>×</button></div>`;
+  }).join("");
+  $("#projList2").querySelectorAll(".x").forEach(b=>{
+    if(b.disabled) return;
+    b.onclick=()=>removeProject(b.dataset.p);
+  });
+}
+function removeProject(p){
+  const n=(board.cards||[]).filter(c=>c.project===p).length;
+  if(!confirm(`Remove project "${p}"?`+(n?`\n${n} card(s) will move to General.`:""))) return;
+  (board.cards||[]).forEach(c=>{ if(c.project===p) c.project="General"; });
+  board.projects=(board.projects||[]).filter(x=>x!==p);
+  pushBoard(); renderProjectManager(); render();
+}
 $("#fRepeat").onchange=syncRepeatUI;
+$("#fSubAdd").onclick=addSubtask;
+$("#fSubInput").addEventListener("keydown",e=>{ if(e.key==="Enter"){e.preventDefault();addSubtask();} });
 document.querySelectorAll("#fWeekdays button").forEach(b=>
   b.onclick=()=>{ const d=+b.dataset.d; recurDays.has(d)?recurDays.delete(d):recurDays.add(d); syncRepeatUI(); });
 $("#projFilter").onchange=render;

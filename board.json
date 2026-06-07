@@ -1,12 +1,12 @@
 {
   "version": 1,
-  "updated": "2026-06-07T20:58:06Z",
+  "updated": "2026-06-07T21:03:54Z",
   "projects": [
     "General",
     "NEO-015",
     "Kanban"
   ],
-  "next_id": 13,
+  "next_id": 15,
   "cards": [
     {
       "id": "k-001",
@@ -121,6 +121,42 @@
       "updated": "2026-06-07T20:55:17.986Z",
       "log": [
         "created"
+      ]
+    },
+    {
+      "id": "k-013",
+      "title": "Research Blue/Green orchestrator app",
+      "description": "",
+      "project": "General",
+      "assignee": "Ch@o",
+      "status": "todo",
+      "due": "2026-06-12",
+      "skill": null,
+      "result_link": null,
+      "created": "2026-06-07T20:59:07.739Z",
+      "updated": "2026-06-07T21:00:07.824Z",
+      "log": [
+        "created"
+      ]
+    },
+    {
+      "id": "k-014",
+      "title": "Notion Intergration",
+      "description": "Fix the Notion intergration once and for all",
+      "project": "General",
+      "assignee": "Claude",
+      "status": "needs_ok",
+      "due": null,
+      "skill": null,
+      "result_link": "results/k-014.md",
+      "created": "2026-06-07T21:01:33.068Z",
+      "updated": "2026-06-07T21:03:54Z",
+      "log": [
+        "created",
+        "2026-06-07T21:02:45Z claimed by Claude worker",
+        "2026-06-07T21:03:43Z result: results/k-014.md",
+        "2026-06-07T21:03:49Z Diagnosed: Notion connector is installed but unauthenticated (OAuth not completed). Not a code bug. Fix needs an interactive browser authorisation only Ch@o can do. Steps documented in results/k-014.md.",
+        "2026-06-07T21:03:54Z moved to needs_ok"
       ]
     }
   ]

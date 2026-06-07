@@ -143,6 +143,7 @@ def cmd_add(args):
             "status": flt.get("status", "todo"),
             "due": flt.get("due") or None,
             "recur": parse_recur(flt.get("recur")),
+            "subtasks": [],
             "skill": flt.get("skill"),
             "result_link": None,
             "created": now(),
