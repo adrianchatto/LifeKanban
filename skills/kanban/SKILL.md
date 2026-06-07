@@ -97,6 +97,12 @@ risky/irreversible step (send, publish, delete, pay, move money), do the safe
 prep, `log` what needs approval, and `move <id> needs_ok` — never take the
 irreversible step without Ch@o's explicit go-ahead.
 
+When Ch@o approves a parked card (he presses **Approve & run** on the card, or
+says "approve <id>"), the card is flagged `approved:true` and sent back to
+`todo`. On the next worker pass, claim it, **carry out the previously-paused
+action** (do not pause again), then `move <id> done`. From chat you can approve
+with `python3 kanban.py approve <id>`.
+
 ## Tone
 
 British English, warm but direct, no filler. Confirm what you did with the card

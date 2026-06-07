@@ -1,11 +1,11 @@
 {
   "version": 1,
-  "updated": "2026-06-07T21:07:34.047Z",
+  "updated": "2026-06-07T21:20:30.802Z",
   "projects": [
     "General",
     "Datasite"
   ],
-  "next_id": 19,
+  "next_id": 20,
   "cards": [
     {
       "id": "k-001",
@@ -146,19 +146,21 @@
       "description": "Fix the Notion intergration once and for all",
       "project": "General",
       "assignee": "Claude",
-      "status": "needs_ok",
+      "status": "todo",
       "due": null,
       "skill": null,
       "result_link": "results/k-014.md",
       "created": "2026-06-07T21:01:33.068Z",
-      "updated": "2026-06-07T21:03:54Z",
+      "updated": "2026-06-07T21:20:30.799Z",
       "log": [
         "created",
         "2026-06-07T21:02:45Z claimed by Claude worker",
         "2026-06-07T21:03:43Z result: results/k-014.md",
         "2026-06-07T21:03:49Z Diagnosed: Notion connector is installed but unauthenticated (OAuth not completed). Not a code bug. Fix needs an interactive browser authorisation only Ch@o can do. Steps documented in results/k-014.md.",
-        "2026-06-07T21:03:54Z moved to needs_ok"
-      ]
+        "2026-06-07T21:03:54Z moved to needs_ok",
+        "2026-06-07T21:20:30.800Z approved by Ch@o — proceed with the action"
+      ],
+      "approved": true
     },
     {
       "id": "k-015",
@@ -214,5 +216,8 @@
         "created"
       ]
     }
-  ]
+  ],
+  "projectColors": {
+    "Datasite": "#a21667"
+  }
 }

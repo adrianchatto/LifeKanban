@@ -282,6 +282,26 @@ def cmd_set_due(args):
     print(json.dumps(c, indent=2, ensure_ascii=False))
 
 
+def cmd_approve(args):
+    """Approve a needs_ok card: flag approved and send back to todo so the
+    Claude worker reclaims it and performs the previously-paused action."""
+    if not args:
+        die("approve needs <id>")
+    cid = args[0]
+    with Lock():
+        data = load()
+        c = find(data, cid)
+        if not c:
+            die("no such card: " + cid)
+        c["approved"] = True
+        c["status"] = "todo"
+        c["assignee"] = "Claude"
+        c["updated"] = now()
+        c["log"].append("%s approved by Ch@o — proceed with the action" % now())
+        save(data)
+    print(json.dumps(c, indent=2, ensure_ascii=False))
+
+
 def cmd_log(args):
     if len(args) < 2:
         die("log needs <id> <message>")
@@ -352,6 +372,7 @@ COMMANDS = {
     "assign": cmd_assign,
     "set-result": cmd_set_result,
     "set-due": cmd_set_due,
+    "approve": cmd_approve,
     "log": cmd_log,
     "get": cmd_get,
     "claim-next": cmd_claim_next,

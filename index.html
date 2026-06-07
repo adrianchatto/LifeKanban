@@ -52,8 +52,11 @@
   .badge{font-size:11px;font-weight:600;border-radius:20px;padding:2px 9px;display:inline-flex;align-items:center;gap:5px}
   .badge.me{background:rgba(17,160,107,.12);color:var(--me)}
   .badge.claude{background:rgba(122,92,255,.12);color:var(--claude)}
-  .proj{font-size:11px;color:var(--muted);background:#f1f3f9;border-radius:6px;padding:2px 7px;display:inline-flex;align-items:center}
+  .proj{font-size:11px;font-weight:600;color:#3b4252;background:#f1f3f9;border-radius:6px;padding:2px 8px;display:inline-flex;align-items:center}
   .pdot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px;flex:none}
+  .okbtn{margin-top:8px;background:var(--me);color:#fff;border:0;border-radius:8px;padding:6px 12px;
+    font-size:12px;font-weight:700;cursor:pointer}
+  .okbtn:hover{filter:brightness(1.05)}
   .projrow input[type=color]{width:30px;height:26px;padding:0;border:1px solid var(--line);border-radius:6px;background:#fff;cursor:pointer}
   .due{font-size:11px;font-weight:600;border-radius:6px;padding:2px 7px;display:inline-flex;align-items:center;gap:4px}
   .due.future{color:var(--muted);background:#f1f3f9}
@@ -321,11 +324,12 @@ function cardHTML(c){
   if(c.result_link)
     extra += `<a class="reslink" href="/results/${encodeURIComponent(c.result_link.replace(/^results\//,""))}" target="_blank">↗ View result</a>`;
   if(c.status==="needs_ok")
-    extra += `<div class="working" style="color:var(--ok)">⏸ Waiting for your OK</div>`;
+    extra += `<div class="working" style="color:var(--ok)">⏸ Waiting for your OK</div>
+      <button class="okbtn" data-ok="${c.id}">✓ Approve &amp; run</button>`;
   return `<article class="card ${c.status==='done'?'is-done':''}" draggable="true" data-id="${c.id}">
     <p class="ttl">${esc(c.title)}</p>
     ${c.description?`<p class="desc">${esc(c.description)}</p>`:""}
-    <div class="row">${who}<span class="proj"><span class="pdot" style="background:${projColor(c.project||'General')}"></span>${esc(c.project||"General")}</span>${dueBadge(c)}${subProgress(c)}</div>
+    <div class="row">${who}${projChip(c.project)}${dueBadge(c)}${subProgress(c)}</div>
     ${extra}
   </article>`;
 }
@@ -352,6 +356,11 @@ function dueBadge(c){
   const s=dueState(c); if(!s) return "";
   const icon = s.cls==="over"?"⚠":"📅";
   return `<span class="due ${s.cls}">${icon} ${s.txt}</span>`;
+}
+function projChip(p){
+  p = p || "General";
+  const col = projColor(p);
+  return `<span class="proj" style="background:${col}22;color:#3b4252;border:1px solid ${col}66">${esc(p)}</span>`;
 }
 function subProgress(c){
   const subs=c.subtasks||[]; if(!subs.length) return "";
@@ -415,6 +424,8 @@ function renderBoard(cards){
   }).join("");
   $("#board").innerHTML = html;
   wireDnD();
+  document.querySelectorAll(".okbtn").forEach(b=>
+    b.onclick=(e)=>{ e.stopPropagation(); approveCard(b.dataset.ok); });
   const dt = document.querySelector(".donetoggle");
   if(dt) dt.onclick = (e)=>{
     e.stopPropagation();
@@ -648,6 +659,16 @@ function save(){
   if(!(board.projects||[]).includes(project))(board.projects=board.projects||[]).push(project);
   if(recur && view!=="calendar"){ view="calendar"; try{localStorage.setItem("kanban_view",view);}catch(_){} setViewToggle(); }
   closeScrim(); render(); pushBoard();
+}
+function approveCard(id){
+  const c=board.cards.find(x=>x.id===id); if(!c) return;
+  if(!confirm(`Approve "${c.title}" and let Claude carry out the action?`)) return;
+  c.approved=true;
+  c.status="todo";              // back to To Do so the Claude worker reclaims it
+  c.assignee="Claude";
+  c.updated=new Date().toISOString();
+  (c.log=c.log||[]).push(new Date().toISOString()+" approved by Ch@o — proceed with the action");
+  render(); pushBoard();
 }
 function del(){
   if(!editing)return;
