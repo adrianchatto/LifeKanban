@@ -1,0 +1,26 @@
+#!/bin/bash
+# Resolve the project root: this script lives in
+#   <PROJECT>/Kanban Board.app/Contents/MacOS/launch
+HERE="$(cd "$(dirname "$0")" && pwd)"
+PROJ="$(cd "$HERE/../../.." && pwd)"
+PORT="${KANBAN_PORT:-8787}"
+URL="http://127.0.0.1:${PORT}/"
+
+# Is the server already up? If so just open the browser.
+if curl -s -o /dev/null "http://127.0.0.1:${PORT}/api/board"; then
+  open "$URL"
+  exit 0
+fi
+
+# Find a python3
+PY="$(command -v python3 || true)"
+if [ -z "$PY" ]; then
+  osascript -e 'display alert "Kanban Board" message "python3 was not found. Install the Xcode command line tools (xcode-select --install) or Python 3, then try again."'
+  exit 1
+fi
+
+cd "$PROJ"
+# Start the server detached; it opens the browser itself.
+nohup "$PY" "$PROJ/server.py" >"$PROJ/.server.log" 2>&1 &
+sleep 1
+open "$URL"

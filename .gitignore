@@ -1,0 +1,10 @@
+# Runtime / state — not part of the app
+.notify-state.json
+.notify.log
+.server.log
+.board.lock
+*.tmp
+.board.*.tmp
+
+# macOS
+.DS_Store

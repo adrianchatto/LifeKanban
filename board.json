@@ -1,0 +1,61 @@
+{
+  "version": 1,
+  "updated": "2026-06-07T20:14:48Z",
+  "projects": [
+    "General",
+    "NEO-015",
+    "Kanban"
+  ],
+  "next_id": 6,
+  "cards": [
+    {
+      "id": "k-001",
+      "title": "Welcome to your Kanban board",
+      "description": "This is your board. Create cards, drag them between columns, and assign each to Me (Ch@o) or Claude. Cards assigned to Claude get picked up automatically and processed.",
+      "project": "Kanban",
+      "assignee": "Ch@o",
+      "status": "todo",
+      "skill": null,
+      "result_link": null,
+      "created": "2026-06-07T00:00:00Z",
+      "updated": "2026-06-07T20:14:37Z",
+      "log": [
+        "2026-06-07T20:14:37Z due date 2026-06-12"
+      ],
+      "due": "2026-06-12"
+    },
+    {
+      "id": "k-002",
+      "title": "Try assigning a card to Claude",
+      "description": "Make a card, set the assignee to Claude, and leave it in To Do. Within ~15 minutes the worker moves it to Doing, does the work, then Done with a link to the result.",
+      "project": "Kanban",
+      "assignee": "Ch@o",
+      "status": "todo",
+      "skill": null,
+      "result_link": null,
+      "created": "2026-06-07T00:00:00Z",
+      "updated": "2026-06-07T20:14:43Z",
+      "log": [
+        "2026-06-07T20:14:43Z due date 2026-06-08"
+      ],
+      "due": "2026-06-08"
+    },
+    {
+      "id": "k-003",
+      "title": "Example: draft a project status summary",
+      "description": "Write a one-paragraph status summary for a project called NEO-015 covering progress, risks and next steps. Use placeholder content where real data is unknown.",
+      "project": "NEO-015",
+      "assignee": "Claude",
+      "status": "done",
+      "skill": null,
+      "result_link": "results/k-003.md",
+      "created": "2026-06-07T00:00:00Z",
+      "updated": "2026-06-07T20:08:41Z",
+      "log": [
+        "2026-06-07T20:08:15Z claimed by Claude worker",
+        "2026-06-07T20:08:36Z result: results/k-003.md",
+        "2026-06-07T20:08:41Z moved to done"
+      ]
+    }
+  ]
+}

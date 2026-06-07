@@ -1,0 +1,398 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kanban</title>
+<style>
+  :root{
+    --bg:#eef1f7; --panel:#ffffff; --ink:#1b2030; --muted:#737b8c;
+    --line:#e3e7f0; --accent:#3b6cf6; --claude:#7a5cff; --me:#11a06b;
+    --todo:#8a93a6; --doing:#e0a008; --done:#11a06b; --ok:#e0533b;
+    --shadow:0 1px 3px rgba(20,30,60,.07),0 6px 18px rgba(20,30,60,.05);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font:14px/1.5 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+    color:var(--ink);background:var(--bg)}
+  header{display:flex;align-items:center;gap:16px;padding:14px 22px;
+    background:var(--panel);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:5}
+  header h1{font-size:17px;margin:0;font-weight:700;letter-spacing:-.2px}
+  header .dot{width:10px;height:10px;border-radius:50%;background:#cdd3e0;margin-right:-8px}
+  header .dot.live{background:var(--done);box-shadow:0 0 0 3px rgba(17,160,107,.18)}
+  .spacer{flex:1}
+  select,button,input,textarea{font:inherit;color:inherit}
+  select,.btn{border:1px solid var(--line);background:#fff;border-radius:9px;padding:7px 12px;cursor:pointer}
+  .btn.primary{background:var(--accent);color:#fff;border-color:var(--accent);font-weight:600}
+  .btn:hover{filter:brightness(.99)}
+  .board{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;padding:18px 22px;align-items:start}
+  .col{background:rgba(255,255,255,.55);border:1px solid var(--line);border-radius:14px;min-height:120px;
+    display:flex;flex-direction:column}
+  .col h2{font-size:12px;text-transform:uppercase;letter-spacing:.6px;margin:0;padding:13px 15px;
+    display:flex;align-items:center;gap:8px;color:var(--muted)}
+  .col h2 .pill{margin-left:auto;background:#fff;border:1px solid var(--line);border-radius:20px;
+    padding:1px 9px;font-size:11px;color:var(--muted)}
+  .tag{width:9px;height:9px;border-radius:50%}
+  .col[data-status=todo] .tag{background:var(--todo)}
+  .col[data-status=doing] .tag{background:var(--doing)}
+  .col[data-status=done] .tag{background:var(--done)}
+  .col[data-status=needs_ok] .tag{background:var(--ok)}
+  .cards{flex:1;padding:6px 10px 12px;display:flex;flex-direction:column;gap:10px;min-height:60px}
+  .cards.drag-over{background:rgba(59,108,246,.07);border-radius:10px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:11px;padding:12px 13px;
+    box-shadow:var(--shadow);cursor:grab;position:relative}
+  .card:active{cursor:grabbing}
+  .card .ttl{font-weight:600;margin:0 0 6px;font-size:13.5px}
+  .card .desc{color:var(--muted);font-size:12.5px;margin:0 0 9px;
+    display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  .row{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+  .badge{font-size:11px;font-weight:600;border-radius:20px;padding:2px 9px;display:inline-flex;align-items:center;gap:5px}
+  .badge.me{background:rgba(17,160,107,.12);color:var(--me)}
+  .badge.claude{background:rgba(122,92,255,.12);color:var(--claude)}
+  .proj{font-size:11px;color:var(--muted);background:#f1f3f9;border-radius:6px;padding:2px 7px}
+  .due{font-size:11px;font-weight:600;border-radius:6px;padding:2px 7px;display:inline-flex;align-items:center;gap:4px}
+  .due.future{color:var(--muted);background:#f1f3f9}
+  .due.soon{color:#9a6b00;background:rgba(224,160,8,.15)}
+  .due.over{color:#fff;background:var(--ok)}
+  .due.met{color:var(--me);background:rgba(17,160,107,.12)}
+  .reslink{font-size:12px;color:var(--accent);text-decoration:none;font-weight:600;display:inline-flex;gap:4px;margin-top:8px}
+  .reslink:hover{text-decoration:underline}
+  .working{font-size:11px;color:var(--doing);font-weight:600;display:flex;align-items:center;gap:6px;margin-top:6px}
+  .working .spin{width:9px;height:9px;border:2px solid rgba(224,160,8,.3);border-top-color:var(--doing);
+    border-radius:50%;animation:s .8s linear infinite}
+  @keyframes s{to{transform:rotate(360deg)}}
+  .ghost{opacity:.4}
+  /* modal */
+  .scrim{position:fixed;inset:0;background:rgba(20,28,50,.4);display:none;align-items:center;justify-content:center;z-index:20}
+  .scrim.open{display:flex}
+  .modal{background:#fff;border-radius:16px;width:min(520px,92vw);box-shadow:0 20px 60px rgba(10,20,40,.3);
+    padding:22px 24px;max-height:88vh;overflow:auto}
+  .modal h3{margin:0 0 16px;font-size:16px}
+  label{display:block;font-size:12px;font-weight:600;color:var(--muted);margin:12px 0 5px}
+  input[type=text],textarea,.modal select{width:100%;border:1px solid var(--line);border-radius:9px;padding:9px 11px;background:#fbfcfe}
+  textarea{min-height:84px;resize:vertical}
+  .seg{display:inline-flex;border:1px solid var(--line);border-radius:9px;overflow:hidden}
+  .seg button{border:0;background:#fff;padding:8px 16px;border-radius:0;font-weight:600;color:var(--muted)}
+  .seg button.on[data-v="Ch@o"]{background:var(--me);color:#fff}
+  .seg button.on[data-v="Claude"]{background:var(--claude);color:#fff}
+  .modal .actions{display:flex;gap:10px;margin-top:20px;align-items:center}
+  .modal .actions .spacer{flex:1}
+  .danger{color:var(--ok);background:#fff;border:1px solid var(--line)}
+  .log{margin-top:14px;border-top:1px solid var(--line);padding-top:12px;font-size:11.5px;color:var(--muted)}
+  .log div{padding:2px 0}
+  .empty{color:var(--muted);font-size:12px;text-align:center;padding:16px 0;opacity:.7}
+  footer{padding:6px 22px 22px;color:var(--muted);font-size:11.5px}
+</style>
+</head>
+<body>
+<header>
+  <h1>Kanban</h1>
+  <span class="dot" id="livedot" title="connection"></span>
+  <div class="spacer"></div>
+  <select id="projFilter" title="Filter by project"><option value="">All projects</option></select>
+  <select id="whoFilter" title="Filter by owner">
+    <option value="">Everyone</option><option value="Ch@o">Me</option><option value="Claude">Claude</option>
+  </select>
+  <button class="btn" id="alertBtn" title="Turn on desktop alerts for due dates">🔔 Enable alerts</button>
+  <button class="btn primary" id="newBtn">+ New card</button>
+  <a class="btn" id="ghLink" href="https://github.com/adrianchatto/LifeKanban" target="_blank"
+     title="View this project on GitHub" style="text-decoration:none;display:inline-flex;align-items:center;gap:6px">
+    <svg height="15" width="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
+    GitHub
+  </a>
+</header>
+
+<div class="board" id="board"></div>
+<footer id="foot">Loading…</footer>
+
+<div class="scrim" id="scrim">
+  <div class="modal">
+    <h3 id="mTitle">New card</h3>
+    <input type="hidden" id="fId">
+    <label>Title</label>
+    <input type="text" id="fTitle" placeholder="What needs doing?">
+    <label>Description</label>
+    <textarea id="fDesc" placeholder="Detail. For Claude cards, be specific about the deliverable."></textarea>
+    <div class="row" style="gap:24px">
+      <div style="flex:1">
+        <label>Project</label>
+        <input type="text" id="fProject" list="projList" placeholder="General">
+        <datalist id="projList"></datalist>
+      </div>
+      <div>
+        <label>Assignee</label>
+        <div class="seg" id="fAssignee">
+          <button type="button" data-v="Ch@o">Me</button>
+          <button type="button" data-v="Claude">Claude</button>
+        </div>
+      </div>
+    </div>
+    <label>Due date <span style="font-weight:400">(optional)</span></label>
+    <input type="date" id="fDue">
+    <div class="log" id="mLog" style="display:none"></div>
+    <div class="actions">
+      <button class="btn danger" id="delBtn" style="display:none">Delete</button>
+      <div class="spacer"></div>
+      <button class="btn" id="cancelBtn">Cancel</button>
+      <button class="btn primary" id="saveBtn">Save</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const COLUMNS = [
+  {status:"todo",     name:"To Do"},
+  {status:"doing",    name:"Doing"},
+  {status:"needs_ok", name:"Needs OK"},
+  {status:"done",     name:"Done"},
+];
+let board = {cards:[], projects:[]};
+let editing = null, assigneeChoice = "Ch@o", paused = false, dragId = null;
+
+const $ = s => document.querySelector(s);
+
+async function fetchBoard(){
+  try{
+    const r = await fetch("/api/board",{cache:"no-store"});
+    board = await r.json();
+    $("#livedot").classList.add("live");
+    if(!paused) render();
+  }catch(e){ $("#livedot").classList.remove("live"); }
+}
+async function pushBoard(){
+  board.updated = new Date().toISOString();
+  try{ await fetch("/api/board",{method:"POST",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify(board)}); }catch(e){}
+}
+
+function projectsList(){
+  const set = new Set(board.projects||[]);
+  (board.cards||[]).forEach(c=>set.add(c.project||"General"));
+  return [...set].filter(Boolean).sort();
+}
+
+function render(){
+  // filters
+  const pf = $("#projFilter").value, wf = $("#whoFilter").value;
+  const prev = $("#projFilter").value;
+  const opts = ['<option value="">All projects</option>']
+    .concat(projectsList().map(p=>`<option ${p===prev?"selected":""}>${esc(p)}</option>`));
+  $("#projFilter").innerHTML = opts.join("");
+  $("#projFilter").value = pf;
+
+  const cards = (board.cards||[]).filter(c=>
+    (!pf || c.project===pf) && (!wf || c.assignee===wf));
+
+  const html = COLUMNS.map(col=>{
+    const list = cards.filter(c=>c.status===col.status)
+      .sort((a,b)=>(a.created||"").localeCompare(b.created||""));
+    const inner = list.length ? list.map(cardHTML).join("")
+      : `<div class="empty">—</div>`;
+    return `<section class="col" data-status="${col.status}">
+      <h2><span class="tag"></span>${col.name}<span class="pill">${list.length}</span></h2>
+      <div class="cards" data-status="${col.status}">${inner}</div>
+    </section>`;
+  }).join("");
+  $("#board").innerHTML = html;
+  wireDnD();
+
+  const total = (board.cards||[]).length;
+  const claude = (board.cards||[]).filter(c=>c.assignee==="Claude").length;
+  $("#foot").textContent =
+    `${total} cards · ${claude} assigned to Claude · last sync ${new Date().toLocaleTimeString()}`;
+}
+
+function cardHTML(c){
+  const who = c.assignee==="Claude"
+    ? `<span class="badge claude">✦ Claude</span>`
+    : `<span class="badge me">● Me</span>`;
+  let extra = "";
+  if(c.status==="doing" && c.assignee==="Claude")
+    extra = `<div class="working"><span class="spin"></span>Claude is working…</div>`;
+  if(c.result_link)
+    extra += `<a class="reslink" href="/results/${encodeURIComponent(c.result_link.replace(/^results\//,""))}" target="_blank">↗ View result</a>`;
+  if(c.status==="needs_ok")
+    extra += `<div class="working" style="color:var(--ok)">⏸ Waiting for your OK</div>`;
+  return `<article class="card" draggable="true" data-id="${c.id}">
+    <p class="ttl">${esc(c.title)}</p>
+    ${c.description?`<p class="desc">${esc(c.description)}</p>`:""}
+    <div class="row">${who}<span class="proj">${esc(c.project||"General")}</span>${dueBadge(c)}</div>
+    ${extra}
+  </article>`;
+}
+
+/* ---- due dates ---- */
+function startOfDay(d){ d=new Date(d); d.setHours(0,0,0,0); return d; }
+function dueState(c){
+  if(!c.due) return null;
+  const today = startOfDay(new Date());
+  const due = startOfDay(c.due + "T00:00:00");
+  const days = Math.round((due - today)/86400000);
+  if(c.status==="done") return {cls:"met", txt:"Due "+fmtDue(c.due,days)};
+  if(days < 0)  return {cls:"over", txt:(-days)+"d overdue"};
+  if(days === 0) return {cls:"soon", txt:"Due today"};
+  if(days === 1) return {cls:"soon", txt:"Due tomorrow"};
+  if(days <= 3) return {cls:"future", txt:"Due in "+days+"d"};
+  return {cls:"future", txt:"Due "+fmtDue(c.due,days)};
+}
+function fmtDue(iso){
+  const d=new Date(iso+"T00:00:00");
+  return d.toLocaleDateString(undefined,{day:"numeric",month:"short"});
+}
+function dueBadge(c){
+  const s=dueState(c); if(!s) return "";
+  const icon = s.cls==="over"?"⚠":"📅";
+  return `<span class="due ${s.cls}">${icon} ${s.txt}</span>`;
+}
+
+/* ---- desktop notifications (while board is open) ---- */
+const NOTE_KEY = "kanban_notified_v1";
+function notedSet(){ try{return new Set(JSON.parse(localStorage.getItem(NOTE_KEY)||"[]"));}catch(e){return new Set();} }
+function saveNoted(set){ try{localStorage.setItem(NOTE_KEY, JSON.stringify([...set].slice(-500)));}catch(e){} }
+function updateAlertBtn(){
+  const b=$("#alertBtn");
+  if(!("Notification" in window)){ b.style.display="none"; return; }
+  if(Notification.permission==="granted"){ b.textContent="🔔 Alerts on"; b.disabled=true; b.style.opacity=.6; }
+  else if(Notification.permission==="denied"){ b.textContent="🔕 Alerts blocked"; b.disabled=true; b.style.opacity=.6; }
+}
+function checkNotifications(){
+  if(!("Notification" in window) || Notification.permission!=="granted") return;
+  const today = startOfDay(new Date());
+  const noted = notedSet();
+  (board.cards||[]).forEach(c=>{
+    if(!c.due || c.status==="done") return;
+    const due = startOfDay(c.due+"T00:00:00");
+    const days = Math.round((due-today)/86400000);
+    let key=null, body=null;
+    if(days < 0){ key="over|"+c.id+"|"+todayISO(); body=c.title+" is "+(-days)+" day(s) overdue."; }
+    else if(days <= 1){ key="soon|"+c.id+"|"+c.due; body=c.title+(days===0?" is due today.":" is due tomorrow."); }
+    if(key && !noted.has(key)){
+      new Notification(days<0?"⚠ Overdue card":"📅 Due soon",
+        {body:body+"  ("+c.project+")", tag:c.id});
+      noted.add(key);
+    }
+  });
+  saveNoted(noted);
+}
+function todayISO(){ const d=new Date(); return d.toISOString().slice(0,10); }
+
+function wireDnD(){
+  document.querySelectorAll(".card").forEach(el=>{
+    el.addEventListener("dragstart",e=>{
+      dragId = el.dataset.id; paused=true; el.classList.add("ghost");
+      e.dataTransfer.effectAllowed="move";
+    });
+    el.addEventListener("dragend",()=>{ el.classList.remove("ghost"); setTimeout(()=>paused=false,400); });
+    el.addEventListener("click",()=>openEdit(el.dataset.id));
+  });
+  document.querySelectorAll(".cards").forEach(zone=>{
+    zone.addEventListener("dragover",e=>{e.preventDefault();zone.classList.add("drag-over");});
+    zone.addEventListener("dragleave",()=>zone.classList.remove("drag-over"));
+    zone.addEventListener("drop",e=>{
+      e.preventDefault(); zone.classList.remove("drag-over");
+      const c = board.cards.find(x=>x.id===dragId);
+      if(c && c.status!==zone.dataset.status){
+        c.status = zone.dataset.status; c.updated = new Date().toISOString();
+        (c.log=c.log||[]).push(new Date().toISOString()+" moved to "+c.status+" (manual)");
+        render(); pushBoard();
+      }
+      dragId=null;
+    });
+  });
+}
+
+/* ---- modal ---- */
+function openNew(){
+  editing=null; assigneeChoice="Ch@o";
+  $("#mTitle").textContent="New card";
+  $("#fId").value=""; $("#fTitle").value=""; $("#fDesc").value="";
+  $("#fProject").value=$("#projFilter").value||"General";
+  $("#fDue").value="";
+  $("#delBtn").style.display="none"; $("#mLog").style.display="none";
+  setSeg(); refreshDatalist(); openScrim();
+}
+function openEdit(id){
+  const c = board.cards.find(x=>x.id===id); if(!c)return;
+  editing=id; assigneeChoice=c.assignee;
+  $("#mTitle").textContent="Edit card";
+  $("#fId").value=c.id; $("#fTitle").value=c.title; $("#fDesc").value=c.description||"";
+  $("#fProject").value=c.project||"General";
+  $("#fDue").value=c.due||"";
+  $("#delBtn").style.display="inline-block";
+  setSeg(); refreshDatalist();
+  const log = c.log||[];
+  $("#mLog").style.display = log.length?"block":"none";
+  $("#mLog").innerHTML = "<strong>Activity</strong>"+log.slice(-8).map(l=>`<div>${esc(l)}</div>`).join("");
+  openScrim();
+}
+function refreshDatalist(){
+  $("#projList").innerHTML = projectsList().map(p=>`<option value="${esc(p)}">`).join("");
+}
+function setSeg(){
+  document.querySelectorAll("#fAssignee button").forEach(b=>
+    b.classList.toggle("on", b.dataset.v===assigneeChoice));
+}
+function openScrim(){ paused=true; $("#scrim").classList.add("open"); $("#fTitle").focus(); }
+function closeScrim(){ $("#scrim").classList.remove("open"); setTimeout(()=>paused=false,300); }
+
+function save(){
+  const title=$("#fTitle").value.trim(); if(!title){$("#fTitle").focus();return;}
+  const desc=$("#fDesc").value.trim();
+  const project=$("#fProject").value.trim()||"General";
+  const due=$("#fDue").value||null;
+  if(editing){
+    const c=board.cards.find(x=>x.id===editing);
+    c.title=title; c.description=desc; c.project=project; c.due=due;
+    if(c.assignee!==assigneeChoice){
+      (c.log=c.log||[]).push(new Date().toISOString()+" assigned to "+assigneeChoice);
+      c.assignee=assigneeChoice;
+    }
+    c.updated=new Date().toISOString();
+  }else{
+    const n=(board.next_id||1);
+    board.next_id=n+1;
+    board.cards.push({
+      id:"k-"+String(n).padStart(3,"0"),
+      title, description:desc, project, assignee:assigneeChoice,
+      status:"todo", due, skill:null, result_link:null,
+      created:new Date().toISOString(), updated:new Date().toISOString(),
+      log:["created"]
+    });
+  }
+  if(!(board.projects||[]).includes(project))(board.projects=board.projects||[]).push(project);
+  closeScrim(); render(); pushBoard();
+}
+function del(){
+  if(!editing)return;
+  if(!confirm("Delete this card?"))return;
+  board.cards=board.cards.filter(x=>x.id!==editing);
+  closeScrim(); render(); pushBoard();
+}
+function esc(s){return (s==null?"":String(s)).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
+
+/* events */
+$("#newBtn").onclick=openNew;
+$("#saveBtn").onclick=save;
+$("#cancelBtn").onclick=closeScrim;
+$("#delBtn").onclick=del;
+$("#scrim").addEventListener("click",e=>{if(e.target===$("#scrim"))closeScrim();});
+document.querySelectorAll("#fAssignee button").forEach(b=>
+  b.onclick=()=>{assigneeChoice=b.dataset.v;setSeg();});
+$("#projFilter").onchange=render;
+$("#whoFilter").onchange=render;
+$("#alertBtn").onclick=()=>{
+  if(!("Notification" in window)) return;
+  Notification.requestPermission().then(p=>{
+    updateAlertBtn();
+    if(p==="granted"){ new Notification("Kanban alerts on",{body:"You'll be notified about due and overdue cards."}); checkNotifications(); }
+  });
+};
+document.addEventListener("keydown",e=>{if(e.key==="Escape")closeScrim();});
+
+updateAlertBtn();
+fetchBoard();
+setInterval(fetchBoard, 3000);
+setInterval(checkNotifications, 60000);
+setTimeout(checkNotifications, 2000);
+</script>
+</body>
+</html>
