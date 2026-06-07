@@ -85,6 +85,31 @@
   .seg button{border:0;background:#fff;padding:8px 16px;border-radius:0;font-weight:600;color:var(--muted)}
   .seg button.on[data-v="Ch@o"]{background:var(--me);color:#fff}
   .seg button.on[data-v="Claude"]{background:var(--claude);color:#fff}
+  .viewseg button.on{background:var(--accent);color:#fff}
+  #refreshBtn.spin-now{pointer-events:none}
+  #refreshBtn.spin-now span{display:inline-block;animation:s .6s linear infinite}
+  /* calendar */
+  .cal{padding:18px 22px}
+  .calhead{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+  .calhead h2{font-size:16px;margin:0;min-width:170px;font-weight:700}
+  .calnav{border:1px solid var(--line);background:#fff;border-radius:8px;width:30px;height:30px;cursor:pointer;font-size:15px}
+  .calnav:hover{background:#f1f3f9}
+  .calgrid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
+  .caldow{font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);text-align:center;padding:2px 0 6px;font-weight:600}
+  .calcell{background:rgba(255,255,255,.6);border:1px solid var(--line);border-radius:10px;min-height:104px;
+    padding:6px;display:flex;flex-direction:column;gap:3px;overflow:hidden}
+  .calcell.other{opacity:.4}
+  .calcell.today{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+  .caldate{font-size:11px;color:var(--muted);font-weight:600;align-self:flex-end;line-height:1}
+  .calcell.today .caldate{color:var(--accent)}
+  .calchip{font-size:11px;border-radius:6px;padding:2px 6px;cursor:pointer;white-space:nowrap;
+    overflow:hidden;text-overflow:ellipsis;background:#eef1f7;border-left:3px solid transparent}
+  .calchip:hover{filter:brightness(.97)}
+  .calchip.over{background:var(--ok);color:#fff}
+  .calchip.soon{background:rgba(224,160,8,.22);color:#9a6b00}
+  .calchip.done{text-decoration:line-through;opacity:.55}
+  .calchip.claude{border-left-color:var(--claude)}
+  .calnote{font-size:12px;color:var(--muted);margin-top:12px}
   .modal .actions{display:flex;gap:10px;margin-top:20px;align-items:center}
   .modal .actions .spacer{flex:1}
   .danger{color:var(--ok);background:#fff;border:1px solid var(--line)}
@@ -103,6 +128,11 @@
   <select id="whoFilter" title="Filter by owner">
     <option value="">Everyone</option><option value="Ch@o">Me</option><option value="Claude">Claude</option>
   </select>
+  <div class="seg viewseg" id="viewToggle">
+    <button type="button" data-v="board">Board</button>
+    <button type="button" data-v="calendar">Calendar</button>
+  </div>
+  <button class="btn" id="refreshBtn" title="Refresh now">↻ Refresh</button>
   <button class="btn" id="alertBtn" title="Turn on desktop alerts for due dates">🔔 Enable alerts</button>
   <button class="btn primary" id="newBtn">+ New card</button>
   <a class="btn" id="ghLink" href="https://github.com/adrianchatto/LifeKanban" target="_blank"
@@ -113,6 +143,7 @@
 </header>
 
 <div class="board" id="board"></div>
+<div class="cal" id="calendar" style="display:none"></div>
 <footer id="foot">Loading…</footer>
 
 <div class="scrim" id="scrim">
@@ -159,6 +190,8 @@ const COLUMNS = [
 let board = {cards:[], projects:[]};
 let editing = null, assigneeChoice = "Ch@o", paused = false, dragId = null;
 let showDone = (()=>{ try{return localStorage.getItem("kanban_showdone")==="1";}catch(e){return false;} })();
+let view = (()=>{ try{return localStorage.getItem("kanban_view")||"board";}catch(e){return "board";} })();
+let calCursor = (()=>{ const d=new Date(); return {y:d.getFullYear(), m:d.getMonth()}; })();
 
 const $ = s => document.querySelector(s);
 
@@ -194,37 +227,15 @@ function render(){
   const cards = (board.cards||[]).filter(c=>
     (!pf || c.project===pf) && (!wf || c.assignee===wf));
 
-  const html = COLUMNS.map(col=>{
-    const isDone = col.status==="done";
-    let list = cards.filter(c=>c.status===col.status);
-    list.sort(isDone
-      ? (a,b)=>(b.updated||"").localeCompare(a.updated||"")   // newest-done first
-      : (a,b)=>(a.created||"").localeCompare(b.created||""));
-    const inner = list.length ? list.map(cardHTML).join("")
-      : `<div class="empty">—</div>`;
-    let head;
-    if(isDone){
-      const toggle = list.length
-        ? `<button class="donetoggle">${showDone?"Hide":"Show "+list.length}</button>` : "";
-      head = `<h2><span class="tag"></span>${col.name}${toggle}<span class="pill">${list.length}</span></h2>`;
-    } else {
-      head = `<h2><span class="tag"></span>${col.name}<span class="pill">${list.length}</span></h2>`;
-    }
-    const collapsed = (isDone && !showDone) ? " collapsed" : "";
-    return `<section class="col" data-status="${col.status}">
-      ${head}
-      <div class="cards${collapsed}" data-status="${col.status}">${inner}</div>
-    </section>`;
-  }).join("");
-  $("#board").innerHTML = html;
-  wireDnD();
-  const dt = document.querySelector(".donetoggle");
-  if(dt) dt.onclick = (e)=>{
-    e.stopPropagation();
-    showDone = !showDone;
-    try{ localStorage.setItem("kanban_showdone", showDone?"1":"0"); }catch(_){}
-    render();
-  };
+  if(view==="calendar"){
+    $("#board").style.display="none";
+    $("#calendar").style.display="block";
+    renderCalendar(cards);
+  } else {
+    $("#calendar").style.display="none";
+    $("#board").style.display="grid";
+    renderBoard(cards);
+  }
 
   const total = (board.cards||[]).length;
   const claude = (board.cards||[]).filter(c=>c.assignee==="Claude").length;
@@ -305,6 +316,97 @@ function checkNotifications(){
   saveNoted(noted);
 }
 function todayISO(){ const d=new Date(); return d.toISOString().slice(0,10); }
+
+function renderBoard(cards){
+  const html = COLUMNS.map(col=>{
+    const isDone = col.status==="done";
+    let list = cards.filter(c=>c.status===col.status);
+    list.sort(isDone
+      ? (a,b)=>(b.updated||"").localeCompare(a.updated||"")
+      : (a,b)=>(a.created||"").localeCompare(b.created||""));
+    const inner = list.length ? list.map(cardHTML).join("")
+      : `<div class="empty">—</div>`;
+    let head;
+    if(isDone){
+      const toggle = list.length
+        ? `<button class="donetoggle">${showDone?"Hide":"Show "+list.length}</button>` : "";
+      head = `<h2><span class="tag"></span>${col.name}${toggle}<span class="pill">${list.length}</span></h2>`;
+    } else {
+      head = `<h2><span class="tag"></span>${col.name}<span class="pill">${list.length}</span></h2>`;
+    }
+    const collapsed = (isDone && !showDone) ? " collapsed" : "";
+    return `<section class="col" data-status="${col.status}">
+      ${head}
+      <div class="cards${collapsed}" data-status="${col.status}">${inner}</div>
+    </section>`;
+  }).join("");
+  $("#board").innerHTML = html;
+  wireDnD();
+  const dt = document.querySelector(".donetoggle");
+  if(dt) dt.onclick = (e)=>{
+    e.stopPropagation();
+    showDone = !showDone;
+    try{ localStorage.setItem("kanban_showdone", showDone?"1":"0"); }catch(_){}
+    render();
+  };
+}
+
+const MONTHS = ["January","February","March","April","May","June","July",
+  "August","September","October","November","December"];
+const DOW = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
+
+function renderCalendar(cards){
+  const {y,m} = calCursor;
+  const today = startOfDay(new Date());
+  // index due cards by ISO date
+  const byDate = {};
+  cards.filter(c=>c.due).forEach(c=>{ (byDate[c.due]=byDate[c.due]||[]).push(c); });
+  const noDate = cards.filter(c=>!c.due && c.status!=="done").length;
+
+  // grid start = Monday on/before the 1st
+  const first = new Date(y, m, 1);
+  let offset = (first.getDay()+6)%7;  // Mon=0
+  const start = new Date(y, m, 1-offset);
+
+  let cells = "";
+  for(let i=0;i<42;i++){
+    const d = new Date(start.getFullYear(), start.getMonth(), start.getDate()+i);
+    const iso = d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+    const other = d.getMonth()!==m ? " other":"";
+    const isToday = startOfDay(d).getTime()===today.getTime() ? " today":"";
+    const list = (byDate[iso]||[]).slice().sort((a,b)=>(a.title||"").localeCompare(b.title||""));
+    const chips = list.map(c=>{
+      let cls="calchip";
+      if(c.status==="done") cls+=" done";
+      else { const days=Math.round((startOfDay(iso+"T00:00:00")-today)/86400000);
+        if(days<0) cls+=" over"; else if(days<=1) cls+=" soon"; }
+      if(c.assignee==="Claude") cls+=" claude";
+      return `<div class="${cls}" data-id="${c.id}" title="${esc(c.title)}">${esc(c.title)}</div>`;
+    }).join("");
+    cells += `<div class="calcell${other}${isToday}"><span class="caldate">${d.getDate()}</span>${chips}</div>`;
+  }
+  const dows = DOW.map(x=>`<div class="caldow">${x}</div>`).join("");
+  $("#calendar").innerHTML = `
+    <div class="calhead">
+      <button class="calnav" id="calPrev">‹</button>
+      <button class="calnav" id="calNext">›</button>
+      <h2>${MONTHS[m]} ${y}</h2>
+      <button class="btn" id="calToday">Today</button>
+    </div>
+    <div class="calgrid">${dows}</div>
+    <div class="calgrid">${cells}</div>
+    ${noDate?`<p class="calnote">${noDate} card(s) without a due date aren't shown here — switch to Board to see them.</p>`:""}`;
+  document.querySelectorAll("#calendar .calchip").forEach(el=>
+    el.onclick=()=>openEdit(el.dataset.id));
+  $("#calPrev").onclick=()=>{ calCursor = stepMonth(calCursor,-1); render(); };
+  $("#calNext").onclick=()=>{ calCursor = stepMonth(calCursor, 1); render(); };
+  $("#calToday").onclick=()=>{ const n=new Date(); calCursor={y:n.getFullYear(),m:n.getMonth()}; render(); };
+}
+function stepMonth(c,delta){
+  let m=c.m+delta, y=c.y;
+  if(m<0){m=11;y--;} if(m>11){m=0;y++;}
+  return {y,m};
+}
 
 function wireDnD(){
   document.querySelectorAll(".card").forEach(el=>{
@@ -419,6 +521,20 @@ $("#alertBtn").onclick=()=>{
 };
 document.addEventListener("keydown",e=>{if(e.key==="Escape")closeScrim();});
 
+function setViewToggle(){
+  document.querySelectorAll("#viewToggle button").forEach(b=>
+    b.classList.toggle("on", b.dataset.v===view));
+}
+document.querySelectorAll("#viewToggle button").forEach(b=>
+  b.onclick=()=>{ view=b.dataset.v; try{localStorage.setItem("kanban_view",view);}catch(_){}
+    setViewToggle(); render(); });
+$("#refreshBtn").onclick=()=>{
+  const b=$("#refreshBtn"); b.classList.add("spin-now"); b.innerHTML='<span>↻</span> Refresh';
+  fetchBoard();
+  setTimeout(()=>{ b.classList.remove("spin-now"); b.textContent="↻ Refresh"; }, 650);
+};
+
+setViewToggle();
 updateAlertBtn();
 fetchBoard();
 setInterval(fetchBoard, 3000);

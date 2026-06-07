@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated": "2026-06-07T20:48:48Z",
+  "updated": "2026-06-07T20:49:06.279Z",
   "projects": [
     "General",
     "NEO-015",
@@ -98,11 +98,11 @@
       "project": "General",
       "assignee": "Ch@o",
       "status": "todo",
-      "due": null,
+      "due": "2026-06-08",
       "skill": null,
       "result_link": null,
       "created": "2026-06-07T20:48:48Z",
-      "updated": "2026-06-07T20:48:48Z",
+      "updated": "2026-06-07T20:49:06.276Z",
       "log": [
         "created via skill"
       ]
