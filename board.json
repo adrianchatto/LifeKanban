@@ -1,12 +1,12 @@
 {
   "version": 1,
-  "updated": "2026-06-07T20:49:06.279Z",
+  "updated": "2026-06-07T20:58:06Z",
   "projects": [
     "General",
     "NEO-015",
     "Kanban"
   ],
-  "next_id": 10,
+  "next_id": 13,
   "cards": [
     {
       "id": "k-001",
@@ -105,6 +105,22 @@
       "updated": "2026-06-07T20:49:06.276Z",
       "log": [
         "created via skill"
+      ]
+    },
+    {
+      "id": "k-010",
+      "title": "Port Support-Shere to Azure",
+      "description": "Take the Support-Shere from Lovable to Azure",
+      "project": "General",
+      "assignee": "Ch@o",
+      "status": "todo",
+      "due": "2026-06-12",
+      "skill": null,
+      "result_link": null,
+      "created": "2026-06-07T20:54:54.201Z",
+      "updated": "2026-06-07T20:55:17.986Z",
+      "log": [
+        "created"
       ]
     }
   ]

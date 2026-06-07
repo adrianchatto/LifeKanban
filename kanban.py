@@ -38,6 +38,30 @@ def now():
     return datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
 
 
+def parse_recur(s):
+    """Compact recurrence: 'daily' | 'weekdays' | 'weekly:0,2' (Mon=0..Sun=6)
+    | 'monthly:15'. Returns a dict or None."""
+    if not s:
+        return None
+    s = s.strip().lower()
+    if s in ("daily", "weekdays"):
+        return {"freq": s}
+    if s.startswith("weekly"):
+        days = []
+        if ":" in s:
+            days = [int(x) for x in s.split(":", 1)[1].split(",") if x.strip().isdigit()]
+        return {"freq": "weekly", "days": days}
+    if s.startswith("monthly"):
+        day = 1
+        if ":" in s:
+            try:
+                day = int(s.split(":", 1)[1])
+            except ValueError:
+                day = 1
+        return {"freq": "monthly", "day": day}
+    return None
+
+
 class Lock:
     """Tiny cross-process lock via atomic directory creation."""
 
@@ -118,6 +142,7 @@ def cmd_add(args):
             "assignee": flt.get("assignee", "Ch@o"),
             "status": flt.get("status", "todo"),
             "due": flt.get("due") or None,
+            "recur": parse_recur(flt.get("recur")),
             "skill": flt.get("skill"),
             "result_link": None,
             "created": now(),
@@ -214,6 +239,8 @@ def cmd_addb64(args):
             "assignee": spec.get("assignee", "Ch@o"),
             "status": spec.get("status", "todo"),
             "due": spec.get("due") or None,
+            "recur": spec.get("recur") if isinstance(spec.get("recur"), dict)
+                     else parse_recur(spec.get("recur")),
             "skill": spec.get("skill"),
             "result_link": None,
             "created": now(),

@@ -52,6 +52,11 @@ prefer Method A — it's simpler.)
   (e.g. `NEO-015`). Valid statuses: `todo`, `doing`, `done`, `needs_ok`.
 - **due**: only if he gives one. "midnight tonight"/"by end of today" → today's
   date (date granularity). Get today's date from the system, don't guess.
+- **recur** (recurring tasks): only when he asks for something repeating. Pass
+  `--recur` compact (`daily` | `weekdays` | `weekly:0,2` with Mon=0..Sun=6 |
+  `monthly:15`), or in an addb64 payload a `recur` object
+  `{"freq":"weekly","days":[0,2]}`. Recurring cards show in the Calendar view
+  (expanded onto each occurrence), not in the board columns.
 
 ## Other operations (same CLI)
 
