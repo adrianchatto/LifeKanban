@@ -57,6 +57,12 @@ prefer Method A — it's simpler.)
   `monthly:15`), or in an addb64 payload a `recur` object
   `{"freq":"weekly","days":[0,2]}`. Recurring cards show in the Calendar view
   (expanded onto each occurrence), not in the board columns.
+- **subtasks**: an addb64 payload may include `subtasks`:
+  `[{"text":"...","done":false}, ...]`. Shown as a checklist on the card.
+- **projects**: cards carry a `project`. The board's project list lives in
+  `board.projects`. He manages projects (add/remove) in the UI; if he asks you to
+  add a card under a new project, just set the project name — it's added
+  automatically.
 
 ## Other operations (same CLI)
 
@@ -69,10 +75,11 @@ python3 kanban.py set-result <id> <results/<id>.md>
 python3 kanban.py claim-next        # worker: oldest Claude+todo -> doing
 ```
 
-## Sync to GitHub (do this after any change you make)
+## Sync to GitHub — ALWAYS do this after any change
 
-After adding/changing cards in a chat, commit and push so the board is backed up
-on GitHub. Run the sync helper on the Mac:
+Ch@o wants the board **always** kept in sync with GitHub. After ANY change you
+make (cards, projects, subtasks, recurrence), commit and push. See the
+`github-sync` skill for detail. Run the sync helper on the Mac:
 
 - Method A (folder mounted): `bash "<KanbanFolder>/git_sync.sh"`
 - Method B (any session): osascript →

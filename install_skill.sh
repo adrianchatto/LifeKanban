@@ -1,14 +1,18 @@
 #!/bin/bash
-# Install the kanban skill into the personal global skills dir so it triggers
+# Install all Kanban skills into the personal global skills dir so they trigger
 # in any Claude session, not just when the Kanban folder is open.
-SRC="/Users/adrianchatto/Documents/Claude/Projects/Kanban/skills/kanban/SKILL.md"
-DEST="$HOME/.claude/skills/kanban"
+SRCDIR="/Users/adrianchatto/Documents/Claude/Projects/Kanban/skills"
+DEST="$HOME/.claude/skills"
 OUT="/Users/adrianchatto/Documents/Claude/Projects/Kanban/.install-skill-result.txt"
 {
   mkdir -p "$DEST"
-  cp "$SRC" "$DEST/SKILL.md" && echo "installed: $DEST/SKILL.md"
-  echo "--- contents ---"
+  for d in "$SRCDIR"/*/ ; do
+    name="$(basename "$d")"
+    [ "$name" = "_template" ] && continue
+    [ -f "$d/SKILL.md" ] || continue
+    mkdir -p "$DEST/$name"
+    cp "$d/SKILL.md" "$DEST/$name/SKILL.md" && echo "installed: $name"
+  done
+  echo "--- now in $DEST ---"
   ls -la "$DEST"
-  echo "--- existing ~/.claude skill locations (for reference) ---"
-  ls -la "$HOME/.claude/skills" 2>/dev/null || echo "(no ~/.claude/skills)"
 } > "$OUT" 2>&1

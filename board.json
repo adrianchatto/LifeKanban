@@ -1,12 +1,12 @@
 {
   "version": 1,
-  "updated": "2026-06-07T21:03:54Z",
+  "updated": "2026-06-07T21:04:45.639Z",
   "projects": [
     "General",
     "NEO-015",
     "Kanban"
   ],
-  "next_id": 15,
+  "next_id": 18,
   "cards": [
     {
       "id": "k-001",
@@ -157,6 +157,42 @@
         "2026-06-07T21:03:43Z result: results/k-014.md",
         "2026-06-07T21:03:49Z Diagnosed: Notion connector is installed but unauthenticated (OAuth not completed). Not a code bug. Fix needs an interactive browser authorisation only Ch@o can do. Steps documented in results/k-014.md.",
         "2026-06-07T21:03:54Z moved to needs_ok"
+      ]
+    },
+    {
+      "id": "k-015",
+      "title": "Get Hair cut",
+      "description": "",
+      "project": "General",
+      "assignee": "Ch@o",
+      "status": "todo",
+      "due": "2026-06-12",
+      "recur": null,
+      "subtasks": [],
+      "skill": null,
+      "result_link": null,
+      "created": "2026-06-07T21:04:30.638Z",
+      "updated": "2026-06-07T21:04:30.639Z",
+      "log": [
+        "created"
+      ]
+    },
+    {
+      "id": "k-017",
+      "title": "Get Car Washed",
+      "description": "",
+      "project": "General",
+      "assignee": "Ch@o",
+      "status": "todo",
+      "due": "2026-06-12",
+      "recur": null,
+      "subtasks": [],
+      "skill": null,
+      "result_link": null,
+      "created": "2026-06-07T21:04:45.638Z",
+      "updated": "2026-06-07T21:04:45.638Z",
+      "log": [
+        "created"
       ]
     }
   ]

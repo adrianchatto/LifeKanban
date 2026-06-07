@@ -242,6 +242,7 @@ def cmd_addb64(args):
             "due": spec.get("due") or None,
             "recur": spec.get("recur") if isinstance(spec.get("recur"), dict)
                      else parse_recur(spec.get("recur")),
+            "subtasks": spec.get("subtasks") or [],
             "skill": spec.get("skill"),
             "result_link": None,
             "created": now(),
