@@ -25,7 +25,12 @@ PORT = int(os.environ.get("KANBAN_PORT", "8787"))
 
 MIME = {".md": "text/markdown; charset=utf-8", ".txt": "text/plain; charset=utf-8",
         ".html": "text/html; charset=utf-8", ".json": "application/json",
-        ".pdf": "application/pdf", ".png": "image/png", ".csv": "text/csv"}
+        ".pdf": "application/pdf", ".png": "image/png", ".csv": "text/csv",
+        ".webmanifest": "application/manifest+json", ".ico": "image/x-icon"}
+
+# Static files served from the project root (for PWA install)
+STATIC = ("manifest.webmanifest", "icon-192.png", "icon-512.png",
+          "icon-maskable-512.png", "favicon.ico")
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -60,6 +65,16 @@ class Handler(BaseHTTPRequestHandler):
             return
         if path.startswith("/results/"):
             self._serve_result(path[len("/results/"):])
+            return
+        name = path.lstrip("/")
+        if name in STATIC:
+            fp = os.path.join(ROOT, name)
+            if os.path.exists(fp):
+                ext = os.path.splitext(fp)[1].lower()
+                with open(fp, "rb") as f:
+                    self._send(200, f.read(), MIME.get(ext, "application/octet-stream"))
+                return
+            self._send(404, "not found", "text/plain")
             return
         self._send(404, "not found", "text/plain")
 

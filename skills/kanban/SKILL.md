@@ -1,91 +1,91 @@
 ---
 name: kanban
 description: >
-  Manage Ch@o's Kanban board from chat. Use whenever Ch@o says "build an action
-  for that", "add that to my board", "put a card on the board", "what's on my
-  board", "process my board", or asks to move/assign/complete a Kanban card.
-  The board lives in the Kanban project folder and is the single source of truth.
+  Add, move, and manage cards on Ch@o's personal Kanban board from ANY Claude
+  session. Use whenever Ch@o says "add this to my Kanban board", "add <x> to my
+  kanban", "put <x> on my board", "build an action for that", "what's on my
+  board", "process my board", or asks to move/assign/complete/schedule a card.
 ---
 
-# Kanban board control
+# Kanban board control (works from any session)
 
-Ch@o's board is a folder of plain files. The single source of truth is
-`board.json` in the Kanban project folder. A local web app renders it; a
-scheduled worker processes cards assigned to Claude. Everything you do goes
-through the same CLI so the UI and worker stay consistent.
+Ch@o keeps a personal Kanban board. It is a set of files on his Mac at the
+absolute path:
 
-## Where things are
+    /Users/adrianchatto/Documents/Claude/Projects/Kanban
 
-- `board.json` — the cards.
-- `kanban.py` — the CLI. **Always use it**; never hand-edit `board.json`.
-- `results/` — where you save deliverables; the board links to them.
-- `server.py`, `index.html`, `Kanban Board.app` — the app (don't touch when managing cards).
+The single source of truth is `board.json` there. A local web app renders it
+(http://127.0.0.1:8787). **Always go through `kanban.py` — never hand-edit
+board.json.** The board is on GitHub at https://github.com/adrianchatto/LifeKanban
+and changes should be synced there (see "Sync to GitHub" below).
 
-Run the CLI from the Kanban folder, e.g. `python3 kanban.py list`.
+## Adding a card — pick the method that fits the session
 
-## Card shape
-
-`id, title, description, project, assignee (Ch@o|Claude), status
-(todo|doing|done|needs_ok), skill, result_link, created, updated, log[]`.
-
-## The two phrases that matter
-
-**"Build an action for that"** (or "add that to my board") → create a card.
-Capture what was being discussed into a clear, self-contained title +
-description, pick the project, and set the assignee:
-- If Ch@o will do it → `--assignee Ch@o`.
-- If you should do it → `--assignee Claude` (the worker will pick it up).
+**Method A — the Kanban folder is mounted in this session** (you can see it under
+your working/connected folders). Run the CLI directly:
 
 ```
-python3 kanban.py add "Draft NEO-015 weekly status" \
-  --desc "One-paragraph status: progress, risks, next steps. Save as .docx." \
-  --project NEO-015 --assignee Claude
+python3 "<KanbanFolder>/kanban.py" add "Pay for parking" \
+  --desc "..." --project General --assignee "Ch@o" [--due YYYY-MM-DD]
 ```
 
-**"Process my board"** → run the worker loop below now, in this session,
-instead of waiting for the schedule.
+**Method B — any other session (folder not mounted).** Use the "Control your Mac"
+tool (osascript) to run the CLI on the real path. To avoid shell-quoting bugs,
+encode the card as one URL-safe base64 JSON argument and call `addb64`:
 
-## Worker loop (processing Claude cards)
+1. Build the JSON object (only `title` is required):
+   `{"title": "...", "description": "...", "project": "General",
+     "assignee": "Ch@o", "due": "YYYY-MM-DD or omit"}`
+2. URL-safe base64-encode that JSON → a single token with no spaces/quotes.
+3. Run, via the osascript tool:
+   `do shell script "/usr/bin/python3 /Users/adrianchatto/Documents/Claude/Projects/Kanban/kanban.py addb64 <ENCODED>"`
 
-Repeat until no Claude `todo` cards remain:
+The encoded argument has no spaces, pipes, `$`, or quotes, so it passes through
+osascript cleanly. (If you have a sandboxed Linux shell with the folder mounted,
+prefer Method A — it's simpler.)
 
-1. `python3 kanban.py claim-next` — atomically moves the oldest Claude+todo
-   card to `doing` and prints it. Stop if it prints `null`.
-2. Do the work the card describes. Reuse a matching skill in `skills/` if one
-   exists; otherwise just do the task well. Honour Ch@o's writing rules.
-3. Save the deliverable to `results/<id>.<ext>` (markdown is rendered nicely by
-   the board; .docx/.pdf/.xlsx also link and download). Then:
-   `python3 kanban.py set-result <id> results/<id>.md`
-4. Move to done: `python3 kanban.py move <id> done`.
+## Choosing the fields
 
-### Pause-for-confirmation rule (important)
+- **assignee**: default `Ch@o` (his own to-dos). Use `Claude` only when he wants
+  *you* to do the task — the background worker then picks it up.
+- **project**: `General` for personal errands; otherwise the project he names
+  (e.g. `NEO-015`). Valid statuses: `todo`, `doing`, `done`, `needs_ok`.
+- **due**: only if he gives one. "midnight tonight"/"by end of today" → today's
+  date (date granularity). Get today's date from the system, don't guess.
 
-If completing a card requires a **risky or irreversible action** — sending an
-email, posting a message, publishing, deleting, moving money, anything external
-that can't be undone — do **not** do that step. Instead:
+## Other operations (same CLI)
 
-1. Do all the safe prep (draft the email, prepare the file, etc.) and save it to
-   `results/<id>...`.
-2. `python3 kanban.py set-result <id> results/<id>.md`
-3. `python3 kanban.py log <id> "Prepared. NEEDS OK before <the irreversible step>."`
-4. `python3 kanban.py move <id> needs_ok`
+```
+python3 kanban.py list [--assignee Claude] [--status todo]
+python3 kanban.py move <id> <todo|doing|done|needs_ok>
+python3 kanban.py assign <id> <Ch@o|Claude>
+python3 kanban.py set-due <id> <YYYY-MM-DD|clear>
+python3 kanban.py set-result <id> <results/<id>.md>
+python3 kanban.py claim-next        # worker: oldest Claude+todo -> doing
+```
 
-The card sits in the **Needs OK** column until Ch@o gives an explicit go-ahead.
-This matches Ch@o's standing rule: never send, publish, or delete without
-explicit confirmation in the current conversation.
+## Sync to GitHub (do this after any change you make)
 
-## Turning a repeated action into a reusable skill
+After adding/changing cards in a chat, commit and push so the board is backed up
+on GitHub. Run the sync helper on the Mac:
 
-When Ch@o asks you to "make a skill" for an action, or you notice the same kind
-of card recurring, copy `skills/_template/SKILL.md` to
-`skills/<action-name>/SKILL.md`, fill it in, and reference that skill's name in
-the card's `skill` field via the CLI flag `--skill <name>` on `add`. To make a
-skill available globally in Cowork (not just this folder) it must live in the
-Cowork skills directory — tell Ch@o and offer to register it there.
+- Method A (folder mounted): `bash "<KanbanFolder>/git_sync.sh"`
+- Method B (any session): osascript →
+  `do shell script "bash /Users/adrianchatto/Documents/Claude/Projects/Kanban/git_sync.sh"`
 
-## Notes
+The helper commits everything and pushes to `origin main` using Ch@o's stored
+git credentials. If the push fails (no credentials on that machine), tell him —
+the commit is still saved locally. Do NOT handle tokens or passwords yourself.
 
-- Never touch cards with `assignee == "Ch@o"` in the worker loop.
-- Keep titles imperative and descriptions self-contained — the worker runs in a
-  fresh session with no memory of the chat that created the card.
-- British English, warm-but-direct tone, no filler. (Ch@o's writing rules.)
+## Worker loop (processing Claude cards) — unchanged
+
+For cards with `assignee=Claude` and `status=todo`: `claim-next` → do the work →
+save to `results/<id>.md` → `set-result` → `move <id> done`. If the task needs a
+risky/irreversible step (send, publish, delete, pay, move money), do the safe
+prep, `log` what needs approval, and `move <id> needs_ok` — never take the
+irreversible step without Ch@o's explicit go-ahead.
+
+## Tone
+
+British English, warm but direct, no filler. Confirm what you did with the card
+id and title.

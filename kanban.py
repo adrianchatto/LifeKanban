@@ -187,6 +187,50 @@ def cmd_set_result(args):
     print(json.dumps(c, indent=2, ensure_ascii=False))
 
 
+def cmd_addb64(args):
+    """Add a card from a single urlsafe-base64-encoded JSON object.
+
+    Avoids all shell-quoting problems when called via desktop control from
+    another session. The decoded JSON may contain:
+      {"title","description","project","assignee","due","skill"}
+    """
+    import base64
+    if not args:
+        die("addb64 needs one base64 argument")
+    try:
+        raw = base64.urlsafe_b64decode(args[0].encode("ascii"))
+        spec = json.loads(raw.decode("utf-8"))
+    except Exception as e:
+        die("could not decode addb64 arg: " + str(e))
+    if not spec.get("title"):
+        die("addb64 payload needs a title")
+    with Lock():
+        data = load()
+        card = {
+            "id": new_id(data),
+            "title": spec["title"],
+            "description": spec.get("description", ""),
+            "project": spec.get("project", "General"),
+            "assignee": spec.get("assignee", "Ch@o"),
+            "status": spec.get("status", "todo"),
+            "due": spec.get("due") or None,
+            "skill": spec.get("skill"),
+            "result_link": None,
+            "created": now(),
+            "updated": now(),
+            "log": ["created via skill"],
+        }
+        if card["assignee"] not in VALID_ASSIGNEE:
+            card["assignee"] = "Ch@o"
+        if card["status"] not in VALID_STATUS:
+            card["status"] = "todo"
+        data["cards"].append(card)
+        if card["project"] not in data.get("projects", []):
+            data.setdefault("projects", []).append(card["project"])
+        save(data)
+    print(json.dumps(card, indent=2, ensure_ascii=False))
+
+
 def cmd_set_due(args):
     if len(args) < 2:
         die("set-due needs <id> <YYYY-MM-DD|clear>")
@@ -274,6 +318,7 @@ def die(msg):
 COMMANDS = {
     "list": cmd_list,
     "add": cmd_add,
+    "addb64": cmd_addb64,
     "move": cmd_move,
     "assign": cmd_assign,
     "set-result": cmd_set_result,

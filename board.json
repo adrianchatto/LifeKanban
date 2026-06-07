@@ -1,12 +1,12 @@
 {
   "version": 1,
-  "updated": "2026-06-07T20:23:57Z",
+  "updated": "2026-06-07T20:40:28.147Z",
   "projects": [
     "General",
     "NEO-015",
     "Kanban"
   ],
-  "next_id": 7,
+  "next_id": 9,
   "cards": [
     {
       "id": "k-001",
@@ -14,13 +14,14 @@
       "description": "This is your board. Create cards, drag them between columns, and assign each to Me (Ch@o) or Claude. Cards assigned to Claude get picked up automatically and processed.",
       "project": "Kanban",
       "assignee": "Ch@o",
-      "status": "todo",
+      "status": "done",
       "skill": null,
       "result_link": null,
       "created": "2026-06-07T00:00:00Z",
-      "updated": "2026-06-07T20:14:37Z",
+      "updated": "2026-06-07T20:40:26.429Z",
       "log": [
-        "2026-06-07T20:14:37Z due date 2026-06-12"
+        "2026-06-07T20:14:37Z due date 2026-06-12",
+        "2026-06-07T20:40:26.429Z moved to done (manual)"
       ],
       "due": "2026-06-12"
     },
@@ -30,13 +31,14 @@
       "description": "Make a card, set the assignee to Claude, and leave it in To Do. Within ~15 minutes the worker moves it to Doing, does the work, then Done with a link to the result.",
       "project": "Kanban",
       "assignee": "Ch@o",
-      "status": "todo",
+      "status": "done",
       "skill": null,
       "result_link": null,
       "created": "2026-06-07T00:00:00Z",
-      "updated": "2026-06-07T20:14:43Z",
+      "updated": "2026-06-07T20:40:28.144Z",
       "log": [
-        "2026-06-07T20:14:43Z due date 2026-06-08"
+        "2026-06-07T20:14:43Z due date 2026-06-08",
+        "2026-06-07T20:40:28.144Z moved to done (manual)"
       ],
       "due": "2026-06-08"
     },
@@ -63,13 +65,31 @@
       "description": "Pay the Stansted airport parking/booking. Due by midnight tonight.",
       "project": "General",
       "assignee": "Ch@o",
-      "status": "todo",
+      "status": "done",
       "due": "2026-06-07",
       "skill": null,
       "result_link": null,
       "created": "2026-06-07T20:23:57Z",
-      "updated": "2026-06-07T20:23:57Z",
-      "log": []
+      "updated": "2026-06-07T20:33:49.839Z",
+      "log": [
+        "2026-06-07T20:33:49.840Z moved to done (manual)"
+      ]
+    },
+    {
+      "id": "k-007",
+      "title": "Pay for mountain bike car park",
+      "description": "Pay for parking at the mountain bike car park.",
+      "project": "General",
+      "assignee": "Ch@o",
+      "status": "done",
+      "due": null,
+      "skill": null,
+      "result_link": null,
+      "created": "2026-06-07T20:36:40Z",
+      "updated": "2026-06-07T20:36:47.591Z",
+      "log": [
+        "2026-06-07T20:36:47.591Z moved to done (manual)"
+      ]
     }
   ]
 }

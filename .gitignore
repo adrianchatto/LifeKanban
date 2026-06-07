@@ -5,6 +5,9 @@
 .board.lock
 *.tmp
 .board.*.tmp
+.sync-result.txt
+.install-skill-result.txt
+.start-result.txt
 
 # macOS
 .DS_Store

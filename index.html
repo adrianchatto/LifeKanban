@@ -4,6 +4,10 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Kanban</title>
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="#3b6cf6">
+<link rel="icon" href="/icon-192.png">
+<link rel="apple-touch-icon" href="/icon-192.png">
 <style>
   :root{
     --bg:#eef1f7; --panel:#ffffff; --ink:#1b2030; --muted:#737b8c;
@@ -61,6 +65,13 @@
     border-radius:50%;animation:s .8s linear infinite}
   @keyframes s{to{transform:rotate(360deg)}}
   .ghost{opacity:.4}
+  .card.is-done{opacity:.7;box-shadow:none;background:#fbfcfe}
+  .card.is-done .ttl{text-decoration:line-through;color:var(--muted)}
+  .card.is-done .desc{display:none}
+  .col[data-status=done] .cards.collapsed{display:none}
+  .donetoggle{margin-left:auto;font-size:11px;color:var(--accent);background:none;border:0;
+    cursor:pointer;font-weight:600;padding:0}
+  .donetoggle:hover{text-decoration:underline}
   /* modal */
   .scrim{position:fixed;inset:0;background:rgba(20,28,50,.4);display:none;align-items:center;justify-content:center;z-index:20}
   .scrim.open{display:flex}
@@ -147,6 +158,7 @@ const COLUMNS = [
 ];
 let board = {cards:[], projects:[]};
 let editing = null, assigneeChoice = "Ch@o", paused = false, dragId = null;
+let showDone = (()=>{ try{return localStorage.getItem("kanban_showdone")==="1";}catch(e){return false;} })();
 
 const $ = s => document.querySelector(s);
 
@@ -183,17 +195,36 @@ function render(){
     (!pf || c.project===pf) && (!wf || c.assignee===wf));
 
   const html = COLUMNS.map(col=>{
-    const list = cards.filter(c=>c.status===col.status)
-      .sort((a,b)=>(a.created||"").localeCompare(b.created||""));
+    const isDone = col.status==="done";
+    let list = cards.filter(c=>c.status===col.status);
+    list.sort(isDone
+      ? (a,b)=>(b.updated||"").localeCompare(a.updated||"")   // newest-done first
+      : (a,b)=>(a.created||"").localeCompare(b.created||""));
     const inner = list.length ? list.map(cardHTML).join("")
       : `<div class="empty">—</div>`;
+    let head;
+    if(isDone){
+      const toggle = list.length
+        ? `<button class="donetoggle">${showDone?"Hide":"Show "+list.length}</button>` : "";
+      head = `<h2><span class="tag"></span>${col.name}${toggle}<span class="pill">${list.length}</span></h2>`;
+    } else {
+      head = `<h2><span class="tag"></span>${col.name}<span class="pill">${list.length}</span></h2>`;
+    }
+    const collapsed = (isDone && !showDone) ? " collapsed" : "";
     return `<section class="col" data-status="${col.status}">
-      <h2><span class="tag"></span>${col.name}<span class="pill">${list.length}</span></h2>
-      <div class="cards" data-status="${col.status}">${inner}</div>
+      ${head}
+      <div class="cards${collapsed}" data-status="${col.status}">${inner}</div>
     </section>`;
   }).join("");
   $("#board").innerHTML = html;
   wireDnD();
+  const dt = document.querySelector(".donetoggle");
+  if(dt) dt.onclick = (e)=>{
+    e.stopPropagation();
+    showDone = !showDone;
+    try{ localStorage.setItem("kanban_showdone", showDone?"1":"0"); }catch(_){}
+    render();
+  };
 
   const total = (board.cards||[]).length;
   const claude = (board.cards||[]).filter(c=>c.assignee==="Claude").length;
@@ -212,7 +243,7 @@ function cardHTML(c){
     extra += `<a class="reslink" href="/results/${encodeURIComponent(c.result_link.replace(/^results\//,""))}" target="_blank">↗ View result</a>`;
   if(c.status==="needs_ok")
     extra += `<div class="working" style="color:var(--ok)">⏸ Waiting for your OK</div>`;
-  return `<article class="card" draggable="true" data-id="${c.id}">
+  return `<article class="card ${c.status==='done'?'is-done':''}" draggable="true" data-id="${c.id}">
     <p class="ttl">${esc(c.title)}</p>
     ${c.description?`<p class="desc">${esc(c.description)}</p>`:""}
     <div class="row">${who}<span class="proj">${esc(c.project||"General")}</span>${dueBadge(c)}</div>
