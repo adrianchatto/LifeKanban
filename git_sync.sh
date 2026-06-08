@@ -19,16 +19,19 @@ OUT="$DIR/.sync-result.txt"
   echo "=== $(date) ==="
   echo "repo dir: $DIR"
 
-  # Clear a stale index lock left by a crashed git process. Only remove it if it
-  # is empty (size 0) and older than 2 minutes, so we never stomp a live commit.
-  LOCK="$DIR/.git/index.lock"
-  if [ -f "$LOCK" ]; then
-    if [ ! -s "$LOCK" ] && [ -z "$(find "$LOCK" -newermt '-2 minutes' 2>/dev/null)" ]; then
-      rm -f "$LOCK" && echo "lock: removed stale .git/index.lock" || echo "lock: present but could not remove (check filesystem permissions)"
-    else
-      echo "lock: present and may be live — leaving it; re-run if no git process is active"
+  # Clear stale locks left by a crashed git process. A crash can leave both
+  # .git/index.lock and .git/HEAD.lock (the latter blocks commits with "cannot
+  # lock ref 'HEAD'"). Only remove a lock if it is empty (size 0) and older than
+  # 2 minutes, so we never stomp a live commit.
+  for LOCK in "$DIR/.git/index.lock" "$DIR/.git/HEAD.lock"; do
+    if [ -f "$LOCK" ]; then
+      if [ ! -s "$LOCK" ] && [ -z "$(find "$LOCK" -newermt '-2 minutes' 2>/dev/null)" ]; then
+        rm -f "$LOCK" && echo "lock: removed stale ${LOCK##*/.git/}" || echo "lock: $LOCK present but could not remove (filesystem permissions — clear it on the Mac)"
+      else
+        echo "lock: ${LOCK##*/.git/} present and may be live — leaving it; re-run if no git process is active"
+      fi
     fi
-  fi
+  done
 
   git add -A
   if git diff --cached --quiet; then

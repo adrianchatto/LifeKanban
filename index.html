@@ -172,6 +172,23 @@
   .viewseg button.on{background:var(--accent);color:#fff}
   #refreshBtn.spin-now{pointer-events:none}
   #refreshBtn.spin-now span{display:inline-block;animation:s .6s linear infinite}
+  /* list view — grouped by project */
+  .listview{padding:14px 22px 40px;max-width:1100px;margin:0 auto}
+  .lv-proj{margin-bottom:22px}
+  .lv-phead{display:flex;align-items:center;gap:10px;margin:0 0 8px;font-size:14px;font-weight:700;color:var(--ink)}
+  .lv-phead .lv-count{font-size:12px;font-weight:600;color:var(--muted);background:var(--chip);border-radius:999px;padding:1px 8px}
+  .lv-rows{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--surface)}
+  .lv-row{display:flex;align-items:center;gap:10px;padding:9px 12px;border-top:1px solid var(--line);cursor:pointer}
+  .lv-row:first-child{border-top:none}
+  .lv-row:hover{background:var(--chip)}
+  .lv-row.is-done .lv-ttl{text-decoration:line-through;color:var(--muted)}
+  .lv-st{flex:0 0 auto;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;
+    border-radius:6px;padding:2px 7px;color:#fff;white-space:nowrap}
+  .lv-st.todo{background:var(--todo)} .lv-st.doing{background:var(--doing)}
+  .lv-st.needs_ok{background:var(--ok)} .lv-st.done{background:var(--done)}
+  .lv-ttl{flex:1 1 auto;font-size:13.5px;font-weight:600;color:var(--ink);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .lv-meta{flex:0 0 auto;display:flex;align-items:center;gap:6px}
+  .lv-empty{color:var(--muted);padding:18px;text-align:center}
   /* calendar */
   .cal{padding:18px 22px}
   .calhead{display:flex;align-items:center;gap:10px;margin-bottom:14px}
@@ -257,6 +274,7 @@
   </select>
   <div class="seg viewseg" id="viewToggle">
     <button type="button" data-v="board">Board</button>
+    <button type="button" data-v="list">List</button>
     <button type="button" data-v="calendar">Calendar</button>
   </div>
   <button class="btn" id="refreshBtn" title="Refresh now">↻ Refresh</button>
@@ -267,6 +285,7 @@
 </header>
 
 <div class="board" id="board"></div>
+<div class="listview" id="listview" style="display:none"></div>
 <div class="cal" id="calendar" style="display:none"></div>
 <footer id="foot">Loading…</footer>
 
@@ -517,10 +536,17 @@ function render(){
 
   if(view==="calendar"){
     $("#board").style.display="none";
+    $("#listview").style.display="none";
     $("#calendar").style.display="block";
     renderCalendar(cards);
+  } else if(view==="list"){
+    $("#board").style.display="none";
+    $("#calendar").style.display="none";
+    $("#listview").style.display="block";
+    renderList(cards);
   } else {
     $("#calendar").style.display="none";
+    $("#listview").style.display="none";
     $("#board").style.display="grid";
     renderBoard(cards);
   }
@@ -658,6 +684,44 @@ function renderBoard(cards){
     b.onclick=(e)=>{ e.stopPropagation(); markDone(b.dataset.done); });
   document.querySelectorAll(".colhead").forEach(h=>
     h.onclick=()=>{ const s=h.dataset.status; collapsedCols[s]=!collapsedCols[s]; saveCollapsed(); render(); });
+}
+
+const STATUS_NAME = { todo:"To Do", doing:"Doing", needs_ok:"Needs OK", done:"Done" };
+const STATUS_ORDER = { todo:0, doing:1, needs_ok:2, done:3 };
+function renderList(cards){
+  // cards are already filtered by project + assignee. Group by project, categorised.
+  const items = cards.filter(c=>!c.recur);
+  if(!items.length){ $("#listview").innerHTML = `<div class="lv-empty">Nothing to show with the current filters.</div>`; return; }
+  const groups = {};
+  items.forEach(c=>{ const p=c.project||"General"; (groups[p]=groups[p]||[]).push(c); });
+  const pr = c=>(PRIORITY_RANK[c.priority]!==undefined?PRIORITY_RANK[c.priority]:PRIORITY_RANK.none);
+  const projNames = Object.keys(groups).sort((a,b)=>a.localeCompare(b));
+  const html = projNames.map(p=>{
+    const list = groups[p].slice().sort((a,b)=>
+      (STATUS_ORDER[a.status]-STATUS_ORDER[b.status]) || (pr(a)-pr(b)) ||
+      (a.due||"￿").localeCompare(b.due||"￿") || (a.created||"").localeCompare(b.created||""));
+    const rows = list.map(c=>{
+      const st = c.status||"todo";
+      const doneBtn = st!=="done" ? `<button class="donebtn" data-done="${c.id}" title="Mark done">✓</button>` : "";
+      const okBtn = st==="needs_ok" ? `<button class="okbtn" data-ok="${c.id}" title="Approve & run">✓ OK</button>` : "";
+      return `<div class="lv-row ${st==='done'?'is-done':''}" data-id="${c.id}">
+        <span class="lv-st ${st}">${STATUS_NAME[st]||st}</span>
+        <span class="lv-ttl">${esc(c.title)}</span>
+        <span class="lv-meta">${prioBadge(c)}${c.assignee==='Claude'?'<span class="badge claude">✦ Claude</span>':''}${dueBadge(c)}${subProgress(c)}${attachBadge(c)}${okBtn}${doneBtn}</span>
+      </div>`;
+    }).join("");
+    return `<section class="lv-proj">
+      <h2 class="lv-phead">${projChip(p)}<span class="lv-count">${list.length}</span></h2>
+      <div class="lv-rows">${rows}</div>
+    </section>`;
+  }).join("");
+  $("#listview").innerHTML = html;
+  document.querySelectorAll("#listview .donebtn").forEach(b=>
+    b.onclick=(e)=>{ e.stopPropagation(); markDone(b.dataset.done); });
+  document.querySelectorAll("#listview .okbtn").forEach(b=>
+    b.onclick=(e)=>{ e.stopPropagation(); approveCard(b.dataset.ok); });
+  document.querySelectorAll("#listview .lv-row").forEach(r=>
+    r.onclick=()=>openEdit(r.dataset.id));
 }
 
 const MONTHS = ["January","February","March","April","May","June","July",
@@ -1106,13 +1170,23 @@ $("#fAttachInput").onchange=e=>{ uploadFiles(e.target.files); e.target.value="";
       uploadFiles(e.dataTransfer.files);
   });
 })();
-// Paste a screenshot/image anywhere while the card modal is open
+// Paste a screenshot/image: into the card modal when it's open, or — if the
+// "Add by chat" panel is open — open a new card and attach the screenshot there.
 document.addEventListener("paste",e=>{
-  if(!$("#scrim").classList.contains("open")) return;
   const items=(e.clipboardData && e.clipboardData.items)||[];
   const files=[];
   for(const it of items){ if(it.kind==="file"){ const f=it.getAsFile(); if(f) files.push(f); } }
-  if(files.length){ e.preventDefault(); uploadFiles(files); }
+  if(!files.length) return;
+  if($("#scrim").classList.contains("open")){
+    e.preventDefault(); uploadFiles(files); return;
+  }
+  const kcPanel=document.getElementById("kcPanel");
+  if(kcPanel && kcPanel.classList.contains("open")){
+    e.preventDefault();
+    if(window.kcClose) window.kcClose();
+    openNew();
+    uploadFiles(files);
+  }
 });
 document.querySelectorAll("#fWeekdays button").forEach(b=>
   b.onclick=()=>{ const d=+b.dataset.d; recurDays.has(d)?recurDays.delete(d):recurDays.add(d); syncRepeatUI(); });
@@ -1128,6 +1202,24 @@ $("#alertBtn").onclick=()=>{
 document.addEventListener("keydown",e=>{if(e.key==="Escape"){closeScrim();
   $("#adminScrim").classList.remove("open"); $("#projScrim").classList.remove("open");
   $("#aiScrim").classList.remove("open");}});
+
+// Quick-add shortcut: Ctrl+Space (or Cmd+Space is left to Spotlight on macOS)
+// opens the New card modal from anywhere on the board. Ignored while typing in a
+// field, and ignored when any modal is already open.
+function anyScrimOpen(){
+  return ["#scrim","#adminScrim","#projScrim","#aiScrim"]
+    .some(s=>{ const el=$(s); return el && el.classList.contains("open"); });
+}
+document.addEventListener("keydown",e=>{
+  const quick = e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey &&
+    (e.code==="Space" || e.key===" " || e.key==="Spacebar");
+  if(!quick) return;
+  const t=e.target;
+  const typing = t && (t.tagName==="INPUT" || t.tagName==="TEXTAREA" || t.isContentEditable);
+  if(typing || anyScrimOpen()) return;
+  e.preventDefault();
+  openNew();
+});
 
 function currentTheme(){ return document.documentElement.getAttribute("data-theme")==="dark" ? "dark" : "light"; }
 function updateThemeBtn(){
@@ -1305,7 +1397,21 @@ setTimeout(checkNotifications, 2000);
     t = t.replace(/[\s,;:.\-]+$/,"");
     t = t.replace(/\b(?:for|on|by|due|every|each|to)$/i,"").trim();
     if(t) t = t.charAt(0).toUpperCase() + t.slice(1);
-    out.title = t;
+    // Don't dump a long command into the title. If the distilled text is long,
+    // keep a concise auto-generated title and move the full text into the description.
+    if(t && !out.description && (t.length > 64 || t.split(/\s+/).length > 10)){
+      // concise title: first clause (up to a sentence/punctuation break), capped to ~8 words / 56 chars
+      let head = (t.split(/(?:[.!?]\s+|[—–]\s+| - |,\s+|;\s+|:\s+)/)[0] || t).trim();
+      const hw = head.split(/\s+/);
+      if(hw.length > 8) head = hw.slice(0,8).join(" ");
+      head = head.replace(/[\s,;:.\-]+$/,"");
+      if(head.length > 56) head = head.slice(0,56).replace(/\s+\S*$/,"");
+      if(!head) head = t.slice(0,56);
+      out.title = head.charAt(0).toUpperCase() + head.slice(1);
+      out.description = t;
+    } else {
+      out.title = t;
+    }
     return out;
   }
 
@@ -1414,12 +1520,33 @@ setTimeout(checkNotifications, 2000);
       "• Buy milk #Home\n\n"+
       "I read dates (today, tomorrow, Friday, 15 June, 12/06/2026, in 3 days), projects "+
       "(a name or #tag), who it’s for (say “Claude” to assign me), and repeats (daily, "+
-      "weekly, every Monday, monthly). You can also ask “what’s on my board” or “what’s due today”.");
+      "weekly, every Monday, monthly). You can also ask “what’s on my board” or “what’s due today”.\n\n"+
+      "To set up projects, say “add project NEO-015” (or “create projects Home, Work and Admin”).");
   }
 
   function kcAnswer(raw){
     const t=raw.toLowerCase().trim();
     if(/^(help|\?|what can you do)/.test(t)){ kcHelp(); return true; }
+
+    // Add one or more projects straight from chat — no card needed.
+    const pm = raw.trim().match(/^(?:please\s+|can you\s+|could you\s+|pls\s+|hey\s+)?(?:add|create|make|set\s*up|new)\s+(?:a\s+|the\s+|some\s+)?(?:new\s+)?projects?\b(?:\s+(?:called|named|for))?[:,\-\s]*(.+)$/i);
+    if(pm){
+      let rest = pm[1].replace(/\s+(?:to|on|in)\s+(?:the\s+)?(?:board|kanban|project\s*list)\s*[.!]?$/i,"").trim();
+      const names = rest.split(/\s*(?:,|;|\band\b|&|\+|\/)\s*/i)
+        .map(s=>s.replace(/^#/,"").replace(/["'.\s]+$/,"").replace(/^["']+/,"").trim())
+        .filter(Boolean)
+        .filter(n=>n.length<=40);   // a long phrase is probably a task, not a project name
+      if(!names.length){ kcAddMsg("bot","What should the project be called? Try “add project NEO-015”."); return true; }
+      const exists = n => (board.projects||[]).includes(n) || (board.cards||[]).some(c=>(c.project||"")===n);
+      const added=[], already=[];
+      names.forEach(n=>{ if(exists(n)) already.push(n); else { (board.projects=board.projects||[]).push(n); added.push(n); } });
+      if(added.length){ pushBoard(); if(typeof renderProjectManager==="function") renderProjectManager(); render(); }
+      let msg="";
+      if(added.length)   msg += "Added project"+(added.length>1?"s":"")+": "+added.join(", ")+".";
+      if(already.length) msg += (msg?" ":"")+already.join(", ")+(already.length>1?" already exist.":" already exists.");
+      kcAddMsg("bot", msg||"Nothing to add.");
+      return true;
+    }
     const isQ = /^(what'?s|whats|show|list|how many|count|display|tell me|do i)\b/.test(t) && !/^(add|create|new|make|remind)/.test(t);
     if(!isQ) return false;
     const cards=board.cards||[];

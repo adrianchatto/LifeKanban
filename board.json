@@ -1,13 +1,14 @@
 {
   "version": 1,
-  "updated": "2026-06-08T10:34:55Z",
+  "updated": "2026-06-08T12:50:49Z",
   "projects": [
     "General",
     "Datasite",
     "Abenson",
-    "MOJ"
+    "MOJ",
+    "Neovance"
   ],
-  "next_id": 37,
+  "next_id": 47,
   "cards": [
     {
       "id": "k-001",
@@ -201,17 +202,18 @@
       "description": "",
       "project": "General",
       "assignee": "Ch@o",
-      "status": "todo",
+      "status": "done",
       "due": "2026-06-12",
       "recur": null,
       "subtasks": [],
       "skill": null,
       "result_link": null,
       "created": "2026-06-07T21:04:30.638Z",
-      "updated": "2026-06-08T09:51:16Z",
+      "updated": "2026-06-08T11:51:40.363Z",
       "log": [
         "created",
-        "2026-06-08T09:51:16Z priority defaulted to medium (none retired)"
+        "2026-06-08T09:51:16Z priority defaulted to medium (none retired)",
+        "2026-06-08T11:51:40.363Z moved to done (manual)"
       ],
       "priority": "medium"
     },
@@ -334,21 +336,23 @@
       "description": "Add priority order to the Kanban board cards and be able to prioritise",
       "project": "General",
       "assignee": "Claude",
-      "status": "doing",
+      "status": "done",
       "due": "2026-06-08",
       "recur": null,
       "subtasks": [],
       "skill": null,
       "result_link": "results/k-023.md",
       "created": "2026-06-08T08:25:00.494Z",
-      "updated": "2026-06-08T09:51:16Z",
+      "updated": "2026-06-08T10:47:01.019Z",
       "log": [
         "created",
         "2026-06-08T08:46:18Z claimed by Claude worker",
         "2026-06-08T08:51:13Z result: results/k-023.md",
-        "2026-06-08T09:51:16Z priority defaulted to medium (none retired)"
+        "2026-06-08T09:51:16Z priority defaulted to medium (none retired)",
+        "2026-06-08T10:47:01.019Z moved to done (manual)"
       ],
-      "priority": "medium"
+      "priority": "medium",
+      "attachments": []
     },
     {
       "id": "k-024",
@@ -632,6 +636,235 @@
         "2026-06-08T10:34:55Z moved to done"
       ],
       "attachments": []
+    },
+    {
+      "id": "k-037",
+      "title": "User setup",
+      "description": "The ability to add and manage users for the Kanban board, so their own separate interface just with their tasks and their API key. Obviously I want still have access to this when it moves to Docker. Create your own user or create an API key or however you see best. Maybe do some research on that first and then give me some options",
+      "project": "General",
+      "assignee": "Claude",
+      "priority": "high",
+      "status": "done",
+      "due": "2026-06-08",
+      "recur": null,
+      "subtasks": [],
+      "skill": null,
+      "result_link": null,
+      "created": "2026-06-08T10:36:40.045Z",
+      "updated": "2026-06-08T12:00:11.280Z",
+      "log": [
+        "created",
+        "added via chat assistant",
+        "2026-06-08T10:47:43.816Z moved to doing (manual)",
+        "2026-06-08T12:00:11.280Z marked done"
+      ],
+      "attachments": []
+    },
+    {
+      "id": "k-038",
+      "title": "Complete Project updates",
+      "description": "Update the Microsoft list board",
+      "project": "General",
+      "assignee": "Ch@o",
+      "priority": "medium",
+      "status": "todo",
+      "due": null,
+      "recur": {
+        "freq": "weekly",
+        "days": [
+          3
+        ]
+      },
+      "subtasks": [],
+      "attachments": [],
+      "skill": null,
+      "result_link": null,
+      "created": "2026-06-08T10:45:44.464Z",
+      "updated": "2026-06-08T10:45:44.464Z",
+      "log": [
+        "created"
+      ]
+    },
+    {
+      "id": "k-039",
+      "title": "Quick task",
+      "description": "Like the ability to have a key combination like Control+Space or something, or the ability to change it just to be able to add a quick task",
+      "project": "General",
+      "assignee": "Claude",
+      "priority": "medium",
+      "status": "done",
+      "due": null,
+      "recur": null,
+      "subtasks": [],
+      "skill": null,
+      "result_link": "results/k-039.md",
+      "created": "2026-06-08T11:55:27.307Z",
+      "updated": "2026-06-08T12:04:45Z",
+      "log": [
+        "created",
+        "added via chat assistant",
+        "2026-06-08T12:03:36Z claimed by Claude worker",
+        "2026-06-08T12:04:39Z result: results/k-039.md",
+        "2026-06-08T12:04:45Z moved to done"
+      ],
+      "attachments": []
+    },
+    {
+      "id": "k-040",
+      "title": "You still haven't figured out that when I give you a command, you seem to put it all in the title. I want you to automatically generate a title and put what I give you in the description",
+      "description": "",
+      "project": "General",
+      "assignee": "Claude",
+      "priority": "medium",
+      "status": "done",
+      "due": null,
+      "recur": null,
+      "subtasks": [],
+      "skill": null,
+      "result_link": "results/k-040.md",
+      "created": "2026-06-08T11:56:07.616Z",
+      "updated": "2026-06-08T12:06:28Z",
+      "log": [
+        "created",
+        "added via chat assistant",
+        "2026-06-08T12:04:50Z claimed by Claude worker",
+        "2026-06-08T12:06:22Z result: results/k-040.md",
+        "2026-06-08T12:06:28Z moved to done"
+      ]
+    },
+    {
+      "id": "k-041",
+      "title": "I still don't have the ability to paste into this chat screenshots. Why not? Can you investigate?",
+      "description": "",
+      "project": "General",
+      "assignee": "Claude",
+      "priority": "medium",
+      "status": "done",
+      "due": null,
+      "recur": null,
+      "subtasks": [],
+      "skill": null,
+      "result_link": "results/k-041.md",
+      "created": "2026-06-08T11:57:12.741Z",
+      "updated": "2026-06-08T12:07:50Z",
+      "log": [
+        "created",
+        "added via chat assistant",
+        "2026-06-08T12:06:35Z claimed by Claude worker",
+        "2026-06-08T12:07:44Z result: results/k-041.md",
+        "2026-06-08T12:07:50Z moved to done"
+      ]
+    },
+    {
+      "id": "k-042",
+      "title": "Like a list view that can filter down to projects and see things categorised by project",
+      "description": "",
+      "project": "General",
+      "assignee": "Claude",
+      "priority": "medium",
+      "status": "done",
+      "due": null,
+      "recur": null,
+      "subtasks": [],
+      "skill": null,
+      "result_link": "results/k-042.md",
+      "created": "2026-06-08T11:58:05.532Z",
+      "updated": "2026-06-08T12:10:08Z",
+      "log": [
+        "created",
+        "added via chat assistant",
+        "2026-06-08T12:07:55Z claimed by Claude worker",
+        "2026-06-08T12:10:02Z result: results/k-042.md",
+        "2026-06-08T12:10:08Z moved to done"
+      ]
+    },
+    {
+      "id": "k-043",
+      "title": "Like the ability to add projects from the chat. When you give me that window back where I choose which projects I'd like to build to add projects",
+      "description": "",
+      "project": "General",
+      "assignee": "Claude",
+      "priority": "medium",
+      "status": "done",
+      "due": null,
+      "recur": null,
+      "subtasks": [],
+      "skill": null,
+      "result_link": "results/k-043.md",
+      "created": "2026-06-08T11:58:24.663Z",
+      "updated": "2026-06-08T12:11:58Z",
+      "log": [
+        "created",
+        "added via chat assistant",
+        "2026-06-08T12:10:13Z claimed by Claude worker",
+        "2026-06-08T12:11:53Z result: results/k-043.md",
+        "2026-06-08T12:11:58Z moved to done"
+      ]
+    },
+    {
+      "id": "k-044",
+      "title": "Claude tasks seem to be getting stuck in doing? Can you investigate why?",
+      "description": "",
+      "project": "General",
+      "assignee": "Claude",
+      "priority": "medium",
+      "status": "done",
+      "due": null,
+      "recur": null,
+      "subtasks": [],
+      "skill": null,
+      "result_link": "results/k-044.md",
+      "created": "2026-06-08T11:59:15.151Z",
+      "updated": "2026-06-08T12:50:49Z",
+      "log": [
+        "created",
+        "added via chat assistant",
+        "2026-06-08T11:59:35.385Z moved to doing (manual)",
+        "2026-06-08T12:50:43Z result: results/k-044.md",
+        "2026-06-08T12:50:49Z moved to done"
+      ],
+      "attachments": []
+    },
+    {
+      "id": "k-045",
+      "title": "Ask richard for an API",
+      "description": "With Search permissions. Ian access. Ask Donna how UAT is going",
+      "project": "Abenson",
+      "assignee": "Ch@o",
+      "priority": "medium",
+      "status": "doing",
+      "due": "2026-06-08",
+      "recur": null,
+      "subtasks": [],
+      "attachments": [],
+      "skill": null,
+      "result_link": null,
+      "created": "2026-06-08T12:42:40.715Z",
+      "updated": "2026-06-08T12:48:44.099Z",
+      "log": [
+        "created",
+        "2026-06-08T12:48:44.099Z moved to doing (manual)"
+      ]
+    },
+    {
+      "id": "k-046",
+      "title": "Chase Alex on DynamoDb",
+      "description": "",
+      "project": "Neovance",
+      "assignee": "Ch@o",
+      "priority": "medium",
+      "status": "todo",
+      "due": null,
+      "recur": null,
+      "subtasks": [],
+      "attachments": [],
+      "skill": null,
+      "result_link": null,
+      "created": "2026-06-08T12:43:29.777Z",
+      "updated": "2026-06-08T12:43:29.777Z",
+      "log": [
+        "created"
+      ]
     }
   ],
   "projectColors": {

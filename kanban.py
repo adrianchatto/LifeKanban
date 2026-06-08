@@ -20,6 +20,7 @@ Usage:
   python3 kanban.py log <id> "message"
   python3 kanban.py get <id>
   python3 kanban.py claim-next        # next Claude+todo card -> doing, prints JSON
+  python3 kanban.py requeue-stale     # recover cards orphaned in 'doing'
 
 All commands print JSON to stdout so they are easy to parse.
 """
@@ -40,6 +41,17 @@ VALID_STATUS = ("todo", "doing", "done", "needs_ok")
 VALID_ASSIGNEE = ("Ch@o", "Claude")
 VALID_PRIORITY = ("high", "medium", "low")
 
+# Self-healing for orphaned cards. A worker run claims a card (todo -> doing)
+# then does the work in the same pass. If that run crashes, times out, or errors
+# before finishing, the card is stranded in "doing" and — because claim-next only
+# ever looks at todo — would never be retried. So before claiming, we requeue any
+# Claude card that has sat in "doing" longer than STALE_DOING_MIN (its `updated`
+# stamp moves forward whenever the worker logs progress, so a genuinely active
+# card is safe). A card that keeps failing is poison: after MAX_REQUEUES bounces
+# we park it in needs_ok for Ch@o to look at instead of looping forever.
+STALE_DOING_MIN = int(os.environ.get("KANBAN_STALE_MIN", "30"))
+MAX_REQUEUES = int(os.environ.get("KANBAN_MAX_REQUEUES", "3"))
+
 
 def norm_priority(v):
     # "none" is retired: everything defaults to medium.
@@ -54,6 +66,54 @@ def norm_priority(v):
 
 def now():
     return datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+
+
+def parse_ts(s):
+    """Parse an ISO timestamp written by now() (or with millis). Returns an
+    aware datetime, or None if it can't be parsed."""
+    if not s:
+        return None
+    try:
+        return datetime.fromisoformat(s.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+
+
+def requeue_stale(data):
+    """Recover Claude cards orphaned in 'doing'. Mutates `data` in place and
+    returns a list of {id,title,action,age_min} describing what changed. The
+    caller is responsible for save() (so it can run inside an existing Lock)."""
+    actions = []
+    cutoff_secs = STALE_DOING_MIN * 60
+    current = datetime.now(timezone.utc)
+    for c in data.get("cards", []):
+        if c.get("assignee") != "Claude" or c.get("status") != "doing":
+            continue
+        ts = parse_ts(c.get("updated"))
+        if ts is None:
+            continue
+        age = (current - ts).total_seconds()
+        if age < cutoff_secs:
+            continue
+        age_min = int(age // 60)
+        count = int(c.get("requeue_count", 0)) + 1
+        c["requeue_count"] = count
+        c["updated"] = now()
+        if count > MAX_REQUEUES:
+            c["status"] = "needs_ok"
+            c["log"].append(
+                "%s stuck in doing and requeued %d times — parked in needs_ok "
+                "for review (worker keeps failing this card)" % (now(), count - 1))
+            actions.append({"id": c["id"], "title": c["title"],
+                            "action": "parked_needs_ok", "age_min": age_min})
+        else:
+            c["status"] = "todo"
+            c["log"].append(
+                "%s requeued to todo after %d min stuck in doing "
+                "(recovery %d/%d)" % (now(), age_min, count, MAX_REQUEUES))
+            actions.append({"id": c["id"], "title": c["title"],
+                            "action": "requeued_todo", "age_min": age_min})
+    return actions
 
 
 def parse_recur(s):
@@ -194,6 +254,10 @@ def cmd_move(args):
         c["status"] = status
         c["updated"] = now()
         c["log"].append("%s moved to %s" % (now(), status))
+        if status == "done":
+            # Successful completion clears the recovery counter so a card that
+            # was rescued once isn't penalised if it's ever reworked later.
+            c.pop("requeue_count", None)
         save(data)
     print(json.dumps(c, indent=2, ensure_ascii=False))
 
@@ -384,13 +448,23 @@ def cmd_get(args):
 
 
 def cmd_claim_next(args):
-    """Atomically take the oldest Claude+todo card into doing."""
+    """Atomically take the oldest Claude+todo card into doing.
+
+    First recovers any card orphaned in 'doing' (see requeue_stale) so a crashed
+    earlier pass can't strand work forever. A freshly requeued card becomes
+    eligible to be claimed in this same pass."""
     with Lock():
         data = load()
+        recovered = requeue_stale(data)
         todo = [c for c in data["cards"]
                 if c["assignee"] == "Claude" and c["status"] == "todo"]
         todo.sort(key=lambda c: c["created"])
         if not todo:
+            if recovered:
+                save(data)
+                print(json.dumps({"claimed": None, "recovered": recovered},
+                                 indent=2, ensure_ascii=False))
+                return
             print("null")
             return
         c = todo[0]
@@ -399,6 +473,19 @@ def cmd_claim_next(args):
         c["log"].append("%s claimed by Claude worker" % now())
         save(data)
     print(json.dumps(c, indent=2, ensure_ascii=False))
+
+
+def cmd_requeue_stale(args):
+    """Manually run the stale-doing recovery (also runs automatically inside
+    claim-next). Prints what it changed."""
+    with Lock():
+        data = load()
+        recovered = requeue_stale(data)
+        if recovered:
+            save(data)
+    print(json.dumps({"recovered": recovered, "count": len(recovered),
+                      "stale_after_min": STALE_DOING_MIN}, indent=2,
+                     ensure_ascii=False))
 
 
 def parse_flags(args):
@@ -435,6 +522,7 @@ COMMANDS = {
     "log": cmd_log,
     "get": cmd_get,
     "claim-next": cmd_claim_next,
+    "requeue-stale": cmd_requeue_stale,
 }
 
 
