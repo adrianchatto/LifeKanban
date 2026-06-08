@@ -4,6 +4,16 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Kanban</title>
+<script>
+  // Apply saved theme before paint to avoid a flash. Falls back to OS preference.
+  (function(){
+    try{
+      var t=localStorage.getItem("kanban_theme");
+      if(!t){ t=(window.matchMedia && matchMedia("(prefers-color-scheme: dark)").matches)?"dark":"light"; }
+      document.documentElement.setAttribute("data-theme", t);
+    }catch(e){}
+  })();
+</script>
 <link rel="manifest" href="/manifest.webmanifest">
 <meta name="theme-color" content="#3b6cf6">
 <link rel="icon" href="/icon-192.png">
@@ -14,7 +24,47 @@
     --line:#e3e7f0; --accent:#3b6cf6; --claude:#7a5cff; --me:#11a06b;
     --todo:#8a93a6; --doing:#e0a008; --done:#11a06b; --ok:#e0533b;
     --shadow:0 1px 3px rgba(20,30,60,.07),0 6px 18px rgba(20,30,60,.05);
+    --field:#fbfcfe; --surface:#ffffff; --chip:#f1f3f9; --chipink:#3b4252;
   }
+  :root[data-theme="dark"]{
+    --bg:#0f131a; --panel:#1a212e; --ink:#e7eaf1; --muted:#98a2b6;
+    --line:#2a3344; --accent:#5b82f8; --claude:#9a7cff; --me:#27b884;
+    --todo:#8a93a6; --doing:#e6ad1e; --done:#27b884; --ok:#f06a52;
+    --shadow:0 1px 3px rgba(0,0,0,.45),0 6px 18px rgba(0,0,0,.35);
+    --field:#222b3b; --surface:#222b3b; --chip:#2a3344; --chipink:#c6cedd;
+  }
+  /* dark-mode overrides for surfaces that hardcode light colours */
+  :root[data-theme="dark"] select,
+  :root[data-theme="dark"] .btn{background:var(--surface)}
+  :root[data-theme="dark"] .btn.primary{background:var(--accent);color:#fff}
+  :root[data-theme="dark"] .seg button{background:var(--surface)}
+  :root[data-theme="dark"] .col{background:rgba(255,255,255,.035)}
+  :root[data-theme="dark"] .col h2 .pill{background:var(--surface)}
+  :root[data-theme="dark"] .proj{background:var(--chip);color:var(--chipink)}
+  :root[data-theme="dark"] .modal{background:var(--panel)}
+  :root[data-theme="dark"] input[type=text],
+  :root[data-theme="dark"] textarea,
+  :root[data-theme="dark"] .modal select,
+  :root[data-theme="dark"] input[type=date],
+  :root[data-theme="dark"] input[type=number]{background:var(--field);color:var(--ink);border-color:var(--line)}
+  :root[data-theme="dark"] input[type=date]{color-scheme:dark}
+  :root[data-theme="dark"] .kc-head,
+  :root[data-theme="dark"] .kc-foot{background:var(--panel)}
+  :root[data-theme="dark"] .kc-msg.bot,
+  :root[data-theme="dark"] .kc-card{background:var(--surface)}
+  :root[data-theme="dark"] .kc-chip{background:var(--chip);color:var(--chipink)}
+  :root[data-theme="dark"] .kc-foot input{background:var(--field);color:var(--ink)}
+  :root[data-theme="dark"] #pmWidget .pm-row button{background:var(--surface);color:var(--ink)}
+  :root[data-theme="dark"] #pmWidget .pm-set-row input{background:var(--field);color:var(--ink)}
+  :root[data-theme="dark"] #pmWidget .pm-row .pm-start{color:#fff}
+  :root[data-theme="dark"] .card.is-done{background:#161c28}
+  :root[data-theme="dark"] .due.future{background:var(--chip);color:var(--muted)}
+  :root[data-theme="dark"] .calnav{background:var(--surface)}
+  :root[data-theme="dark"] .calnav:hover{background:var(--chip)}
+  :root[data-theme="dark"] .calcell{background:rgba(255,255,255,.035)}
+  :root[data-theme="dark"] .calchip{background:var(--chip);color:var(--ink)}
+  :root[data-theme="dark"] .wd button{background:var(--surface);color:var(--ink)}
+  :root[data-theme="dark"] .projrow input[type=color]{background:var(--surface)}
   *{box-sizing:border-box}
   body{margin:0;font:14px/1.5 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
     color:var(--ink);background:var(--bg)}
@@ -73,10 +123,22 @@
   .card.is-done{opacity:.7;box-shadow:none;background:#fbfcfe}
   .card.is-done .ttl{text-decoration:line-through;color:var(--muted)}
   .card.is-done .desc{display:none}
-  .col[data-status=done] .cards.collapsed{display:none}
-  .donetoggle{margin-left:auto;font-size:11px;color:var(--accent);background:none;border:0;
-    cursor:pointer;font-weight:600;padding:0}
-  .donetoggle:hover{text-decoration:underline}
+  .col h2.colhead{cursor:pointer;user-select:none}
+  .col h2.colhead:hover .caret{color:var(--ink)}
+  .caret{display:inline-flex;width:14px;justify-content:center;font-size:10px;color:var(--muted);flex:none}
+  .cards.collapsed{display:none}
+  /* while dragging, reveal a slim drop zone on collapsed columns */
+  .board.dragging .cards.collapsed{display:flex;min-height:44px;opacity:.9;
+    border:1px dashed var(--accent);border-radius:10px;margin:0 4px 8px}
+  .board.dragging .cards.collapsed > .card,
+  .board.dragging .cards.collapsed > .empty{display:none}
+  .board.dragging .cards.collapsed::after{content:"Drop here";margin:auto;font-size:11px;
+    font-weight:600;color:var(--accent)}
+  .donebtn{position:absolute;top:8px;right:8px;width:22px;height:22px;border-radius:50%;
+    border:1.5px solid var(--line);background:transparent;color:var(--muted);font-size:12px;
+    line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0}
+  .donebtn:hover{background:var(--done);border-color:var(--done);color:#fff}
+  .card .ttl{padding-right:24px}
   /* modal */
   .scrim{position:fixed;inset:0;background:rgba(20,28,50,.4);display:none;align-items:center;justify-content:center;z-index:20}
   .scrim.open{display:flex}
@@ -84,12 +146,23 @@
     padding:22px 24px;max-height:88vh;overflow:auto}
   .modal h3{margin:0 0 16px;font-size:16px}
   label{display:block;font-size:12px;font-weight:600;color:var(--muted);margin:12px 0 5px}
-  input[type=text],textarea,.modal select{width:100%;border:1px solid var(--line);border-radius:9px;padding:9px 11px;background:#fbfcfe}
+  input[type=text],textarea,.modal select{width:100%;border:1px solid var(--line);border-radius:9px;padding:9px 11px;background:var(--field);color:var(--ink)}
   textarea{min-height:84px;resize:vertical}
   .seg{display:inline-flex;border:1px solid var(--line);border-radius:9px;overflow:hidden}
   .seg button{border:0;background:#fff;padding:8px 16px;border-radius:0;font-weight:600;color:var(--muted)}
   .seg button.on[data-v="Ch@o"]{background:var(--me);color:#fff}
   .seg button.on[data-v="Claude"]{background:var(--claude);color:#fff}
+  .seg.prio button.on[data-v="high"]{background:var(--ok);color:#fff}
+  .seg.prio button.on[data-v="medium"]{background:var(--doing);color:#fff}
+  .seg.prio button.on[data-v="low"]{background:#6b7280;color:#fff}
+  .seg.prio button.on[data-v="none"]{background:#8a93a6;color:#fff}
+  .badge.prio{gap:4px}
+  .badge.prio.high{background:rgba(224,83,59,.13);color:var(--ok)}
+  .badge.prio.medium{background:rgba(224,160,8,.15);color:#b07d05}
+  .badge.prio.low{background:rgba(138,147,166,.16);color:#586079}
+  .card.prio-high{border-left:3px solid var(--ok)}
+  .card.prio-medium{border-left:3px solid var(--doing)}
+  .card.prio-low{border-left:3px solid #b7becb}
   .viewseg button.on{background:var(--accent);color:#fff}
   #refreshBtn.spin-now{pointer-events:none}
   #refreshBtn.spin-now span{display:inline-block;animation:s .6s linear infinite}
@@ -157,6 +230,10 @@
   <button class="btn" id="refreshBtn" title="Refresh now">↻ Refresh</button>
   <button class="btn" id="projBtn" title="Add or remove projects">⋮ Projects</button>
   <button class="btn" id="alertBtn" title="Turn on desktop alerts for due dates">🔔 Enable alerts</button>
+  <button class="btn" id="themeBtn" title="Toggle light / dark mode">🌙 Dark</button>
+  <button class="btn" id="backupBtn" title="Download a backup of the board (JSON)">⬇ Backup</button>
+  <button class="btn" id="restoreBtn" title="Restore the board from a backup file">⬆ Restore</button>
+  <input type="file" id="restoreFile" accept="application/json,.json" style="display:none">
   <button class="btn primary" id="newBtn">+ New card</button>
   <a class="btn" id="ghLink" href="https://github.com/adrianchatto/LifeKanban" target="_blank"
      title="View this project on GitHub" style="text-decoration:none;display:inline-flex;align-items:center;gap:6px">
@@ -206,6 +283,13 @@
         </div>
       </div>
     </div>
+    <label>Priority</label>
+    <div class="seg prio" id="fPriority">
+      <button type="button" data-v="high">High</button>
+      <button type="button" data-v="medium">Medium</button>
+      <button type="button" data-v="low">Low</button>
+      <button type="button" data-v="none">None</button>
+    </div>
     <label>Due date <span style="font-weight:400">(optional)</span></label>
     <input type="date" id="fDue">
     <label>Repeat <span style="font-weight:400">(shows in Calendar, not the columns)</span></label>
@@ -250,10 +334,39 @@ const COLUMNS = [
   {status:"done",     name:"Done"},
 ];
 let board = {cards:[], projects:[]};
-let editing = null, assigneeChoice = "Ch@o", paused = false, dragId = null;
+let editing = null, assigneeChoice = "Ch@o", priorityChoice = "none", paused = false, dragId = null;
+const PRIORITY_RANK = { high:0, medium:1, low:2, none:3 };
+const PRIORITY_LABEL = { high:"High", medium:"Medium", low:"Low" };
 let recurDays = new Set();   // weekly selection, Mon=0..Sun=6
 let editSubtasks = [];        // [{text, done}] while editing a card
-let showDone = (()=>{ try{return localStorage.getItem("kanban_showdone")==="1";}catch(e){return false;} })();
+let collapsedCols = (()=>{
+  try{ const raw=localStorage.getItem("kanban_collapsed"); if(raw){ const o=JSON.parse(raw); if(o&&typeof o==="object") return o; } }catch(e){}
+  let showDone=false; try{ showDone=localStorage.getItem("kanban_showdone")==="1"; }catch(e){}
+  return { todo:false, doing:false, needs_ok:false, done:!showDone };
+})();
+function saveCollapsed(){ try{ localStorage.setItem("kanban_collapsed", JSON.stringify(collapsedCols)); }catch(e){} }
+let _bellCtx=null;
+function playBell(){
+  try{
+    _bellCtx = _bellCtx || new (window.AudioContext||window.webkitAudioContext)();
+    const ctx=_bellCtx, t=ctx.currentTime;
+    [[1318.5,0],[1760,0.12]].forEach(pair=>{
+      const f=pair[0], dt=pair[1];
+      const o=ctx.createOscillator(), g=ctx.createGain();
+      o.type="sine"; o.frequency.value=f; o.connect(g); g.connect(ctx.destination);
+      g.gain.setValueAtTime(0.0001, t+dt);
+      g.gain.exponentialRampToValueAtTime(0.3, t+dt+0.01);
+      g.gain.exponentialRampToValueAtTime(0.0001, t+dt+0.7);
+      o.start(t+dt); o.stop(t+dt+0.75);
+    });
+  }catch(e){}
+}
+function markDone(id){
+  const c=board.cards.find(x=>x.id===id); if(!c||c.status==="done") return;
+  c.status="done"; c.updated=new Date().toISOString();
+  (c.log=c.log||[]).push(new Date().toISOString()+" marked done");
+  playBell(); render(); pushBoard();
+}
 let view = (()=>{ try{return localStorage.getItem("kanban_view")||"board";}catch(e){return "board";} })();
 let calCursor = (()=>{ const d=new Date(); return {y:d.getFullYear(), m:d.getMonth()}; })();
 
@@ -326,12 +439,21 @@ function cardHTML(c){
   if(c.status==="needs_ok")
     extra += `<div class="working" style="color:var(--ok)">⏸ Waiting for your OK</div>
       <button class="okbtn" data-ok="${c.id}">✓ Approve &amp; run</button>`;
-  return `<article class="card ${c.status==='done'?'is-done':''}" draggable="true" data-id="${c.id}">
+  const prio = (c.priority && c.priority!=="none") ? c.priority : "";
+  const prioCls = prio ? ` prio-${prio}` : "";
+  const doneBtn = c.status!=="done" ? `<button class="donebtn" data-done="${c.id}" title="Mark done">✓</button>` : "";
+  return `<article class="card ${c.status==='done'?'is-done':''}${prioCls}" draggable="true" data-id="${c.id}">
+    ${doneBtn}
     <p class="ttl">${esc(c.title)}</p>
     ${c.description?`<p class="desc">${esc(c.description)}</p>`:""}
-    <div class="row">${who}${projChip(c.project)}${dueBadge(c)}${subProgress(c)}</div>
+    <div class="row">${prioBadge(c)}${who}${projChip(c.project)}${dueBadge(c)}${subProgress(c)}</div>
     ${extra}
   </article>`;
+}
+function prioBadge(c){
+  const p = c.priority;
+  if(!p || p==="none") return "";
+  return `<span class="badge prio ${p}">⚑ ${PRIORITY_LABEL[p]||p}</span>`;
 }
 
 /* ---- due dates ---- */
@@ -403,20 +525,16 @@ function renderBoard(cards){
   const html = COLUMNS.map(col=>{
     const isDone = col.status==="done";
     let list = cards.filter(c=>c.status===col.status && !c.recur);
+    const pr = c=>(PRIORITY_RANK[c.priority]!==undefined?PRIORITY_RANK[c.priority]:PRIORITY_RANK.none);
     list.sort(isDone
       ? (a,b)=>(b.updated||"").localeCompare(a.updated||"")
-      : (a,b)=>(a.created||"").localeCompare(b.created||""));
+      : (a,b)=>(pr(a)-pr(b)) || (a.created||"").localeCompare(b.created||""));
     const inner = list.length ? list.map(cardHTML).join("")
       : `<div class="empty">—</div>`;
-    let head;
-    if(isDone){
-      const toggle = list.length
-        ? `<button class="donetoggle">${showDone?"Hide":"Show "+list.length}</button>` : "";
-      head = `<h2><span class="tag"></span>${col.name}${toggle}<span class="pill">${list.length}</span></h2>`;
-    } else {
-      head = `<h2><span class="tag"></span>${col.name}<span class="pill">${list.length}</span></h2>`;
-    }
-    const collapsed = (isDone && !showDone) ? " collapsed" : "";
+    const isCollapsed = !!collapsedCols[col.status];
+    const caret = `<span class="caret">${isCollapsed ? "▸" : "▾"}</span>`;
+    const head = `<h2 class="colhead" data-status="${col.status}" title="${isCollapsed?"Show":"Hide"} this column">${caret}<span class="tag"></span>${col.name}<span class="pill">${list.length}</span></h2>`;
+    const collapsed = isCollapsed ? " collapsed" : "";
     return `<section class="col" data-status="${col.status}">
       ${head}
       <div class="cards${collapsed}" data-status="${col.status}">${inner}</div>
@@ -426,13 +544,10 @@ function renderBoard(cards){
   wireDnD();
   document.querySelectorAll(".okbtn").forEach(b=>
     b.onclick=(e)=>{ e.stopPropagation(); approveCard(b.dataset.ok); });
-  const dt = document.querySelector(".donetoggle");
-  if(dt) dt.onclick = (e)=>{
-    e.stopPropagation();
-    showDone = !showDone;
-    try{ localStorage.setItem("kanban_showdone", showDone?"1":"0"); }catch(_){}
-    render();
-  };
+  document.querySelectorAll(".donebtn").forEach(b=>
+    b.onclick=(e)=>{ e.stopPropagation(); markDone(b.dataset.done); });
+  document.querySelectorAll(".colhead").forEach(h=>
+    h.onclick=()=>{ const s=h.dataset.status; collapsedCols[s]=!collapsedCols[s]; saveCollapsed(); render(); });
 }
 
 const MONTHS = ["January","February","March","April","May","June","July",
@@ -522,9 +637,10 @@ function wireDnD(){
   document.querySelectorAll(".card").forEach(el=>{
     el.addEventListener("dragstart",e=>{
       dragId = el.dataset.id; paused=true; el.classList.add("ghost");
+      $("#board").classList.add("dragging");
       e.dataTransfer.effectAllowed="move";
     });
-    el.addEventListener("dragend",()=>{ el.classList.remove("ghost"); setTimeout(()=>paused=false,400); });
+    el.addEventListener("dragend",()=>{ el.classList.remove("ghost"); $("#board").classList.remove("dragging"); setTimeout(()=>paused=false,400); });
     el.addEventListener("click",()=>openEdit(el.dataset.id));
   });
   document.querySelectorAll(".cards").forEach(zone=>{
@@ -532,10 +648,13 @@ function wireDnD(){
     zone.addEventListener("dragleave",()=>zone.classList.remove("drag-over"));
     zone.addEventListener("drop",e=>{
       e.preventDefault(); zone.classList.remove("drag-over");
+      $("#board").classList.remove("dragging");
       const c = board.cards.find(x=>x.id===dragId);
       if(c && c.status!==zone.dataset.status){
+        const movedToDone = zone.dataset.status==="done" && c.status!=="done";
         c.status = zone.dataset.status; c.updated = new Date().toISOString();
         (c.log=c.log||[]).push(new Date().toISOString()+" moved to "+c.status+" (manual)");
+        if(movedToDone) playBell();
         render(); pushBoard();
       }
       dragId=null;
@@ -545,25 +664,29 @@ function wireDnD(){
 
 /* ---- modal ---- */
 function openNew(){
-  editing=null; assigneeChoice="Ch@o";
+  editing=null; assigneeChoice="Ch@o"; priorityChoice="none";
   $("#mTitle").textContent="New card";
   $("#fId").value=""; $("#fTitle").value=""; $("#fDesc").value="";
   populateProjectSelect($("#projFilter").value||"General");
   $("#fDue").value="";
   $("#delBtn").style.display="none"; $("#mLog").style.display="none";
   editSubtasks=[]; renderSubtasks();
-  setSeg(); setRecurControls(null); refreshDatalist(); openScrim();
+  setSeg(); setPrioSeg(); setRecurControls(null); refreshDatalist(); openScrim();
+}
+function setPrioSeg(){
+  document.querySelectorAll("#fPriority button").forEach(b=>
+    b.classList.toggle("on", b.dataset.v===priorityChoice));
 }
 function openEdit(id){
   const c = board.cards.find(x=>x.id===id); if(!c)return;
-  editing=id; assigneeChoice=c.assignee;
+  editing=id; assigneeChoice=c.assignee; priorityChoice=c.priority||"none";
   $("#mTitle").textContent="Edit card";
   $("#fId").value=c.id; $("#fTitle").value=c.title; $("#fDesc").value=c.description||"";
   populateProjectSelect(c.project||"General");
   $("#fDue").value=c.due||"";
   $("#delBtn").style.display="inline-block";
   editSubtasks=(c.subtasks||[]).map(s=>({text:s.text, done:!!s.done})); renderSubtasks();
-  setSeg(); setRecurControls(c); refreshDatalist();
+  setSeg(); setPrioSeg(); setRecurControls(c); refreshDatalist();
   const log = c.log||[];
   $("#mLog").style.display = log.length?"block":"none";
   $("#mLog").innerHTML = "<strong>Activity</strong>"+log.slice(-8).map(l=>`<div>${esc(l)}</div>`).join("");
@@ -639,6 +762,7 @@ function save(){
   if(editing){
     const c=board.cards.find(x=>x.id===editing);
     c.title=title; c.description=desc; c.project=project; c.due=due; c.recur=recur;
+    c.priority=priorityChoice;
     c.subtasks=editSubtasks.map(s=>({text:s.text, done:!!s.done}));
     if(c.assignee!==assigneeChoice){
       (c.log=c.log||[]).push(new Date().toISOString()+" assigned to "+assigneeChoice);
@@ -650,7 +774,7 @@ function save(){
     board.next_id=n+1;
     board.cards.push({
       id:"k-"+String(n).padStart(3,"0"),
-      title, description:desc, project, assignee:assigneeChoice,
+      title, description:desc, project, assignee:assigneeChoice, priority:priorityChoice,
       status:"todo", due, recur, subtasks:editSubtasks.map(s=>({text:s.text, done:!!s.done})), skill:null, result_link:null,
       created:new Date().toISOString(), updated:new Date().toISOString(),
       log:["created"]
@@ -686,6 +810,8 @@ $("#delBtn").onclick=del;
 $("#scrim").addEventListener("click",e=>{if(e.target===$("#scrim"))closeScrim();});
 document.querySelectorAll("#fAssignee button").forEach(b=>
   b.onclick=()=>{assigneeChoice=b.dataset.v;setSeg();});
+document.querySelectorAll("#fPriority button").forEach(b=>
+  b.onclick=()=>{priorityChoice=b.dataset.v;setPrioSeg();});
 $("#fAddProj").onclick=()=>{
   const name=(prompt("New project name:")||"").trim();
   if(!name) return;
@@ -753,6 +879,70 @@ $("#alertBtn").onclick=()=>{
 };
 document.addEventListener("keydown",e=>{if(e.key==="Escape")closeScrim();});
 
+function currentTheme(){ return document.documentElement.getAttribute("data-theme")==="dark" ? "dark" : "light"; }
+function updateThemeBtn(){
+  const dark = currentTheme()==="dark";
+  $("#themeBtn").innerHTML = dark ? "☀ Light" : "🌙 Dark";
+  $("#themeBtn").title = dark ? "Switch to light mode" : "Switch to dark mode";
+  const tc=document.querySelector('meta[name="theme-color"]'); if(tc) tc.setAttribute("content", dark ? "#1a212e" : "#3b6cf6");
+}
+$("#themeBtn").onclick=()=>{
+  const next = currentTheme()==="dark" ? "light" : "dark";
+  document.documentElement.setAttribute("data-theme", next);
+  try{ localStorage.setItem("kanban_theme", next); }catch(e){}
+  updateThemeBtn();
+};
+updateThemeBtn();
+
+/* ---- backup / restore ---- */
+function backupBoard(){
+  try{
+    const text = JSON.stringify(board, null, 2);
+    const blob = new Blob([text], {type:"application/json"});
+    const url = URL.createObjectURL(blob);
+    const d = new Date(), p = n=>String(n).padStart(2,"0");
+    const stamp = d.getFullYear()+"-"+p(d.getMonth()+1)+"-"+p(d.getDate())+"_"+p(d.getHours())+p(d.getMinutes());
+    const a = document.createElement("a");
+    a.href = url; a.download = "kanban-backup-"+stamp+".json";
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url), 1500);
+  }catch(e){ alert("Backup failed: "+e.message); }
+}
+function restoreBoard(file){
+  const r = new FileReader();
+  r.onload = ()=>{
+    let data;
+    try{ data = JSON.parse(r.result); }
+    catch(e){ alert("That file isn't valid JSON — restore cancelled."); return; }
+    if(!data || !Array.isArray(data.cards)){
+      alert("That doesn't look like a Kanban backup (no \"cards\" list) — restore cancelled."); return;
+    }
+    const cur = (board.cards||[]).length;
+    if(!confirm("Restore this backup?\n\nThis REPLACES the current board ("+cur+" cards) with "+data.cards.length+" cards from the file.\n\nTip: take a Backup first if you're unsure. This cannot be undone.")) return;
+    // normalise so the board keeps working even if the file is a bare export
+    if(typeof data.next_id !== "number"){
+      let max = 0;
+      data.cards.forEach(c=>{ const m=/^k-(\d+)$/.exec(c.id||""); if(m) max=Math.max(max, +m[1]); });
+      data.next_id = max + 1;
+    }
+    if(!Array.isArray(data.projects)){
+      const s = new Set(["General"]); data.cards.forEach(c=>s.add(c.project||"General"));
+      data.projects = [...s];
+    }
+    board = data; render(); pushBoard();
+    alert("Restored "+data.cards.length+" cards from the backup.");
+  };
+  r.onerror = ()=>alert("Couldn't read that file — restore cancelled.");
+  r.readAsText(file);
+}
+$("#backupBtn").onclick = backupBoard;
+$("#restoreBtn").onclick = ()=>$("#restoreFile").click();
+$("#restoreFile").onchange = (e)=>{
+  const f = e.target.files && e.target.files[0];
+  if(f) restoreBoard(f);
+  e.target.value = "";   // allow re-selecting the same file later
+};
+
 function setViewToggle(){
   document.querySelectorAll("#viewToggle button").forEach(b=>
     b.classList.toggle("on", b.dataset.v===view));
@@ -772,6 +962,593 @@ fetchBoard();
 setInterval(fetchBoard, 3000);
 setInterval(checkNotifications, 60000);
 setTimeout(checkNotifications, 2000);
+</script>
+
+<!-- ===== Chat assistant: add cards by natural language (k-020) ===== -->
+<script>
+(function(){
+  "use strict";
+
+  /* ---------- natural-language parser ---------- */
+  const WD  = "(mondays?|tuesdays?|wednesdays?|thursdays?|fridays?|saturdays?|sundays?|mon|tues?|weds?|thurs?|thur|fri|sat|sun)";
+  const MON = "(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)";
+  function jsWd(s){ return {sun:0,mon:1,tue:2,wed:3,thu:4,fri:5,sat:6}[s.toLowerCase().slice(0,3)]; }
+  function recurWd(s){ return {mon:0,tue:1,wed:2,thu:3,fri:4,sat:5,sun:6}[s.toLowerCase().slice(0,3)]; }
+  function monIdx(s){ return ["jan","feb","mar","apr","may","jun","jul","aug","sep","oct","nov","dec"].indexOf(s.toLowerCase().slice(0,3)); }
+  function esc4re(s){ return s.replace(/[.*+?^${}()|[\]\\]/g,"\\$&"); }
+  function kcToday(){ const d=new Date(); d.setHours(0,0,0,0); return d; }
+  function kcISO(d){ const z=new Date(d.getTime()-d.getTimezoneOffset()*60000); return z.toISOString().slice(0,10); }
+
+  function kcParse(text){
+    const out = { title:"", description:"", project:"General", assignee:"Ch@o", priority:"none", due:null, recur:null };
+    let work = " " + (text||"").trim() + " ";
+    let m;
+    function take(re){ const mm = work.match(re); if(mm){ work = work.replace(mm[0], " "); } return mm; }
+
+    // priority
+    if(take(/\b(?:urgent|asap|high\s*priority|high\s*prio|!{2,})\b/i) || take(/\bp1\b/i)) out.priority="high";
+    else if(take(/\b(?:medium\s*priority|med\s*prio|p2)\b/i)) out.priority="medium";
+    else if(take(/\b(?:low\s*priority|low\s*prio|whenever|someday|p3)\b/i)) out.priority="low";
+
+    // assignee — only assign to Claude when explicitly named
+    if(take(/\b(?:assign(?:ed)?\s+to\s+|have\s+|get\s+|ask\s+|for\s+|by\s+|tell\s+)?claude(?:\s+to)?\b/i))
+      out.assignee = "Claude";
+
+    // recurrence (before due, so "every monday" isn't read as a one-off due date)
+    if(take(/\b(?:every\s+weekday|each\s+weekday|weekdays)\b/i)) out.recur = { freq:"weekdays" };
+    else if(m = take(new RegExp("\\b(?:every|each)\\s+"+WD+"\\b","i"))) out.recur = { freq:"weekly", days:[recurWd(m[1])] };
+    else if(take(/\b(?:every\s+week|each\s+week|weekly)\b/i)) out.recur = { freq:"weekly", days:[] };
+    else if(take(/\b(?:every\s+day|each\s+day|everyday|daily)\b/i)) out.recur = { freq:"daily" };
+    else if(take(/\b(?:every\s+month|each\s+month|monthly)\b/i)) out.recur = { freq:"monthly" };
+
+    // due date
+    function setDue(d){ out.due = kcISO(d); }
+    if(!out.due && (m = take(/\b(\d{4})-(\d{1,2})-(\d{1,2})\b/)))           setDue(new Date(+m[1], +m[2]-1, +m[3]));
+    if(!out.due && (m = take(/\b(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?\b/))){
+      let dd=+m[1], mm=+m[2], yy = m[3] ? (+m[3]<100 ? 2000+(+m[3]) : +m[3]) : kcToday().getFullYear();
+      setDue(new Date(yy, mm-1, dd));
+    }
+    if(!out.due && (m = take(new RegExp("\\b(\\d{1,2})(?:st|nd|rd|th)?\\s+"+MON+"(?:\\s+(\\d{4}))?\\b","i")))){
+      const yr = m[3] ? +m[3] : kcToday().getFullYear(); setDue(new Date(yr, monIdx(m[2]), +m[1]));
+    }
+    if(!out.due && (m = take(new RegExp("\\b"+MON+"\\s+(\\d{1,2})(?:st|nd|rd|th)?(?:,?\\s+(\\d{4}))?\\b","i")))){
+      const yr = m[3] ? +m[3] : kcToday().getFullYear(); setDue(new Date(yr, monIdx(m[1]), +m[2]));
+    }
+    if(!out.due && take(/\b(?:today|tonight|tonite|end of day|eod)\b/i)) setDue(kcToday());
+    if(!out.due && take(/\b(?:tomorrow|tmrw|tmr|tomoro)\b/i)){ const d=kcToday(); d.setDate(d.getDate()+1); setDue(d); }
+    if(!out.due && (m = take(/\bin\s+(\d+)\s+days?\b/i))){ const d=kcToday(); d.setDate(d.getDate()+(+m[1])); setDue(d); }
+    if(!out.due && (m = take(/\bin\s+(\d+)\s+weeks?\b/i))){ const d=kcToday(); d.setDate(d.getDate()+7*(+m[1])); setDue(d); }
+    if(!out.due && take(/\bnext\s+week\b/i)){ const d=kcToday(); d.setDate(d.getDate()+7); setDue(d); }
+    if(!out.due && take(/\b(?:this\s+|next\s+)?weekend\b/i)){ const d=kcToday(); d.setDate(d.getDate()+((6-d.getDay()+7)%7||7)); setDue(d); }
+    if(!out.due && (m = take(new RegExp("\\b(next\\s+)?(?:on\\s+|by\\s+|due\\s+)?"+WD+"\\b","i")))){
+      const d=kcToday(); let off = (jsWd(m[2]) - d.getDay() + 7) % 7;
+      if(m[1] && off===0) off = 7;            // "next <weekday>" when today already is that weekday
+      d.setDate(d.getDate()+off); setDue(d);
+    }
+
+    // fill weekly recurrence day if not specified, and monthly day
+    if(out.recur && out.recur.freq==="weekly" && (!out.recur.days || !out.recur.days.length)){
+      const base = out.due ? new Date(out.due+"T00:00:00") : kcToday();
+      out.recur.days = [ (base.getDay()+6)%7 ];
+    }
+    if(out.recur && out.recur.freq==="monthly") out.recur.day = out.due ? +out.due.slice(8,10) : kcToday().getDate();
+
+    // project — #tag wins; otherwise match a known project name
+    if(m = take(/(?:^|\s)#([A-Za-z0-9][\w-]*)/)) out.project = m[1];
+    else {
+      const known = (typeof projectsList==="function" ? projectsList() : (board.projects||[]))
+        .filter(p=>p && p!=="General").sort((a,b)=>b.length-a.length);
+      for(const p of known){
+        const re = new RegExp("(?:^|\\s)(?:for\\s+|on\\s+|under\\s+|project\\s+)?"+esc4re(p)+"(?=\\s|$)", "i");
+        if(re.test(work)){ work = work.replace(re, " "); out.project = p; break; }
+      }
+    }
+
+    // title cleanup — strip filler verbs and dangling prepositions
+    let t = work.replace(/\s+/g," ").trim();
+    t = t.replace(/^(?:please\s+|kindly\s+|pls\s+|can you\s+|could you\s+|hey\s+)/i,"");
+    t = t.replace(/^(?:add(?:\s+a)?(?:\s+new)?(?:\s+card|\s+task|\s+todo|\s+to-?do)?(?:\s+(?:to|on|in)(?:\s+the)?\s+(?:kanban|board|list|to-?do))?|create(?:\s+a)?(?:\s+card|\s+task)?|new\s+(?:card|task|todo|to-?do)|make(?:\s+a)?(?:\s+card|\s+task|\s+note)?|set\s+up|remind me to|remind me|i need to|i have to|i want to|i must|i need|note|todo|to-?do|task)\b[:,\-\s]*/i,"");
+    t = t.replace(/^(?:to|that|a)\s+/i,"");
+    t = t.replace(/[\s,;:.\-]+$/,"");
+    t = t.replace(/\b(?:for|on|by|due|every|each|to)$/i,"").trim();
+    if(t) t = t.charAt(0).toUpperCase() + t.slice(1);
+    out.title = t;
+    return out;
+  }
+
+  /* ---------- helpers tied to the board ---------- */
+  function kcRecurText(r){
+    if(!r) return "";
+    if(r.freq==="daily")    return "every day";
+    if(r.freq==="weekdays") return "every weekday";
+    if(r.freq==="monthly")  return "monthly (day "+(r.day||1)+")";
+    if(r.freq==="weekly"){ const N=["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
+      return "weekly ("+(r.days||[]).map(x=>N[x]).join(", ")+")"; }
+    return r.freq;
+  }
+  function kcDueText(iso){ try{ return (typeof fmtDue==="function") ? fmtDue(iso) : iso; }catch(e){ return iso; } }
+
+  function kcCommit(d){
+    const n=(board.next_id||1); board.next_id=n+1;
+    const card={ id:"k-"+String(n).padStart(3,"0"), title:d.title, description:d.description||"",
+      project:d.project||"General", assignee:d.assignee||"Ch@o", priority:d.priority||"none", status:"todo",
+      due:d.due||null, recur:d.recur||null, subtasks:[], skill:null, result_link:null,
+      created:new Date().toISOString(), updated:new Date().toISOString(),
+      log:["created","added via chat assistant"] };
+    board.cards.push(card);
+    if(!(board.projects||[]).includes(card.project)) (board.projects=board.projects||[]).push(card.project);
+    if(card.recur && typeof view!=="undefined" && view!=="calendar"){
+      view="calendar"; try{localStorage.setItem("kanban_view",view);}catch(e){} if(typeof setViewToggle==="function") setViewToggle();
+    }
+    if(typeof render==="function") render();
+    if(typeof pushBoard==="function") pushBoard();
+    return card;
+  }
+
+  // Hand a draft into the app's own New-card modal so it can be tweaked before saving
+  function kcEditDraft(d){
+    try{
+      editing=null; assigneeChoice=d.assignee||"Ch@o"; priorityChoice=d.priority||"none";
+      $("#mTitle").textContent="New card";
+      $("#fId").value=""; $("#fTitle").value=d.title||""; $("#fDesc").value=d.description||"";
+      populateProjectSelect(d.project||"General");
+      $("#fDue").value=d.due||"";
+      $("#delBtn").style.display="none"; $("#mLog").style.display="none";
+      editSubtasks=[]; renderSubtasks(); setSeg(); if(typeof setPrioSeg==="function") setPrioSeg();
+      recurDays = new Set();
+      if(d.recur){ $("#fRepeat").value=d.recur.freq;
+        if(d.recur.freq==="weekly" && d.recur.days) d.recur.days.forEach(x=>recurDays.add(+x));
+        $("#fMonthDay").value=d.recur.day||1;
+      } else { $("#fRepeat").value=""; }
+      syncRepeatUI(); refreshDatalist();
+      kcClose(); openScrim();
+    }catch(e){ kcAddMsg("bot","Couldn't open the editor — added directly instead."); kcDoCommit(d); }
+  }
+
+  /* ---------- chat UI ---------- */
+  let kcHist = (()=>{ try{return JSON.parse(localStorage.getItem("kanban_chat_history")||"[]");}catch(e){return [];} })();
+  function kcSaveHist(){ try{ localStorage.setItem("kanban_chat_history", JSON.stringify(kcHist.slice(-40))); }catch(e){} }
+  let kcPending = null;
+
+  function kcEsc(s){ return (s==null?"":String(s)).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+  function kcLogEl(){ return document.getElementById("kcLog"); }
+  function kcScroll(){ const l=kcLogEl(); if(l) l.scrollTop=l.scrollHeight; }
+
+  function kcAddMsg(role, text, save){
+    const d=document.createElement("div");
+    d.className="kc-msg "+(role==="me"?"me":"bot");
+    d.textContent=text;
+    kcLogEl().appendChild(d); kcScroll();
+    if(save!==false){ kcHist.push({role:role,text:text}); kcSaveHist(); }
+  }
+
+  function kcDisable(wrap){ wrap.querySelectorAll("button").forEach(b=>{ b.disabled=true; b.style.opacity=.45; b.style.cursor="default"; }); }
+
+  function kcAddDraft(d){
+    const wrap=document.createElement("div"); wrap.className="kc-card";
+    const chips=[];
+    chips.push('<span class="kc-chip">'+kcEsc(d.project)+'</span>');
+    chips.push('<span class="kc-chip">'+(d.assignee==="Claude"?"✦ Claude":"● Me")+'</span>');
+    if(d.priority && d.priority!=="none") chips.push('<span class="kc-chip">⚑ '+kcEsc(d.priority.charAt(0).toUpperCase()+d.priority.slice(1))+'</span>');
+    if(d.due)   chips.push('<span class="kc-chip">⏰ '+kcEsc(kcDueText(d.due))+'</span>');
+    if(d.recur) chips.push('<span class="kc-chip">🔁 '+kcEsc(kcRecurText(d.recur))+'</span>');
+    wrap.innerHTML =
+      '<div class="kc-ct">'+kcEsc(d.title)+'</div>'+
+      '<div class="kc-meta">'+chips.join("")+'</div>'+
+      '<div class="kc-acts"><button class="kc-go">Add card</button>'+
+      '<button class="kc-ed">Edit…</button><button class="kc-no">Cancel</button></div>';
+    kcLogEl().appendChild(wrap); kcScroll();
+    wrap.querySelector(".kc-go").onclick=()=>{ kcDisable(wrap); kcDoCommit(d); };
+    wrap.querySelector(".kc-ed").onclick=()=>{ kcDisable(wrap); kcPending=null; kcEditDraft(d); };
+    wrap.querySelector(".kc-no").onclick=()=>{ kcDisable(wrap); kcPending=null; kcAddMsg("bot","Cancelled — nothing added."); };
+  }
+
+  function kcDoCommit(d){
+    const card=kcCommit(d); kcPending=null;
+    kcAddMsg("bot","Added "+card.id+": “"+card.title+"” → "+card.project+
+      (card.due?" · due "+kcDueText(card.due):"")+
+      (card.assignee==="Claude"?" · Claude will pick it up":"")+".");
+  }
+
+  function kcHelp(){
+    kcAddMsg("bot",
+      "Tell me a task in plain English and I’ll add it to your board.\n\n"+
+      "Examples:\n"+
+      "• Pay parking tomorrow\n"+
+      "• Review PR for NEO-015 by 12/06/2026\n"+
+      "• Have Claude draft the status report due Friday\n"+
+      "• Submit timesheet every Friday\n"+
+      "• Buy milk #Home\n\n"+
+      "I read dates (today, tomorrow, Friday, 15 June, 12/06/2026, in 3 days), projects "+
+      "(a name or #tag), who it’s for (say “Claude” to assign me), and repeats (daily, "+
+      "weekly, every Monday, monthly). You can also ask “what’s on my board” or “what’s due today”.");
+  }
+
+  function kcAnswer(raw){
+    const t=raw.toLowerCase().trim();
+    if(/^(help|\?|what can you do)/.test(t)){ kcHelp(); return true; }
+    const isQ = /^(what'?s|whats|show|list|how many|count|display|tell me|do i)\b/.test(t) && !/^(add|create|new|make|remind)/.test(t);
+    if(!isQ) return false;
+    const cards=board.cards||[];
+    if(/overdue/.test(t)){
+      const today=kcISO(kcToday());
+      const od=cards.filter(c=>c.status!=="done"&&c.due&&c.due<today);
+      kcAddMsg("bot", od.length? "Overdue:\n"+od.map(c=>"• "+c.title+" — "+kcDueText(c.due)).join("\n") : "Nothing overdue.");
+      return true;
+    }
+    if(/due\s+today|today/.test(t)){
+      const today=kcISO(kcToday());
+      const due=cards.filter(c=>c.status!=="done"&&c.due===today);
+      kcAddMsg("bot", due.length? "Due today:\n"+due.map(c=>"• "+c.title+" ("+c.project+")").join("\n") : "Nothing due today.");
+      return true;
+    }
+    if(/claude/.test(t)){
+      const cc=cards.filter(c=>c.assignee==="Claude"&&c.status!=="done");
+      kcAddMsg("bot", cc.length? "Claude’s queue:\n"+cc.map(c=>"• "+c.title+" ["+c.status+"]").join("\n") : "Nothing assigned to Claude right now.");
+      return true;
+    }
+    const by=s=>cards.filter(c=>c.status===s).length;
+    const todo=cards.filter(c=>c.status==="todo");
+    kcAddMsg("bot","Board: "+by("todo")+" to-do · "+by("doing")+" doing · "+by("needs_ok")+" needs OK · "+by("done")+" done."+
+      (todo.length? "\n\nTo-do:\n"+todo.slice(0,8).map(c=>"• "+c.title+" ("+c.project+")").join("\n")+
+        (todo.length>8?"\n…and "+(todo.length-8)+" more":"") : ""));
+    return true;
+  }
+
+  function kcSend(){
+    const inp=document.getElementById("kcInput");
+    const text=(inp.value||"").trim(); if(!text) return;
+    inp.value="";
+    kcAddMsg("me", text);
+    const t=text.toLowerCase();
+
+    if(kcPending){
+      if(/^(y|yes|yep|yeah|ok|okay|sure|add|go|do it|confirm|yup|aye)\b/.test(t)){ kcDoCommit(kcPending); return; }
+      if(/^(n|no|nope|cancel|nvm|nah|stop)\b/.test(t)){ kcPending=null; kcAddMsg("bot","Cancelled — nothing added."); return; }
+      if(/^(edit|change|tweak)\b/.test(t)){ const d=kcPending; kcPending=null; kcEditDraft(d); return; }
+      kcPending=null; // anything else: treat as a fresh instruction
+    }
+
+    if(kcAnswer(text)) return;
+
+    const d=kcParse(text);
+    if(!d.title){ kcAddMsg("bot","I didn’t catch a task there. Try “Pay parking tomorrow”, or type “help”."); return; }
+    kcPending=d;
+    kcAddMsg("bot","Here’s what I’ve got — add it?");
+    kcAddDraft(d);
+  }
+
+  /* ---------- build + wire the widget ---------- */
+  const style=document.createElement("style");
+  style.textContent =
+  "#kcLauncher{position:fixed;right:20px;bottom:20px;z-index:18;border:0;border-radius:999px;background:var(--accent);color:#fff;font-weight:600;font-size:13.5px;padding:12px 18px;cursor:pointer;box-shadow:0 6px 20px rgba(59,108,246,.4);display:inline-flex;align-items:center;gap:8px}"+
+  "#kcLauncher:hover{filter:brightness(1.05)}"+
+  "#kcPanel{position:fixed;right:20px;bottom:20px;z-index:19;width:360px;max-width:calc(100vw - 32px);height:520px;max-height:calc(100vh - 40px);background:var(--panel);border:1px solid var(--line);border-radius:16px;box-shadow:0 12px 40px rgba(20,30,60,.22);display:none;flex-direction:column;overflow:hidden}"+
+  "#kcPanel.open{display:flex}"+
+  ".kc-head{display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid var(--line);background:#fff}"+
+  ".kc-head .kc-av{width:26px;height:26px;border-radius:50%;background:var(--claude);color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;flex:none}"+
+  ".kc-head b{font-size:14px;display:block;line-height:1.1}"+
+  ".kc-head small{color:var(--muted);font-size:11px}"+
+  ".kc-x{margin-left:auto;border:0;background:transparent;font-size:20px;color:var(--muted);cursor:pointer;line-height:1}"+
+  ".kc-log{flex:1;overflow-y:auto;padding:13px;display:flex;flex-direction:column;gap:9px;background:var(--bg)}"+
+  ".kc-msg{max-width:86%;padding:9px 12px;border-radius:13px;font-size:13px;line-height:1.45;white-space:pre-wrap;word-wrap:break-word;overflow-wrap:anywhere}"+
+  ".kc-msg.bot{background:#fff;border:1px solid var(--line);align-self:flex-start;border-bottom-left-radius:4px}"+
+  ".kc-msg.me{background:var(--accent);color:#fff;align-self:flex-end;border-bottom-right-radius:4px}"+
+  ".kc-card{background:#fff;border:1px solid var(--line);border-radius:11px;padding:10px 12px;align-self:flex-start;max-width:92%}"+
+  ".kc-card .kc-ct{font-weight:600;font-size:13px;margin-bottom:7px}"+
+  ".kc-card .kc-meta{display:flex;flex-wrap:wrap;gap:6px}"+
+  ".kc-chip{font-size:11px;background:#f1f3f9;border-radius:6px;padding:2px 8px;color:#3b4252}"+
+  ".kc-acts{display:flex;gap:7px;margin-top:10px}"+
+  ".kc-acts button{border:1px solid var(--line);background:#fff;border-radius:8px;padding:6px 11px;font-size:12px;cursor:pointer;font-weight:600}"+
+  ".kc-acts .kc-go{background:var(--me);color:#fff;border-color:var(--me)}"+
+  ".kc-foot{display:flex;gap:8px;padding:10px;border-top:1px solid var(--line);background:#fff}"+
+  ".kc-foot input{flex:1;border:1px solid var(--line);border-radius:10px;padding:9px 12px;font-size:13px;outline:none}"+
+  ".kc-foot input:focus{border-color:var(--accent)}"+
+  ".kc-foot button{border:0;background:var(--accent);color:#fff;border-radius:10px;padding:0 16px;font-weight:600;cursor:pointer}";
+  document.head.appendChild(style);
+
+  const launcher=document.createElement("button");
+  launcher.id="kcLauncher"; launcher.type="button"; launcher.innerHTML="✦ Add by chat";
+  const panel=document.createElement("div"); panel.id="kcPanel";
+  panel.innerHTML =
+    '<div class="kc-head"><div class="kc-av">✦</div>'+
+    '<div><b>Add by chat</b><small>Type a task in plain English</small></div>'+
+    '<button class="kc-x" id="kcCloseBtn" title="Close" type="button">×</button></div>'+
+    '<div class="kc-log" id="kcLog"></div>'+
+    '<div class="kc-foot"><input id="kcInput" placeholder="e.g. Pay parking tomorrow" autocomplete="off">'+
+    '<button id="kcSendBtn" type="button">Send</button></div>';
+  document.body.appendChild(launcher);
+  document.body.appendChild(panel);
+
+  function kcOpen(){ panel.classList.add("open"); launcher.style.display="none";
+    if(!kcHist.length) kcHelp();
+    setTimeout(()=>{ const i=document.getElementById("kcInput"); if(i) i.focus(); }, 60); }
+  function kcCloseFn(){ panel.classList.remove("open"); launcher.style.display="inline-flex"; }
+  window.kcClose = kcCloseFn;            // used by kcEditDraft
+  window.kcOpenChat = kcOpen;
+
+  launcher.onclick = kcOpen;
+  document.getElementById("kcCloseBtn").onclick = kcCloseFn;
+  document.getElementById("kcSendBtn").onclick = kcSend;
+  document.getElementById("kcInput").addEventListener("keydown", e=>{ if(e.key==="Enter"){ e.preventDefault(); kcSend(); } });
+
+  // restore prior conversation (text bubbles only)
+  kcHist.forEach(mm=>{ const d=document.createElement("div");
+    d.className="kc-msg "+(mm.role==="me"?"me":"bot"); d.textContent=mm.text; kcLogEl().appendChild(d); });
+  kcScroll();
+
+  // expose for quick console/manual checks
+  window.kcParse = kcParse;
+})();
+</script>
+
+<!-- ===== Pomodoro timer (k-021) ===== -->
+<script>
+(function(){
+  "use strict";
+  const KEY="kanban_pomodoro";
+  const DEF={ focus:25, short:5, long:15, longEvery:4, autostart:true };
+
+  function load(){
+    let s={}; try{ s=JSON.parse(localStorage.getItem(KEY)||"{}"); }catch(e){}
+    return {
+      focus:+s.focus>0?+s.focus:DEF.focus,
+      short:+s.short>0?+s.short:DEF.short,
+      long:+s.long>0?+s.long:DEF.long,
+      longEvery:+s.longEvery>0?+s.longEvery:DEF.longEvery,
+      autostart:s.autostart!==undefined?!!s.autostart:DEF.autostart,
+      mode:s.mode||"focus",
+      remaining:(typeof s.remaining==="number")?s.remaining:null,
+      running:!!s.running,
+      endsAt:s.endsAt||0,
+      count:+s.count||0
+    };
+  }
+  let st=load();
+  function dur(mode){ return (mode==="focus"?st.focus:mode==="short"?st.short:st.long)*60; }
+  if(st.remaining===null) st.remaining=dur(st.mode);
+  // if it was running but the deadline passed while away, stop cleanly at full time
+  if(st.running){
+    if(st.endsAt && st.endsAt>Date.now()){ st.remaining=Math.round((st.endsAt-Date.now())/1000); }
+    else { st.running=false; st.remaining=dur(st.mode); st.endsAt=0; }
+  }
+  function save(){ try{ localStorage.setItem(KEY, JSON.stringify(st)); }catch(e){} }
+
+  const MODE_LABEL={ focus:"Focus", short:"Short break", long:"Long break" };
+
+  /* ---- audio + notify ---- */
+  let actx=null;
+  function beep(){
+    try{
+      actx=actx||new (window.AudioContext||window.webkitAudioContext)();
+      const now=actx.currentTime;
+      [0,0.18,0.36].forEach((t,i)=>{
+        const o=actx.createOscillator(), g=actx.createGain();
+        o.type="sine"; o.frequency.value= i===2?660:880;
+        o.connect(g); g.connect(actx.destination);
+        g.gain.setValueAtTime(0.0001, now+t);
+        g.gain.exponentialRampToValueAtTime(0.25, now+t+0.02);
+        g.gain.exponentialRampToValueAtTime(0.0001, now+t+0.16);
+        o.start(now+t); o.stop(now+t+0.18);
+      });
+    }catch(e){}
+  }
+  function notify(title, body){
+    try{ if(window.Notification && Notification.permission==="granted") new Notification(title,{body:body, icon:"/icon-192.png"}); }catch(e){}
+  }
+
+  /* ---- core ---- */
+  function fmt(s){ s=Math.max(0,s|0); const m=(s/60)|0, ss=s%60; return (m<10?"0":"")+m+":"+(ss<10?"0":"")+ss; }
+
+  function setMode(mode, autoStart){
+    st.mode=mode; st.remaining=dur(mode); st.endsAt=0; st.running=false;
+    if(autoStart) start(); else { save(); render(); }
+  }
+  function start(){
+    if(st.remaining<=0) st.remaining=dur(st.mode);
+    st.running=true; st.endsAt=Date.now()+st.remaining*1000; save(); render();
+  }
+  function pause(){
+    if(st.running && st.endsAt) st.remaining=Math.max(0,Math.round((st.endsAt-Date.now())/1000));
+    st.running=false; st.endsAt=0; save(); render();
+  }
+  function toggle(){ st.running?pause():start(); }
+  function reset(){ st.running=false; st.endsAt=0; st.remaining=dur(st.mode); save(); render(); }
+  function complete(){
+    beep();
+    let next;
+    if(st.mode==="focus"){
+      st.count++;
+      next=(st.count % st.longEvery===0)?"long":"short";
+      notify("Focus done 🍅", "Time for a "+(next==="long"?"long":"short")+" break.");
+    }else{
+      next="focus";
+      notify("Break over", "Back to focus.");
+    }
+    setMode(next, st.autostart);
+  }
+  function skip(){
+    // advance as if the current phase finished, but no celebratory completion of focus count on a break
+    let next;
+    if(st.mode==="focus"){ st.count++; next=(st.count % st.longEvery===0)?"long":"short"; }
+    else next="focus";
+    setMode(next, false);
+  }
+
+  function tick(){
+    if(!st.running) return;
+    const rem=Math.round((st.endsAt-Date.now())/1000);
+    st.remaining=Math.max(0,rem);
+    if(rem<=0){ complete(); return; }
+    paintTime();
+  }
+
+  /* ---- DOM ---- */
+  let el={};
+  function render(){
+    if(!el.box) return;
+    el.box.setAttribute("data-mode", st.mode);
+    el.tabs.forEach(b=> b.classList.toggle("on", b.dataset.m===st.mode));
+    el.start.textContent = st.running?"Pause":"Start";
+    el.start.classList.toggle("run", st.running);
+    el.count.textContent = st.count>0 ? ("🍅".repeat(Math.min(st.count,8)) + (st.count>8?(" ×"+st.count):"")) : "No pomodoros yet";
+    if(el.wheel) el.wheel.classList.toggle("running", st.running);
+    if(el.hint) el.hint.textContent = st.running ? "" : (curMinutes()+" min · spin to change");
+    paintTime();
+  }
+  function paintTime(){
+    if(!el.time) return;
+    el.time.textContent=fmt(st.remaining);
+    el.label.textContent=MODE_LABEL[st.mode];
+    document.title = st.running ? ("("+fmt(st.remaining)+") "+MODE_LABEL[st.mode]+" · Kanban") : "Kanban";
+  }
+
+  function openSettings(){
+    el.sFocus.value=st.focus; el.sShort.value=st.short; el.sLong.value=st.long;
+    el.settings.classList.add("open");
+  }
+  function saveSettings(){
+    st.focus=Math.min(180,Math.max(1,+el.sFocus.value||DEF.focus));
+    st.short=Math.min(180,Math.max(1,+el.sShort.value||DEF.short));
+    st.long =Math.min(180,Math.max(1,+el.sLong.value||DEF.long));
+    if(!st.running) st.remaining=dur(st.mode);
+    el.settings.classList.remove("open"); save(); render();
+  }
+
+  /* ---- spin wheel: dial the active mode's minutes in 1-min steps ---- */
+  const MIN_MINS=1, MAX_MINS=180;
+  function curMinutes(){ return st.mode==="focus"?st.focus:st.mode==="short"?st.short:st.long; }
+  function setMinutes(mode, mins){
+    mins=Math.min(MAX_MINS,Math.max(MIN_MINS, mins|0));
+    if(mode==="focus") st.focus=mins; else if(mode==="short") st.short=mins; else st.long=mins;
+    return mins;
+  }
+  function dialTo(mins){
+    if(st.running) return;                 // don't disturb a running timer
+    setMinutes(st.mode, mins);
+    st.endsAt=0; st.remaining=dur(st.mode);
+    save(); render();
+  }
+  function adjust(delta){ dialTo(curMinutes()+delta); }
+
+  /* ---- build ---- */
+  const style=document.createElement("style");
+  style.textContent =
+  "#pmWidget{position:fixed;left:18px;bottom:18px;z-index:18;width:212px;background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:0 10px 30px rgba(20,30,60,.16);font:inherit;overflow:hidden}"+
+  "#pmWidget .pm-tabs{display:flex;border-bottom:1px solid var(--line)}"+
+  "#pmWidget .pm-tabs button{flex:1;border:0;background:transparent;padding:8px 4px;font-size:11px;font-weight:600;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent}"+
+  "#pmWidget .pm-tabs button.on{color:var(--ink)}"+
+  "#pmWidget[data-mode=focus] .pm-tabs button.on{border-bottom-color:var(--accent);color:var(--accent)}"+
+  "#pmWidget[data-mode=short] .pm-tabs button.on{border-bottom-color:var(--done);color:var(--done)}"+
+  "#pmWidget[data-mode=long]  .pm-tabs button.on{border-bottom-color:var(--claude);color:var(--claude)}"+
+  "#pmWidget .pm-body{padding:12px 14px 13px;text-align:center}"+
+  "#pmWidget .pm-label{font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin-bottom:2px}"+
+  "#pmWidget .pm-wheel{position:relative;display:flex;flex-direction:column;align-items:center;gap:0;margin:0 auto 4px;width:150px;border-radius:14px;outline:none;-webkit-user-select:none;user-select:none;touch-action:none}"+
+  "#pmWidget .pm-wheel:not(.running){cursor:ns-resize}"+
+  "#pmWidget .pm-wheel:focus-visible{box-shadow:0 0 0 2px var(--accent)}"+
+  "#pmWidget .pm-step{border:0;background:transparent;color:var(--muted);font-size:15px;line-height:1;padding:3px 0;width:100%;cursor:pointer;border-radius:8px}"+
+  "#pmWidget .pm-step:hover{background:rgba(127,127,127,.12);color:var(--ink)}"+
+  "#pmWidget .pm-wheel.running .pm-step{visibility:hidden}"+
+  "#pmWidget .pm-time{font-size:40px;font-weight:700;letter-spacing:-1px;font-variant-numeric:tabular-nums;line-height:1.05;margin:0}"+
+  "#pmWidget[data-mode=focus] .pm-time{color:var(--accent)}"+
+  "#pmWidget[data-mode=short] .pm-time{color:var(--done)}"+
+  "#pmWidget[data-mode=long]  .pm-time{color:var(--claude)}"+
+  "#pmWidget .pm-hint{font-size:10px;color:var(--muted);letter-spacing:.3px;margin-bottom:7px;min-height:12px}"+
+  "#pmWidget .pm-count{font-size:12px;color:var(--muted);min-height:16px;margin-bottom:9px}"+
+  "#pmWidget .pm-row{display:flex;gap:6px;justify-content:center}"+
+  "#pmWidget .pm-row button{border:1px solid var(--line);background:#fff;border-radius:8px;padding:7px 0;font-size:12px;font-weight:600;cursor:pointer;flex:1}"+
+  "#pmWidget .pm-row .pm-start{background:var(--accent);color:#fff;border-color:var(--accent);flex:1.4}"+
+  "#pmWidget .pm-row .pm-start.run{background:var(--doing);border-color:var(--doing)}"+
+  "#pmWidget .pm-gear{position:absolute;top:7px;right:9px;border:0;background:transparent;color:var(--muted);font-size:13px;cursor:pointer;z-index:2}"+
+  "#pmWidget .pm-settings{display:none;padding:12px 14px;border-top:1px solid var(--line);background:var(--bg)}"+
+  "#pmWidget .pm-settings.open{display:block}"+
+  "#pmWidget .pm-set-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:7px;font-size:12px}"+
+  "#pmWidget .pm-set-row input{width:54px;border:1px solid var(--line);border-radius:7px;padding:4px 7px;font:inherit;text-align:right}"+
+  "#pmWidget .pm-save{width:100%;border:0;background:var(--accent);color:#fff;border-radius:8px;padding:7px;font-weight:600;cursor:pointer;margin-top:3px}";
+  document.head.appendChild(style);
+
+  const w=document.createElement("div"); w.id="pmWidget";
+  w.innerHTML =
+    '<button class="pm-gear" id="pmGear" title="Timer settings" type="button">⚙</button>'+
+    '<div class="pm-tabs">'+
+      '<button data-m="focus" type="button">Focus</button>'+
+      '<button data-m="short" type="button">Short</button>'+
+      '<button data-m="long" type="button">Long</button>'+
+    '</div>'+
+    '<div class="pm-body">'+
+      '<div class="pm-label" id="pmLabel">Focus</div>'+
+      '<div class="pm-wheel" id="pmWheel" tabindex="0" title="Scroll, drag up/down, or use ▲ ▼ to set the minutes">'+
+        '<button class="pm-step" id="pmUp" type="button" aria-label="Add a minute">▲</button>'+
+        '<div class="pm-time" id="pmTime">25:00</div>'+
+        '<button class="pm-step" id="pmDown" type="button" aria-label="Remove a minute">▼</button>'+
+      '</div>'+
+      '<div class="pm-hint" id="pmHint">spin to set minutes</div>'+
+      '<div class="pm-count" id="pmCount"></div>'+
+      '<div class="pm-row">'+
+        '<button class="pm-start" id="pmStart" type="button">Start</button>'+
+        '<button id="pmReset" type="button">Reset</button>'+
+        '<button id="pmSkip" type="button">Skip</button>'+
+      '</div>'+
+    '</div>'+
+    '<div class="pm-settings" id="pmSettings">'+
+      '<div class="pm-set-row"><span>Focus (min)</span><input id="pmSetFocus" type="number" min="1" max="180"></div>'+
+      '<div class="pm-set-row"><span>Short break</span><input id="pmSetShort" type="number" min="1" max="180"></div>'+
+      '<div class="pm-set-row"><span>Long break</span><input id="pmSetLong" type="number" min="1" max="180"></div>'+
+      '<button class="pm-save" id="pmSave" type="button">Save</button>'+
+    '</div>';
+  document.body.appendChild(w);
+
+  el.box=w;
+  el.tabs=Array.prototype.slice.call(w.querySelectorAll(".pm-tabs button"));
+  el.time=document.getElementById("pmTime");
+  el.label=document.getElementById("pmLabel");
+  el.count=document.getElementById("pmCount");
+  el.start=document.getElementById("pmStart");
+  el.wheel=document.getElementById("pmWheel");
+  el.hint=document.getElementById("pmHint");
+  el.settings=document.getElementById("pmSettings");
+  el.sFocus=document.getElementById("pmSetFocus");
+  el.sShort=document.getElementById("pmSetShort");
+  el.sLong=document.getElementById("pmSetLong");
+
+  el.tabs.forEach(b=> b.onclick=()=>{ if(b.dataset.m!==st.mode) setMode(b.dataset.m, false); });
+  el.start.onclick=()=>{ if(!st.running){ try{ if(window.Notification && Notification.permission==="default") Notification.requestPermission(); }catch(e){} } toggle(); };
+  document.getElementById("pmReset").onclick=reset;
+  document.getElementById("pmSkip").onclick=skip;
+  document.getElementById("pmGear").onclick=()=>{ el.settings.classList.contains("open")?el.settings.classList.remove("open"):openSettings(); };
+  document.getElementById("pmSave").onclick=saveSettings;
+
+  // ---- spin-wheel interactions (only when the timer is idle) ----
+  document.getElementById("pmUp").onclick   = (e)=>{ e.stopPropagation(); adjust(1); };
+  document.getElementById("pmDown").onclick = (e)=>{ e.stopPropagation(); adjust(-1); };
+  el.wheel.addEventListener("wheel", (e)=>{
+    if(st.running) return;                 // let the page scroll normally
+    e.preventDefault();
+    adjust(e.deltaY < 0 ? 1 : -1);
+  }, {passive:false});
+  el.wheel.addEventListener("keydown", (e)=>{
+    if(e.key==="ArrowUp"||e.key==="ArrowRight"){ e.preventDefault(); adjust(1); }
+    else if(e.key==="ArrowDown"||e.key==="ArrowLeft"){ e.preventDefault(); adjust(-1); }
+  });
+  // drag up/down to spin
+  let drag=null;
+  el.wheel.addEventListener("pointerdown", (e)=>{
+    if(st.running || e.target.closest(".pm-step")) return;
+    drag={ y:e.clientY, m:curMinutes() };
+    try{ el.wheel.setPointerCapture(e.pointerId); }catch(_){}
+  });
+  el.wheel.addEventListener("pointermove", (e)=>{
+    if(!drag) return;
+    const steps=Math.round((drag.y - e.clientY)/9);
+    if(steps!==0){ const target=drag.m+steps; if(target!==curMinutes()) dialTo(target); }
+  });
+  function endDrag(){ drag=null; }
+  el.wheel.addEventListener("pointerup", endDrag);
+  el.wheel.addEventListener("pointercancel", endDrag);
+
+  render();
+  setInterval(tick, 250);
+})();
 </script>
 </body>
 </html>

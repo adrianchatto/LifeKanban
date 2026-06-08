@@ -1,0 +1,23 @@
+# Keep the build context (and image) small. Note: board.json and results/ are
+# intentionally NOT ignored — they are baked in as first-run seed data.
+.git
+.gitignore
+.DS_Store
+.board.lock
+.server.log
+.start-result.txt
+__pycache__/
+*.pyc
+*.pyo
+node_modules/
+*.tmp
+.board.*.tmp
+
+# macOS-only launcher cruft not needed in the container
+*.command
+*.plist
+*.app/
+Kanban Board.app/
+install_skill.sh
+start_server.sh
+git_sync.sh

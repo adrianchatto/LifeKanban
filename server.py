@@ -18,9 +18,13 @@ import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
-BOARD = os.path.join(ROOT, "board.json")
-RESULTS = os.path.join(ROOT, "results")
-HOST = "127.0.0.1"
+# Data (board.json + results) can live outside the app dir so it can be mounted
+# as a Docker volume. Defaults to the app dir, so local/desktop use is unchanged.
+DATA = os.environ.get("KANBAN_DATA", ROOT)
+BOARD = os.path.join(DATA, "board.json")
+RESULTS = os.path.join(DATA, "results")
+# Bind to 127.0.0.1 by default (desktop); set KANBAN_HOST=0.0.0.0 in containers.
+HOST = os.environ.get("KANBAN_HOST", "127.0.0.1")
 PORT = int(os.environ.get("KANBAN_PORT", "8787"))
 
 MIME = {".md": "text/markdown; charset=utf-8", ".txt": "text/plain; charset=utf-8",

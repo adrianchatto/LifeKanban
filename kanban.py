@@ -10,10 +10,12 @@ Usage:
   python3 kanban.py list [--assignee Claude] [--status todo]
   python3 kanban.py add "Title" [--desc "..."] [--project General]
                               [--assignee Ch@o|Claude] [--status todo]
+                              [--priority high|medium|low|none]
   python3 kanban.py move <id> <todo|doing|done|needs_ok>
   python3 kanban.py assign <id> <Ch@o|Claude>
   python3 kanban.py set-result <id> <relative/path/to/result.md>
   python3 kanban.py set-due <id> <YYYY-MM-DD|clear>
+  python3 kanban.py set-priority <id> <high|medium|low|none>
   python3 kanban.py log <id> "message"
   python3 kanban.py get <id>
   python3 kanban.py claim-next        # next Claude+todo card -> doing, prints JSON
@@ -28,10 +30,23 @@ import tempfile
 from datetime import datetime, timezone
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
-BOARD = os.path.join(ROOT, "board.json")
-LOCK = os.path.join(ROOT, ".board.lock")
+# Data dir can be relocated (e.g. a mounted Docker volume) via KANBAN_DATA.
+# Defaults to the app dir so desktop/worker use is unchanged.
+DATA = os.environ.get("KANBAN_DATA", ROOT)
+BOARD = os.path.join(DATA, "board.json")
+LOCK = os.path.join(DATA, ".board.lock")
 VALID_STATUS = ("todo", "doing", "done", "needs_ok")
 VALID_ASSIGNEE = ("Ch@o", "Claude")
+VALID_PRIORITY = ("high", "medium", "low", "none")
+
+
+def norm_priority(v):
+    v = (v or "none").strip().lower()
+    aliases = {"hi": "high", "h": "high", "urgent": "high", "p1": "high",
+               "med": "medium", "m": "medium", "p2": "medium", "normal": "none",
+               "lo": "low", "l": "low", "p3": "low", "": "none", "-": "none"}
+    v = aliases.get(v, v)
+    return v if v in VALID_PRIORITY else "none"
 
 
 def now():
@@ -97,7 +112,7 @@ def load():
 
 def save(data):
     data["updated"] = now()
-    fd, tmp = tempfile.mkstemp(dir=ROOT, prefix=".board.", suffix=".tmp")
+    fd, tmp = tempfile.mkstemp(dir=DATA, prefix=".board.", suffix=".tmp")
     with os.fdopen(fd, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2, ensure_ascii=False)
     os.replace(tmp, BOARD)
@@ -140,6 +155,7 @@ def cmd_add(args):
             "description": flt.get("desc", ""),
             "project": flt.get("project", "General"),
             "assignee": flt.get("assignee", "Ch@o"),
+            "priority": norm_priority(flt.get("priority")),
             "status": flt.get("status", "todo"),
             "due": flt.get("due") or None,
             "recur": parse_recur(flt.get("recur")),
@@ -238,6 +254,7 @@ def cmd_addb64(args):
             "description": spec.get("description", ""),
             "project": spec.get("project", "General"),
             "assignee": spec.get("assignee", "Ch@o"),
+            "priority": norm_priority(spec.get("priority")),
             "status": spec.get("status", "todo"),
             "due": spec.get("due") or None,
             "recur": spec.get("recur") if isinstance(spec.get("recur"), dict)
@@ -278,6 +295,23 @@ def cmd_set_due(args):
         c["due"] = due
         c["updated"] = now()
         c["log"].append("%s due date %s" % (now(), due or "cleared"))
+        save(data)
+    print(json.dumps(c, indent=2, ensure_ascii=False))
+
+
+def cmd_set_priority(args):
+    if len(args) < 2:
+        die("set-priority needs <id> <high|medium|low|none>")
+    cid = args[0]
+    pri = norm_priority(args[1])
+    with Lock():
+        data = load()
+        c = find(data, cid)
+        if not c:
+            die("no such card: " + cid)
+        c["priority"] = pri
+        c["updated"] = now()
+        c["log"].append("%s priority set to %s" % (now(), pri))
         save(data)
     print(json.dumps(c, indent=2, ensure_ascii=False))
 
@@ -372,6 +406,7 @@ COMMANDS = {
     "assign": cmd_assign,
     "set-result": cmd_set_result,
     "set-due": cmd_set_due,
+    "set-priority": cmd_set_priority,
     "approve": cmd_approve,
     "log": cmd_log,
     "get": cmd_get,

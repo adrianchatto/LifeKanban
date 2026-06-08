@@ -1,0 +1,24 @@
+# Run the Kanban board in Docker:
+#   docker compose up -d --build
+# then open http://localhost:8787
+#
+# Data (board.json + results) lives in the named volume "kanban-data" so it
+# survives rebuilds. To keep data in the repo folder instead, swap the volume
+# line for a bind mount, e.g.:   - ./:/data
+services:
+  kanban:
+    build: .
+    image: lifekanban:latest
+    container_name: lifekanban
+    ports:
+      - "8787:8787"
+    environment:
+      KANBAN_HOST: "0.0.0.0"
+      KANBAN_PORT: "8787"
+      KANBAN_DATA: "/data"
+    volumes:
+      - kanban-data:/data
+    restart: unless-stopped
+
+volumes:
+  kanban-data:

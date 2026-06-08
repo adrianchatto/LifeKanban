@@ -1,11 +1,13 @@
 {
   "version": 1,
-  "updated": "2026-06-07T21:20:30.802Z",
+  "updated": "2026-06-08T09:08:20Z",
   "projects": [
     "General",
-    "Datasite"
+    "Datasite",
+    "Abenson",
+    "MOJ"
   ],
-  "next_id": 20,
+  "next_id": 30,
   "cards": [
     {
       "id": "k-001",
@@ -96,14 +98,15 @@
       "description": "Update the call notes for the Datasite project.",
       "project": "Datasite",
       "assignee": "Ch@o",
-      "status": "todo",
+      "status": "doing",
       "due": "2026-06-08",
       "skill": null,
       "result_link": null,
       "created": "2026-06-07T20:48:48Z",
-      "updated": "2026-06-07T21:07:34.038Z",
+      "updated": "2026-06-08T09:01:26.860Z",
       "log": [
-        "created via skill"
+        "created via skill",
+        "2026-06-08T09:01:26.860Z moved to doing (manual)"
       ],
       "recur": null,
       "subtasks": []
@@ -114,14 +117,15 @@
       "description": "Take the Support-Shere from Lovable to Azure",
       "project": "General",
       "assignee": "Ch@o",
-      "status": "todo",
+      "status": "doing",
       "due": "2026-06-12",
       "skill": null,
       "result_link": null,
       "created": "2026-06-07T20:54:54.201Z",
-      "updated": "2026-06-07T20:55:17.986Z",
+      "updated": "2026-06-07T21:30:10.695Z",
       "log": [
-        "created"
+        "created",
+        "2026-06-07T21:30:10.695Z moved to doing (manual)"
       ]
     },
     {
@@ -146,19 +150,20 @@
       "description": "Fix the Notion intergration once and for all",
       "project": "General",
       "assignee": "Claude",
-      "status": "todo",
+      "status": "done",
       "due": null,
       "skill": null,
       "result_link": "results/k-014.md",
       "created": "2026-06-07T21:01:33.068Z",
-      "updated": "2026-06-07T21:20:30.799Z",
+      "updated": "2026-06-07T21:24:12.018Z",
       "log": [
         "created",
         "2026-06-07T21:02:45Z claimed by Claude worker",
         "2026-06-07T21:03:43Z result: results/k-014.md",
         "2026-06-07T21:03:49Z Diagnosed: Notion connector is installed but unauthenticated (OAuth not completed). Not a code bug. Fix needs an interactive browser authorisation only Ch@o can do. Steps documented in results/k-014.md.",
         "2026-06-07T21:03:54Z moved to needs_ok",
-        "2026-06-07T21:20:30.800Z approved by Ch@o — proceed with the action"
+        "2026-06-07T21:20:30.800Z approved by Ch@o — proceed with the action",
+        "2026-06-07T21:24:12.048Z moved to done (manual)"
       ],
       "approved": true
     },
@@ -201,23 +206,216 @@
     {
       "id": "k-018",
       "title": "Kanban Docker",
-      "description": "Make the Kanban app a docker application",
+      "description": "Make the Kanban app a docker application. Add a docker compose file in the github repo so that this application can be ported to Docker",
       "project": "General",
+      "assignee": "Claude",
+      "status": "done",
+      "due": "2026-06-08",
+      "recur": null,
+      "subtasks": [],
+      "skill": null,
+      "result_link": "results/k-018.md",
+      "created": "2026-06-07T21:06:20.323Z",
+      "updated": "2026-06-08T08:55:20Z",
+      "log": [
+        "created",
+        "2026-06-08T08:51:19.462Z assigned to Claude",
+        "2026-06-08T08:51:24Z claimed by Claude worker",
+        "2026-06-08T08:55:14Z result: results/k-018.md",
+        "2026-06-08T08:55:20Z moved to done"
+      ]
+    },
+    {
+      "id": "k-020",
+      "title": "Add chat bot to to-do list",
+      "description": "I'd like the ability to chat to claude and have it add tasks directly into the Kanban",
+      "project": "General",
+      "assignee": "Claude",
+      "status": "done",
+      "due": "2026-06-08",
+      "recur": null,
+      "subtasks": [],
+      "skill": null,
+      "result_link": "results/k-020.md",
+      "created": "2026-06-08T08:21:53.295Z",
+      "updated": "2026-06-08T08:43:33Z",
+      "log": [
+        "created",
+        "2026-06-08T08:23:16.483Z assigned to Claude",
+        "2026-06-08T08:33:15Z claimed by Claude worker",
+        "2026-06-08T08:43:26Z result: results/k-020.md",
+        "2026-06-08T08:43:33Z moved to done"
+      ]
+    },
+    {
+      "id": "k-021",
+      "title": "Add Pomodoro timer to the dashboard",
+      "description": "Add the pomodoro technique timer to the bottom on the Kanban board",
+      "project": "General",
+      "assignee": "Claude",
+      "status": "done",
+      "due": "2026-06-08",
+      "recur": null,
+      "subtasks": [],
+      "skill": null,
+      "result_link": "results/k-021.md",
+      "created": "2026-06-08T08:23:11.173Z",
+      "updated": "2026-06-08T08:46:12Z",
+      "log": [
+        "created",
+        "2026-06-08T08:43:39Z claimed by Claude worker",
+        "2026-06-08T08:46:07Z result: results/k-021.md",
+        "2026-06-08T08:46:12Z moved to done"
+      ]
+    },
+    {
+      "id": "k-022",
+      "title": "Add timeline to the Abenson SOW",
+      "description": "Add timeline to the Abenson SOW",
+      "project": "Abenson",
       "assignee": "Ch@o",
-      "status": "todo",
+      "status": "done",
       "due": "2026-06-08",
       "recur": null,
       "subtasks": [],
       "skill": null,
       "result_link": null,
-      "created": "2026-06-07T21:06:20.323Z",
-      "updated": "2026-06-07T21:06:20.326Z",
+      "created": "2026-06-08T08:23:51.192Z",
+      "updated": "2026-06-08T08:50:35.576Z",
+      "log": [
+        "created",
+        "2026-06-08T08:23:55.896Z moved to doing (manual)",
+        "2026-06-08T08:50:35.576Z moved to done (manual)"
+      ]
+    },
+    {
+      "id": "k-023",
+      "title": "Add priority order to the Kanban board cards and be able to prioritise",
+      "description": "Add priority order to the Kanban board cards and be able to prioritise",
+      "project": "General",
+      "assignee": "Claude",
+      "status": "doing",
+      "due": "2026-06-08",
+      "recur": null,
+      "subtasks": [],
+      "skill": null,
+      "result_link": "results/k-023.md",
+      "created": "2026-06-08T08:25:00.494Z",
+      "updated": "2026-06-08T08:51:13Z",
+      "log": [
+        "created",
+        "2026-06-08T08:46:18Z claimed by Claude worker",
+        "2026-06-08T08:51:13Z result: results/k-023.md"
+      ]
+    },
+    {
+      "id": "k-024",
+      "title": "Add a dark mode to the kanban board",
+      "description": "The ability to toggle light/dark mode on the Kanban board",
+      "project": "General",
+      "assignee": "Claude",
+      "status": "done",
+      "due": null,
+      "recur": null,
+      "subtasks": [],
+      "skill": null,
+      "result_link": "results/k-024.md",
+      "created": "2026-06-08T08:26:27.190Z",
+      "updated": "2026-06-08T08:58:49Z",
+      "log": [
+        "created",
+        "2026-06-08T08:55:25Z claimed by Claude worker",
+        "2026-06-08T08:58:43Z result: results/k-024.md",
+        "2026-06-08T08:58:49Z moved to done"
+      ]
+    },
+    {
+      "id": "k-025",
+      "title": "Switch the MOJ meetings",
+      "description": "Move the morning and afternoon sessions for MOJ",
+      "project": "MOJ",
+      "assignee": "Ch@o",
+      "status": "todo",
+      "due": "2026-06-09",
+      "recur": null,
+      "subtasks": [],
+      "skill": null,
+      "result_link": null,
+      "created": "2026-06-08T08:46:41.896Z",
+      "updated": "2026-06-08T08:46:41.896Z",
       "log": [
         "created"
+      ]
+    },
+    {
+      "id": "k-026",
+      "title": "Backup",
+      "description": "Add the ability to backup the board and download a file so that I can save it, move to dcoker and then import what I backed up into Docker",
+      "project": "General",
+      "assignee": "Claude",
+      "status": "done",
+      "due": "2026-06-08",
+      "recur": null,
+      "subtasks": [],
+      "skill": null,
+      "result_link": "results/k-026.md",
+      "created": "2026-06-08T08:52:26.772Z",
+      "updated": "2026-06-08T09:01:05Z",
+      "log": [
+        "created",
+        "2026-06-08T08:58:54Z claimed by Claude worker",
+        "2026-06-08T09:01:00Z result: results/k-026.md",
+        "2026-06-08T09:01:05Z moved to done"
+      ]
+    },
+    {
+      "id": "k-028",
+      "title": "The Pomodoro a spinning wheel",
+      "description": "The Pomodoro a spinning wheel where I can set the timer to anything I want not this 25 minutes, 5 minutes, 15 minutes. I'd like to just spin a wheel and go up increment by a minute each time",
+      "project": "General",
+      "assignee": "Claude",
+      "priority": "low",
+      "status": "done",
+      "due": "2026-06-09",
+      "recur": null,
+      "subtasks": [],
+      "skill": null,
+      "result_link": "results/k-028.md",
+      "created": "2026-06-08T08:58:07.613Z",
+      "updated": "2026-06-08T09:04:45Z",
+      "log": [
+        "created",
+        "2026-06-08T09:01:11Z claimed by Claude worker",
+        "2026-06-08T09:04:38Z result: results/k-028.md",
+        "2026-06-08T09:04:45Z moved to done"
+      ]
+    },
+    {
+      "id": "k-029",
+      "title": "Kanban enhancments",
+      "description": "I'd like the ability to hide and show each of the rows to do, like we've done with the done column. Also it's quite hard to drag to the done column when it's not showing so I'd like that fixed. Also a button just to say done on each of the cards and for it to ping like a bell like it does in Microsoft To Do",
+      "project": "General",
+      "assignee": "Claude",
+      "priority": "none",
+      "status": "done",
+      "due": "2026-06-08",
+      "recur": null,
+      "subtasks": [],
+      "skill": null,
+      "result_link": "results/k-029.md",
+      "created": "2026-06-08T09:02:26.572Z",
+      "updated": "2026-06-08T09:08:20Z",
+      "log": [
+        "created",
+        "2026-06-08T09:04:50Z claimed by Claude worker",
+        "2026-06-08T09:08:15Z result: results/k-029.md",
+        "2026-06-08T09:08:20Z moved to done"
       ]
     }
   ],
   "projectColors": {
-    "Datasite": "#a21667"
+    "Datasite": "#a21667",
+    "Abenson": "#d6409f",
+    "MOJ": "#3b6cf6"
   }
 }
