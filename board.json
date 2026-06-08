@@ -1,13 +1,13 @@
 {
   "version": 1,
-  "updated": "2026-06-08T09:08:20Z",
+  "updated": "2026-06-08T10:18:19Z",
   "projects": [
     "General",
     "Datasite",
     "Abenson",
     "MOJ"
   ],
-  "next_id": 30,
+  "next_id": 37,
   "cards": [
     {
       "id": "k-001",
@@ -19,12 +19,14 @@
       "skill": null,
       "result_link": null,
       "created": "2026-06-07T00:00:00Z",
-      "updated": "2026-06-07T20:40:26.429Z",
+      "updated": "2026-06-08T09:51:16Z",
       "log": [
         "2026-06-07T20:14:37Z due date 2026-06-12",
-        "2026-06-07T20:40:26.429Z moved to done (manual)"
+        "2026-06-07T20:40:26.429Z moved to done (manual)",
+        "2026-06-08T09:51:16Z priority defaulted to medium (none retired)"
       ],
-      "due": "2026-06-12"
+      "due": "2026-06-12",
+      "priority": "medium"
     },
     {
       "id": "k-002",
@@ -36,12 +38,14 @@
       "skill": null,
       "result_link": null,
       "created": "2026-06-07T00:00:00Z",
-      "updated": "2026-06-07T20:40:28.144Z",
+      "updated": "2026-06-08T09:51:16Z",
       "log": [
         "2026-06-07T20:14:43Z due date 2026-06-08",
-        "2026-06-07T20:40:28.144Z moved to done (manual)"
+        "2026-06-07T20:40:28.144Z moved to done (manual)",
+        "2026-06-08T09:51:16Z priority defaulted to medium (none retired)"
       ],
-      "due": "2026-06-08"
+      "due": "2026-06-08",
+      "priority": "medium"
     },
     {
       "id": "k-003",
@@ -53,12 +57,14 @@
       "skill": null,
       "result_link": "results/k-003.md",
       "created": "2026-06-07T00:00:00Z",
-      "updated": "2026-06-07T20:08:41Z",
+      "updated": "2026-06-08T09:51:16Z",
       "log": [
         "2026-06-07T20:08:15Z claimed by Claude worker",
         "2026-06-07T20:08:36Z result: results/k-003.md",
-        "2026-06-07T20:08:41Z moved to done"
-      ]
+        "2026-06-07T20:08:41Z moved to done",
+        "2026-06-08T09:51:16Z priority defaulted to medium (none retired)"
+      ],
+      "priority": "medium"
     },
     {
       "id": "k-006",
@@ -71,10 +77,12 @@
       "skill": null,
       "result_link": null,
       "created": "2026-06-07T20:23:57Z",
-      "updated": "2026-06-07T20:33:49.839Z",
+      "updated": "2026-06-08T09:51:16Z",
       "log": [
-        "2026-06-07T20:33:49.840Z moved to done (manual)"
-      ]
+        "2026-06-07T20:33:49.840Z moved to done (manual)",
+        "2026-06-08T09:51:16Z priority defaulted to medium (none retired)"
+      ],
+      "priority": "medium"
     },
     {
       "id": "k-007",
@@ -87,10 +95,12 @@
       "skill": null,
       "result_link": null,
       "created": "2026-06-07T20:36:40Z",
-      "updated": "2026-06-07T20:36:47.591Z",
+      "updated": "2026-06-08T09:51:16Z",
       "log": [
-        "2026-06-07T20:36:47.591Z moved to done (manual)"
-      ]
+        "2026-06-07T20:36:47.591Z moved to done (manual)",
+        "2026-06-08T09:51:16Z priority defaulted to medium (none retired)"
+      ],
+      "priority": "medium"
     },
     {
       "id": "k-009",
@@ -98,18 +108,30 @@
       "description": "Update the call notes for the Datasite project.",
       "project": "Datasite",
       "assignee": "Ch@o",
-      "status": "doing",
+      "status": "done",
       "due": "2026-06-08",
       "skill": null,
       "result_link": null,
       "created": "2026-06-07T20:48:48Z",
-      "updated": "2026-06-08T09:01:26.860Z",
+      "updated": "2026-06-08T09:51:16Z",
       "log": [
         "created via skill",
-        "2026-06-08T09:01:26.860Z moved to doing (manual)"
+        "2026-06-08T09:01:26.860Z moved to doing (manual)",
+        "2026-06-08T09:36:15.964Z moved to done (manual)",
+        "2026-06-08T09:51:16Z priority defaulted to medium (none retired)"
       ],
       "recur": null,
-      "subtasks": []
+      "subtasks": [
+        {
+          "text": "Notes",
+          "done": false
+        },
+        {
+          "text": "next weeks deck",
+          "done": false
+        }
+      ],
+      "priority": "medium"
     },
     {
       "id": "k-010",
@@ -122,11 +144,13 @@
       "skill": null,
       "result_link": null,
       "created": "2026-06-07T20:54:54.201Z",
-      "updated": "2026-06-07T21:30:10.695Z",
+      "updated": "2026-06-08T09:51:16Z",
       "log": [
         "created",
-        "2026-06-07T21:30:10.695Z moved to doing (manual)"
-      ]
+        "2026-06-07T21:30:10.695Z moved to doing (manual)",
+        "2026-06-08T09:51:16Z priority defaulted to medium (none retired)"
+      ],
+      "priority": "medium"
     },
     {
       "id": "k-013",
@@ -139,10 +163,12 @@
       "skill": null,
       "result_link": null,
       "created": "2026-06-07T20:59:07.739Z",
-      "updated": "2026-06-07T21:00:07.824Z",
+      "updated": "2026-06-08T09:51:16Z",
       "log": [
-        "created"
-      ]
+        "created",
+        "2026-06-08T09:51:16Z priority defaulted to medium (none retired)"
+      ],
+      "priority": "medium"
     },
     {
       "id": "k-014",
@@ -155,7 +181,7 @@
       "skill": null,
       "result_link": "results/k-014.md",
       "created": "2026-06-07T21:01:33.068Z",
-      "updated": "2026-06-07T21:24:12.018Z",
+      "updated": "2026-06-08T09:51:16Z",
       "log": [
         "created",
         "2026-06-07T21:02:45Z claimed by Claude worker",
@@ -163,9 +189,11 @@
         "2026-06-07T21:03:49Z Diagnosed: Notion connector is installed but unauthenticated (OAuth not completed). Not a code bug. Fix needs an interactive browser authorisation only Ch@o can do. Steps documented in results/k-014.md.",
         "2026-06-07T21:03:54Z moved to needs_ok",
         "2026-06-07T21:20:30.800Z approved by Ch@o — proceed with the action",
-        "2026-06-07T21:24:12.048Z moved to done (manual)"
+        "2026-06-07T21:24:12.048Z moved to done (manual)",
+        "2026-06-08T09:51:16Z priority defaulted to medium (none retired)"
       ],
-      "approved": true
+      "approved": true,
+      "priority": "medium"
     },
     {
       "id": "k-015",
@@ -180,10 +208,12 @@
       "skill": null,
       "result_link": null,
       "created": "2026-06-07T21:04:30.638Z",
-      "updated": "2026-06-07T21:04:30.639Z",
+      "updated": "2026-06-08T09:51:16Z",
       "log": [
-        "created"
-      ]
+        "created",
+        "2026-06-08T09:51:16Z priority defaulted to medium (none retired)"
+      ],
+      "priority": "medium"
     },
     {
       "id": "k-017",
@@ -198,10 +228,12 @@
       "skill": null,
       "result_link": null,
       "created": "2026-06-07T21:04:45.638Z",
-      "updated": "2026-06-07T21:04:45.638Z",
+      "updated": "2026-06-08T09:51:16Z",
       "log": [
-        "created"
-      ]
+        "created",
+        "2026-06-08T09:51:16Z priority defaulted to medium (none retired)"
+      ],
+      "priority": "medium"
     },
     {
       "id": "k-018",
@@ -216,14 +248,16 @@
       "skill": null,
       "result_link": "results/k-018.md",
       "created": "2026-06-07T21:06:20.323Z",
-      "updated": "2026-06-08T08:55:20Z",
+      "updated": "2026-06-08T09:51:16Z",
       "log": [
         "created",
         "2026-06-08T08:51:19.462Z assigned to Claude",
         "2026-06-08T08:51:24Z claimed by Claude worker",
         "2026-06-08T08:55:14Z result: results/k-018.md",
-        "2026-06-08T08:55:20Z moved to done"
-      ]
+        "2026-06-08T08:55:20Z moved to done",
+        "2026-06-08T09:51:16Z priority defaulted to medium (none retired)"
+      ],
+      "priority": "medium"
     },
     {
       "id": "k-020",
@@ -238,14 +272,16 @@
       "skill": null,
       "result_link": "results/k-020.md",
       "created": "2026-06-08T08:21:53.295Z",
-      "updated": "2026-06-08T08:43:33Z",
+      "updated": "2026-06-08T09:51:16Z",
       "log": [
         "created",
         "2026-06-08T08:23:16.483Z assigned to Claude",
         "2026-06-08T08:33:15Z claimed by Claude worker",
         "2026-06-08T08:43:26Z result: results/k-020.md",
-        "2026-06-08T08:43:33Z moved to done"
-      ]
+        "2026-06-08T08:43:33Z moved to done",
+        "2026-06-08T09:51:16Z priority defaulted to medium (none retired)"
+      ],
+      "priority": "medium"
     },
     {
       "id": "k-021",
@@ -260,13 +296,15 @@
       "skill": null,
       "result_link": "results/k-021.md",
       "created": "2026-06-08T08:23:11.173Z",
-      "updated": "2026-06-08T08:46:12Z",
+      "updated": "2026-06-08T09:51:16Z",
       "log": [
         "created",
         "2026-06-08T08:43:39Z claimed by Claude worker",
         "2026-06-08T08:46:07Z result: results/k-021.md",
-        "2026-06-08T08:46:12Z moved to done"
-      ]
+        "2026-06-08T08:46:12Z moved to done",
+        "2026-06-08T09:51:16Z priority defaulted to medium (none retired)"
+      ],
+      "priority": "medium"
     },
     {
       "id": "k-022",
@@ -281,12 +319,14 @@
       "skill": null,
       "result_link": null,
       "created": "2026-06-08T08:23:51.192Z",
-      "updated": "2026-06-08T08:50:35.576Z",
+      "updated": "2026-06-08T09:51:16Z",
       "log": [
         "created",
         "2026-06-08T08:23:55.896Z moved to doing (manual)",
-        "2026-06-08T08:50:35.576Z moved to done (manual)"
-      ]
+        "2026-06-08T08:50:35.576Z moved to done (manual)",
+        "2026-06-08T09:51:16Z priority defaulted to medium (none retired)"
+      ],
+      "priority": "medium"
     },
     {
       "id": "k-023",
@@ -301,12 +341,14 @@
       "skill": null,
       "result_link": "results/k-023.md",
       "created": "2026-06-08T08:25:00.494Z",
-      "updated": "2026-06-08T08:51:13Z",
+      "updated": "2026-06-08T09:51:16Z",
       "log": [
         "created",
         "2026-06-08T08:46:18Z claimed by Claude worker",
-        "2026-06-08T08:51:13Z result: results/k-023.md"
-      ]
+        "2026-06-08T08:51:13Z result: results/k-023.md",
+        "2026-06-08T09:51:16Z priority defaulted to medium (none retired)"
+      ],
+      "priority": "medium"
     },
     {
       "id": "k-024",
@@ -321,13 +363,15 @@
       "skill": null,
       "result_link": "results/k-024.md",
       "created": "2026-06-08T08:26:27.190Z",
-      "updated": "2026-06-08T08:58:49Z",
+      "updated": "2026-06-08T09:51:16Z",
       "log": [
         "created",
         "2026-06-08T08:55:25Z claimed by Claude worker",
         "2026-06-08T08:58:43Z result: results/k-024.md",
-        "2026-06-08T08:58:49Z moved to done"
-      ]
+        "2026-06-08T08:58:49Z moved to done",
+        "2026-06-08T09:51:16Z priority defaulted to medium (none retired)"
+      ],
+      "priority": "medium"
     },
     {
       "id": "k-025",
@@ -335,17 +379,21 @@
       "description": "Move the morning and afternoon sessions for MOJ",
       "project": "MOJ",
       "assignee": "Ch@o",
-      "status": "todo",
+      "status": "done",
       "due": "2026-06-09",
       "recur": null,
       "subtasks": [],
       "skill": null,
       "result_link": null,
       "created": "2026-06-08T08:46:41.896Z",
-      "updated": "2026-06-08T08:46:41.896Z",
+      "updated": "2026-06-08T10:16:11.748Z",
       "log": [
-        "created"
-      ]
+        "created",
+        "2026-06-08T09:44:45.052Z moved to doing (manual)",
+        "2026-06-08T09:51:16Z priority defaulted to medium (none retired)",
+        "2026-06-08T10:16:11.748Z marked done"
+      ],
+      "priority": "medium"
     },
     {
       "id": "k-026",
@@ -360,13 +408,15 @@
       "skill": null,
       "result_link": "results/k-026.md",
       "created": "2026-06-08T08:52:26.772Z",
-      "updated": "2026-06-08T09:01:05Z",
+      "updated": "2026-06-08T09:51:16Z",
       "log": [
         "created",
         "2026-06-08T08:58:54Z claimed by Claude worker",
         "2026-06-08T09:01:00Z result: results/k-026.md",
-        "2026-06-08T09:01:05Z moved to done"
-      ]
+        "2026-06-08T09:01:05Z moved to done",
+        "2026-06-08T09:51:16Z priority defaulted to medium (none retired)"
+      ],
+      "priority": "medium"
     },
     {
       "id": "k-028",
@@ -396,7 +446,7 @@
       "description": "I'd like the ability to hide and show each of the rows to do, like we've done with the done column. Also it's quite hard to drag to the done column when it's not showing so I'd like that fixed. Also a button just to say done on each of the cards and for it to ping like a bell like it does in Microsoft To Do",
       "project": "General",
       "assignee": "Claude",
-      "priority": "none",
+      "priority": "medium",
       "status": "done",
       "due": "2026-06-08",
       "recur": null,
@@ -404,13 +454,178 @@
       "skill": null,
       "result_link": "results/k-029.md",
       "created": "2026-06-08T09:02:26.572Z",
-      "updated": "2026-06-08T09:08:20Z",
+      "updated": "2026-06-08T09:51:16Z",
       "log": [
         "created",
         "2026-06-08T09:04:50Z claimed by Claude worker",
         "2026-06-08T09:08:15Z result: results/k-029.md",
-        "2026-06-08T09:08:20Z moved to done"
+        "2026-06-08T09:08:20Z moved to done",
+        "2026-06-08T09:51:16Z priority defaulted to medium (none retired)"
       ]
+    },
+    {
+      "id": "k-030",
+      "title": "More kanban enhancements",
+      "description": "Ability to add attachments and screenshots into this chat. I'd like you to use your AI skills to build a title not just the description. I don't want the whole description in the title. I'd like a title and then the description. I'd like you to ask me who to assign it to and ask me for a close date and a priority level",
+      "project": "General",
+      "assignee": "Claude",
+      "priority": "low",
+      "status": "done",
+      "due": "2026-06-09",
+      "recur": null,
+      "subtasks": [],
+      "skill": null,
+      "result_link": "results/k-030.md",
+      "created": "2026-06-08T09:10:20.008Z",
+      "updated": "2026-06-08T09:16:44Z",
+      "log": [
+        "created",
+        "2026-06-08T09:10:31Z claimed by Claude worker",
+        "2026-06-08T09:16:33Z result: results/k-030.md",
+        "2026-06-08T09:16:38Z Built attachments/screenshots (server upload endpoint + modal UI + card badge); encoded AI-title and assignee/date/priority chat-add workflow in kanban SKILL.md; attachments gitignored. Restart board server to load new endpoints.",
+        "2026-06-08T09:16:44Z moved to done"
+      ]
+    },
+    {
+      "id": "k-031",
+      "title": "more more more kanban enhancments",
+      "description": "Now I'd like an admin section to turn on alarms, back up and restore, and maybe the light-dark mode and the GitHub link. Also in dark mode some of the buttons don't work very well. General is a bit washed out and the GitHub purple and blue is quite hard to read. Fix all of that",
+      "project": "General",
+      "assignee": "Claude",
+      "priority": "low",
+      "status": "done",
+      "due": "2026-06-11",
+      "recur": null,
+      "subtasks": [],
+      "skill": null,
+      "result_link": "results/k-031.md",
+      "created": "2026-06-08T09:14:08.371Z",
+      "updated": "2026-06-08T09:20:54Z",
+      "log": [
+        "created",
+        "2026-06-08T09:16:50Z claimed by Claude worker",
+        "2026-06-08T09:20:43Z result: results/k-031.md",
+        "2026-06-08T09:20:49Z Added Admin panel (alerts/backup/restore/theme/GitHub grouped behind one button); fixed dark-mode delete button, due pills, hover and badges; fixed washed-out project chips (theme-aware text + colour dot) incl General; fixed GitHub link default blue/purple link colours.",
+        "2026-06-08T09:20:54Z moved to done"
+      ]
+    },
+    {
+      "id": "k-032",
+      "title": "Email Abenson",
+      "description": "Email Benson and tell them that the cases and profiles feature has been switched on for Cheeto and Donner",
+      "project": "Abenson",
+      "assignee": "Ch@o",
+      "priority": "medium",
+      "status": "done",
+      "due": "2026-06-08",
+      "recur": null,
+      "subtasks": [],
+      "attachments": [],
+      "skill": null,
+      "result_link": null,
+      "created": "2026-06-08T09:37:02.780Z",
+      "updated": "2026-06-08T09:40:17.619Z",
+      "log": [
+        "created",
+        "2026-06-08T09:37:10.049Z moved to doing (manual)",
+        "2026-06-08T09:40:17.619Z moved to done (manual)"
+      ]
+    },
+    {
+      "id": "k-033",
+      "title": "API key for AI chatbot",
+      "description": "I'd like the ability in the admin section to add an API for the AI for this chatbot. I'd like you to be able to choose who you use (OpenAI or Anthropic), paste an API key in there, and also choose the model (Haiku or Opus 4.8, for example, for Anthropic) so can we remove \"none\" from priority and just set the default of everything to medium? I would also like you to have the ability to challenge me and ask which project to assign things to and who to assign things to.",
+      "project": "General",
+      "assignee": "Claude",
+      "priority": "medium",
+      "status": "done",
+      "due": "2026-06-08",
+      "recur": null,
+      "subtasks": [],
+      "attachments": [],
+      "skill": null,
+      "result_link": "results/k-033.md",
+      "created": "2026-06-08T09:42:02.184Z",
+      "updated": "2026-06-08T09:58:48Z",
+      "log": [
+        "created",
+        "2026-06-08T09:48:17Z claimed by Claude worker",
+        "2026-06-08T09:58:42Z result: results/k-033.md",
+        "2026-06-08T09:58:48Z moved to done"
+      ]
+    },
+    {
+      "id": "k-034",
+      "title": "AI API",
+      "description": "I'd like the ability in the admin section to add an API for the AI for this chatbot. I'd like you to be able to choose who you use (OpenAI or Anthropic), paste an API key in there, and also choose the model (Haiku or Opus 4.8, for example, for Anthropic)",
+      "project": "General",
+      "assignee": "Claude",
+      "priority": "medium",
+      "status": "done",
+      "due": null,
+      "recur": null,
+      "subtasks": [],
+      "attachments": [],
+      "skill": null,
+      "result_link": "results/k-034.md",
+      "created": "2026-06-08T09:47:31.441Z",
+      "updated": "2026-06-08T09:59:28Z",
+      "log": [
+        "created",
+        "2026-06-08T09:58:54Z claimed by Claude worker",
+        "2026-06-08T09:59:16Z result: results/k-034.md",
+        "2026-06-08T09:59:22Z Duplicate of k-033 AI settings; already delivered. Closed without re-implementing.",
+        "2026-06-08T09:59:28Z moved to done"
+      ]
+    },
+    {
+      "id": "k-035",
+      "title": "Github",
+      "description": "As I'm giving you these requests I want to ensure that you're adding the Kanban updates to the live Kanban GitHub. I can't see any updates for about 13 hours. I'm just a bit concerned that you're not doing them",
+      "project": "General",
+      "assignee": "Claude",
+      "priority": "medium",
+      "status": "doing",
+      "due": null,
+      "recur": null,
+      "subtasks": [],
+      "attachments": [],
+      "skill": null,
+      "result_link": "results/k-035.md",
+      "created": "2026-06-08T09:48:11.229Z",
+      "updated": "2026-06-08T10:18:19Z",
+      "log": [
+        "created",
+        "2026-06-08T09:51:16Z priority defaulted to medium (none retired)",
+        "2026-06-08T09:59:34Z claimed by Claude worker",
+        "2026-06-08T10:03:02Z result: results/k-035.md",
+        "2026-06-08T10:03:08Z Diagnosed: pushes fail from the worker sandbox (no git credentials), git_sync.sh hardcoded the Mac path, and a stale .git/index.lock (09:08) blocks commits. Fixed git_sync.sh to self-locate + clear stale locks. NEEDS OK: run rm -f .git/index.lock && bash git_sync.sh on the Mac to push the backlog.",
+        "2026-06-08T10:03:13Z moved to needs_ok",
+        "2026-06-08T10:09:51.722Z approved by Ch@o — proceed with the action",
+        "2026-06-08T10:18:19Z claimed by Claude worker"
+      ],
+      "approved": true
+    },
+    {
+      "id": "k-036",
+      "title": "Create users",
+      "description": "The ability to add and manage users for the Kanban board, so their own separate interface just with their tasks and their API key. Obviously I want still have access to this when it moves to Docker. Create your own user or create an API key or however you see best. Maybe do some research on that first and then give me some options",
+      "project": "General",
+      "assignee": "Claude",
+      "priority": "medium",
+      "status": "todo",
+      "due": null,
+      "recur": null,
+      "subtasks": [],
+      "skill": null,
+      "result_link": null,
+      "created": "2026-06-08T10:17:30.287Z",
+      "updated": "2026-06-08T10:17:44.023Z",
+      "log": [
+        "created",
+        "added via chat assistant"
+      ],
+      "attachments": []
     }
   ],
   "projectColors": {

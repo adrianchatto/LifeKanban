@@ -10,12 +10,13 @@ Usage:
   python3 kanban.py list [--assignee Claude] [--status todo]
   python3 kanban.py add "Title" [--desc "..."] [--project General]
                               [--assignee Ch@o|Claude] [--status todo]
-                              [--priority high|medium|low|none]
+                              [--priority high|medium|low]
   python3 kanban.py move <id> <todo|doing|done|needs_ok>
   python3 kanban.py assign <id> <Ch@o|Claude>
   python3 kanban.py set-result <id> <relative/path/to/result.md>
   python3 kanban.py set-due <id> <YYYY-MM-DD|clear>
-  python3 kanban.py set-priority <id> <high|medium|low|none>
+  python3 kanban.py set-priority <id> <high|medium|low>
+  python3 kanban.py normalise-priority  # set any none/blank card -> medium
   python3 kanban.py log <id> "message"
   python3 kanban.py get <id>
   python3 kanban.py claim-next        # next Claude+todo card -> doing, prints JSON
@@ -37,16 +38,18 @@ BOARD = os.path.join(DATA, "board.json")
 LOCK = os.path.join(DATA, ".board.lock")
 VALID_STATUS = ("todo", "doing", "done", "needs_ok")
 VALID_ASSIGNEE = ("Ch@o", "Claude")
-VALID_PRIORITY = ("high", "medium", "low", "none")
+VALID_PRIORITY = ("high", "medium", "low")
 
 
 def norm_priority(v):
-    v = (v or "none").strip().lower()
+    # "none" is retired: everything defaults to medium.
+    v = (v or "medium").strip().lower()
     aliases = {"hi": "high", "h": "high", "urgent": "high", "p1": "high",
-               "med": "medium", "m": "medium", "p2": "medium", "normal": "none",
-               "lo": "low", "l": "low", "p3": "low", "": "none", "-": "none"}
+               "med": "medium", "m": "medium", "p2": "medium", "normal": "medium",
+               "none": "medium", "": "medium", "-": "medium",
+               "lo": "low", "l": "low", "p3": "low"}
     v = aliases.get(v, v)
-    return v if v in VALID_PRIORITY else "none"
+    return v if v in VALID_PRIORITY else "medium"
 
 
 def now():
@@ -299,9 +302,29 @@ def cmd_set_due(args):
     print(json.dumps(c, indent=2, ensure_ascii=False))
 
 
+def cmd_normalise_priority(args):
+    """One-off migration: any card with a missing, blank or 'none' priority
+    is set to 'medium'. Quiet (no per-card log spam) — records one summary
+    line on each migrated card."""
+    changed = []
+    with Lock():
+        data = load()
+        for c in data.get("cards", []):
+            old = (c.get("priority") or "").strip().lower()
+            if old not in VALID_PRIORITY:
+                c["priority"] = "medium"
+                c["updated"] = now()
+                c.setdefault("log", []).append(
+                    "%s priority defaulted to medium (none retired)" % now())
+                changed.append(c["id"])
+        if changed:
+            save(data)
+    print(json.dumps({"migrated": changed, "count": len(changed)}, indent=2))
+
+
 def cmd_set_priority(args):
     if len(args) < 2:
-        die("set-priority needs <id> <high|medium|low|none>")
+        die("set-priority needs <id> <high|medium|low>")
     cid = args[0]
     pri = norm_priority(args[1])
     with Lock():
@@ -407,6 +430,7 @@ COMMANDS = {
     "set-result": cmd_set_result,
     "set-due": cmd_set_due,
     "set-priority": cmd_set_priority,
+    "normalise-priority": cmd_normalise_priority,
     "approve": cmd_approve,
     "log": cmd_log,
     "get": cmd_get,

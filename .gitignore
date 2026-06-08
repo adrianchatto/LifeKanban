@@ -9,5 +9,12 @@
 .install-skill-result.txt
 .start-result.txt
 
+# Card attachments / screenshots — kept local, not synced to GitHub
+attachments/
+
 # macOS
 .DS_Store
+
+# Python bytecode
+__pycache__/
+*.pyc

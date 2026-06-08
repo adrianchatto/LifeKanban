@@ -7,13 +7,17 @@ Serves:
   GET  /api/board       -> board.json
   POST /api/board       -> overwrite board.json (full board)
   GET  /results/<file>  -> result files written by the Claude worker
+  POST /api/upload      -> save a card attachment (raw body, X-Filename header)
+  GET  /attachments/<f> -> serve an uploaded attachment
 
 No third-party dependencies. Runs on localhost only.
 """
 import json
 import os
+import re
 import sys
 import threading
+import time
 import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
@@ -23,6 +27,9 @@ ROOT = os.path.dirname(os.path.abspath(__file__))
 DATA = os.environ.get("KANBAN_DATA", ROOT)
 BOARD = os.path.join(DATA, "board.json")
 RESULTS = os.path.join(DATA, "results")
+ATTACH = os.path.join(DATA, "attachments")
+# Reject attachments larger than this (bytes). Screenshots are well under it.
+MAX_UPLOAD = int(os.environ.get("KANBAN_MAX_UPLOAD", str(25 * 1024 * 1024)))
 # Bind to 127.0.0.1 by default (desktop); set KANBAN_HOST=0.0.0.0 in containers.
 HOST = os.environ.get("KANBAN_HOST", "127.0.0.1")
 PORT = int(os.environ.get("KANBAN_PORT", "8787"))
@@ -30,6 +37,8 @@ PORT = int(os.environ.get("KANBAN_PORT", "8787"))
 MIME = {".md": "text/markdown; charset=utf-8", ".txt": "text/plain; charset=utf-8",
         ".html": "text/html; charset=utf-8", ".json": "application/json",
         ".pdf": "application/pdf", ".png": "image/png", ".csv": "text/csv",
+        ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".gif": "image/gif",
+        ".webp": "image/webp", ".svg": "image/svg+xml", ".heic": "image/heic",
         ".webmanifest": "application/manifest+json", ".ico": "image/x-icon"}
 
 # Static files served from the project root (for PWA install)
@@ -70,6 +79,9 @@ class Handler(BaseHTTPRequestHandler):
         if path.startswith("/results/"):
             self._serve_result(path[len("/results/"):])
             return
+        if path.startswith("/attachments/"):
+            self._serve_attachment(path[len("/attachments/"):])
+            return
         name = path.lstrip("/")
         if name in STATIC:
             fp = os.path.join(ROOT, name)
@@ -106,8 +118,47 @@ class Handler(BaseHTTPRequestHandler):
         else:
             self._send(200, data, ctype)
 
+    def _serve_attachment(self, name):
+        # prevent path traversal — attachments are flat files, no subdirs
+        safe = os.path.basename(os.path.normpath(name))
+        if not safe or safe.startswith("."):
+            self._send(403, "forbidden", "text/plain")
+            return
+        fp = os.path.join(ATTACH, safe)
+        if not os.path.abspath(fp).startswith(os.path.abspath(ATTACH)):
+            self._send(403, "forbidden", "text/plain")
+            return
+        if not os.path.exists(fp):
+            self._send(404, "attachment not found", "text/plain")
+            return
+        ext = os.path.splitext(fp)[1].lower()
+        ctype = MIME.get(ext, "application/octet-stream")
+        with open(fp, "rb") as f:
+            self._send(200, f.read(), ctype)
+
+    def _safe_attach_name(self, raw_name, ctype):
+        """Build a unique, sanitised on-disk filename for an upload."""
+        base = os.path.basename((raw_name or "").strip()) or "attachment"
+        base = base.replace("\x00", "")
+        name, ext = os.path.splitext(base)
+        name = re.sub(r"[^A-Za-z0-9._-]", "-", name).strip("-.") or "attachment"
+        ext = re.sub(r"[^A-Za-z0-9.]", "", ext).lower()
+        if not ext:
+            # derive an extension from the content type when the name lacks one
+            for e, m in MIME.items():
+                if m.split(";")[0] == (ctype or "").split(";")[0]:
+                    ext = e
+                    break
+        name = name[:60]
+        stamp = time.strftime("%Y%m%d-%H%M%S") + "-" + str(int(time.time() * 1000) % 1000)
+        return "%s-%s%s" % (stamp, name, ext)
+
     def do_POST(self):
-        if self.path.split("?", 1)[0] != "/api/board":
+        path = self.path.split("?", 1)[0]
+        if path == "/api/upload":
+            self._handle_upload()
+            return
+        if path != "/api/board":
             self._send(404, "not found", "text/plain")
             return
         length = int(self.headers.get("Content-Length", "0"))
@@ -123,6 +174,34 @@ class Handler(BaseHTTPRequestHandler):
             json.dump(data, f, indent=2, ensure_ascii=False)
         os.replace(tmp, BOARD)
         self._send(200, json.dumps({"ok": True}))
+
+    def _handle_upload(self):
+        length = int(self.headers.get("Content-Length", "0"))
+        if length <= 0:
+            self._send(400, json.dumps({"error": "empty body"}))
+            return
+        if length > MAX_UPLOAD:
+            self._send(413, json.dumps({"error": "file too large",
+                                        "max": MAX_UPLOAD}))
+            return
+        ctype = self.headers.get("Content-Type", "application/octet-stream")
+        raw_name = self.headers.get("X-Filename", "")
+        data = self.rfile.read(length)
+        os.makedirs(ATTACH, exist_ok=True)
+        fname = self._safe_attach_name(raw_name, ctype)
+        fp = os.path.join(ATTACH, fname)
+        tmp = fp + ".tmp"
+        with open(tmp, "wb") as f:
+            f.write(data)
+        os.replace(tmp, fp)
+        self._send(200, json.dumps({
+            "ok": True,
+            "name": fname,
+            "orig": os.path.basename(raw_name) or fname,
+            "url": "/attachments/" + fname,
+            "type": ctype,
+            "size": len(data),
+        }))
 
 
 MD_VIEWER = """<!doctype html><html><head><meta charset="utf-8">
@@ -171,6 +250,7 @@ document.getElementById('c').innerHTML = md(src);
 
 def main():
     os.makedirs(RESULTS, exist_ok=True)
+    os.makedirs(ATTACH, exist_ok=True)
     httpd = ThreadingHTTPServer((HOST, PORT), Handler)
     url = "http://%s:%d/" % (HOST, PORT)
     print("Kanban board running at " + url)

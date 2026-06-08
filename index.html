@@ -65,6 +65,13 @@
   :root[data-theme="dark"] .calchip{background:var(--chip);color:var(--ink)}
   :root[data-theme="dark"] .wd button{background:var(--surface);color:var(--ink)}
   :root[data-theme="dark"] .projrow input[type=color]{background:var(--surface)}
+  /* dark-mode contrast fixes for buttons & badges that hardcode light colours */
+  :root[data-theme="dark"] .danger{background:var(--surface);color:var(--ok);border-color:var(--line)}
+  :root[data-theme="dark"] .due.soon{color:#f0c24a;background:rgba(230,173,30,.18)}
+  :root[data-theme="dark"] .due.met{color:var(--me);background:rgba(39,184,132,.16)}
+  :root[data-theme="dark"] .att-badge,
+  :root[data-theme="dark"] .subprog{background:var(--chip);color:var(--chipink)}
+  :root[data-theme="dark"] .btn:hover{filter:brightness(1.18)}
   *{box-sizing:border-box}
   body{margin:0;font:14px/1.5 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
     color:var(--ink);background:var(--bg)}
@@ -102,7 +109,7 @@
   .badge{font-size:11px;font-weight:600;border-radius:20px;padding:2px 9px;display:inline-flex;align-items:center;gap:5px}
   .badge.me{background:rgba(17,160,107,.12);color:var(--me)}
   .badge.claude{background:rgba(122,92,255,.12);color:var(--claude)}
-  .proj{font-size:11px;font-weight:600;color:#3b4252;background:#f1f3f9;border-radius:6px;padding:2px 8px;display:inline-flex;align-items:center}
+  .proj{font-size:11px;font-weight:600;color:var(--chipink);background:var(--chip);border-radius:6px;padding:2px 8px;display:inline-flex;align-items:center}
   .pdot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px;flex:none}
   .okbtn{margin-top:8px;background:var(--me);color:#fff;border:0;border-radius:8px;padding:6px 12px;
     font-size:12px;font-weight:700;cursor:pointer}
@@ -155,7 +162,6 @@
   .seg.prio button.on[data-v="high"]{background:var(--ok);color:#fff}
   .seg.prio button.on[data-v="medium"]{background:var(--doing);color:#fff}
   .seg.prio button.on[data-v="low"]{background:#6b7280;color:#fff}
-  .seg.prio button.on[data-v="none"]{background:#8a93a6;color:#fff}
   .badge.prio{gap:4px}
   .badge.prio.high{background:rgba(224,83,59,.13);color:var(--ok)}
   .badge.prio.medium{background:rgba(224,160,8,.15);color:#b07d05}
@@ -200,6 +206,32 @@
   .subrow .x{border:0;background:none;color:var(--muted);cursor:pointer;font-size:16px;line-height:1}
   .subprog{font-size:11px;color:var(--muted);background:#f1f3f9;border-radius:6px;padding:2px 7px}
   .subprog.alldone{color:var(--me);background:rgba(17,160,107,.12)}
+  /* attachments */
+  .drop{display:flex;align-items:center;gap:8px;flex-wrap:wrap;border:1.5px dashed var(--line);
+    border-radius:10px;padding:10px 12px;font-size:12.5px;color:var(--muted);margin-top:4px}
+  .drop.drag-over{border-color:var(--accent,#3b6cf6);background:rgba(59,108,246,.06);color:var(--ink,#1d2330)}
+  .attlist{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+  .attchip{display:flex;align-items:center;gap:8px;border:1px solid var(--line);border-radius:9px;
+    padding:5px 8px;font-size:12px;background:var(--card,#fff);max-width:230px}
+  .attchip img{width:36px;height:36px;object-fit:cover;border-radius:6px;flex:none}
+  .attchip .ai{width:36px;height:36px;border-radius:6px;flex:none;display:flex;align-items:center;
+    justify-content:center;background:#eef1f7;font-size:16px}
+  .attchip a{color:var(--accent,#3b6cf6);text-decoration:none;overflow:hidden;text-overflow:ellipsis;
+    white-space:nowrap;flex:1}
+  .attchip .sz{color:var(--muted);font-size:10.5px}
+  .attchip .x{border:0;background:none;color:var(--muted);cursor:pointer;font-size:16px;line-height:1;flex:none}
+  .att-badge{font-size:11px;color:var(--muted);background:#f1f3f9;border-radius:6px;padding:2px 7px}
+  .att-uploading{opacity:.6;font-size:12px;color:var(--muted)}
+  /* admin panel */
+  .adminsec{border:1px solid var(--line);border-radius:11px;padding:4px 14px;margin-top:12px;background:var(--field)}
+  .adminrow{display:flex;align-items:center;gap:12px;padding:11px 0}
+  .adminrow + .adminrow{border-top:1px solid var(--line)}
+  .adminrow > div{flex:1;display:flex;flex-direction:column;gap:2px}
+  .adminrow strong{font-size:13px;font-weight:600}
+  .adminrow span{font-size:11.5px;color:var(--muted)}
+  .adminrow .btn{flex:none;white-space:nowrap}
+  .ghbtn{display:inline-flex;align-items:center;gap:6px;text-decoration:none;color:var(--ink)}
+  .ghbtn:visited{color:var(--ink)}
   /* projects manager */
   .projrow{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--line)}
   .projrow span{flex:1}
@@ -229,22 +261,85 @@
   </div>
   <button class="btn" id="refreshBtn" title="Refresh now">↻ Refresh</button>
   <button class="btn" id="projBtn" title="Add or remove projects">⋮ Projects</button>
-  <button class="btn" id="alertBtn" title="Turn on desktop alerts for due dates">🔔 Enable alerts</button>
-  <button class="btn" id="themeBtn" title="Toggle light / dark mode">🌙 Dark</button>
-  <button class="btn" id="backupBtn" title="Download a backup of the board (JSON)">⬇ Backup</button>
-  <button class="btn" id="restoreBtn" title="Restore the board from a backup file">⬆ Restore</button>
+  <button class="btn" id="adminBtn" title="Alerts, backup, restore, theme and more">⚙ Admin</button>
   <input type="file" id="restoreFile" accept="application/json,.json" style="display:none">
   <button class="btn primary" id="newBtn">+ New card</button>
-  <a class="btn" id="ghLink" href="https://github.com/adrianchatto/LifeKanban" target="_blank"
-     title="View this project on GitHub" style="text-decoration:none;display:inline-flex;align-items:center;gap:6px">
-    <svg height="15" width="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
-    GitHub
-  </a>
 </header>
 
 <div class="board" id="board"></div>
 <div class="cal" id="calendar" style="display:none"></div>
 <footer id="foot">Loading…</footer>
+
+<div class="scrim" id="adminScrim">
+  <div class="modal" style="width:min(440px,92vw)">
+    <h3>Admin</h3>
+    <div class="adminsec">
+      <div class="adminrow">
+        <div><strong>Desktop alerts</strong><span>Notify me when cards are due or overdue.</span></div>
+        <button class="btn" id="alertBtn" title="Turn on desktop alerts for due dates">🔔 Enable alerts</button>
+      </div>
+      <div class="adminrow">
+        <div><strong>Appearance</strong><span>Switch between light and dark.</span></div>
+        <button class="btn" id="themeBtn" title="Toggle light / dark mode">🌙 Dark</button>
+      </div>
+    </div>
+    <div class="adminsec">
+      <div class="adminrow">
+        <div><strong>AI assistant</strong><span id="aiStatus">Use a real model to read your “Add by chat” requests.</span></div>
+        <button class="btn" id="aiBtn" title="Choose provider, model and API key">✦ Configure</button>
+      </div>
+    </div>
+    <div class="adminsec">
+      <div class="adminrow">
+        <div><strong>Back up board</strong><span>Download the whole board as a JSON file.</span></div>
+        <button class="btn" id="backupBtn" title="Download a backup of the board (JSON)">⬇ Backup</button>
+      </div>
+      <div class="adminrow">
+        <div><strong>Restore board</strong><span>Replace the board from a backup file.</span></div>
+        <button class="btn" id="restoreBtn" title="Restore the board from a backup file">⬆ Restore</button>
+      </div>
+    </div>
+    <div class="adminsec">
+      <div class="adminrow">
+        <div><strong>Source on GitHub</strong><span>View this project's repository.</span></div>
+        <a class="btn ghbtn" id="ghLink" href="https://github.com/adrianchatto/LifeKanban" target="_blank" rel="noopener"
+           title="View this project on GitHub">
+          <svg height="15" width="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
+          GitHub
+        </a>
+      </div>
+    </div>
+    <div class="actions"><div class="spacer"></div>
+      <button class="btn" id="adminClose">Close</button></div>
+  </div>
+</div>
+
+<div class="scrim" id="aiScrim">
+  <div class="modal" style="width:min(440px,92vw)">
+    <h3>AI assistant</h3>
+    <p style="font-size:12.5px;color:var(--muted);margin:0 0 12px">
+      Choose a provider and paste an API key so the “Add by chat” assistant can use a
+      real model to read your requests. The key is stored only on this device (your
+      browser) and is never saved to the board or pushed to GitHub.</p>
+    <label>Provider</label>
+    <div class="seg" id="aiProviderSeg">
+      <button type="button" data-v="anthropic">Anthropic</button>
+      <button type="button" data-v="openai">OpenAI</button>
+    </div>
+    <label>Model</label>
+    <input type="text" id="aiModel" list="aiModelList" placeholder="e.g. claude-haiku-4-5" autocomplete="off">
+    <datalist id="aiModelList"></datalist>
+    <label>API key</label>
+    <input type="password" id="aiKey" placeholder="Paste your secret key" autocomplete="off" spellcheck="false">
+    <div id="aiMsg" style="font-size:12px;color:var(--muted);margin-top:8px;min-height:16px"></div>
+    <div class="actions">
+      <button class="btn" id="aiClear" title="Remove the saved key from this device">Clear</button>
+      <div class="spacer"></div>
+      <button class="btn" id="aiCancel">Cancel</button>
+      <button class="btn primary" id="aiSave">Save</button>
+    </div>
+  </div>
+</div>
 
 <div class="scrim" id="projScrim">
   <div class="modal" style="width:min(420px,92vw)">
@@ -288,7 +383,6 @@
       <button type="button" data-v="high">High</button>
       <button type="button" data-v="medium">Medium</button>
       <button type="button" data-v="low">Low</button>
-      <button type="button" data-v="none">None</button>
     </div>
     <label>Due date <span style="font-weight:400">(optional)</span></label>
     <input type="date" id="fDue">
@@ -316,6 +410,13 @@
       <input type="text" id="fSubInput" placeholder="Add a subtask…">
       <button type="button" class="btn" id="fSubAdd">Add</button>
     </div>
+    <label>Attachments <span style="font-weight:400">(drag in, choose a file, or paste a screenshot)</span></label>
+    <div id="fDrop" class="drop">
+      <span id="fDropText">Drop files here, paste a screenshot, or </span>
+      <button type="button" class="btn" id="fAttachBtn">Choose file</button>
+      <input type="file" id="fAttachInput" multiple style="display:none">
+    </div>
+    <div id="fAttachments" class="attlist"></div>
     <div class="log" id="mLog" style="display:none"></div>
     <div class="actions">
       <button class="btn danger" id="delBtn" style="display:none">Delete</button>
@@ -334,11 +435,14 @@ const COLUMNS = [
   {status:"done",     name:"Done"},
 ];
 let board = {cards:[], projects:[]};
-let editing = null, assigneeChoice = "Ch@o", priorityChoice = "none", paused = false, dragId = null;
-const PRIORITY_RANK = { high:0, medium:1, low:2, none:3 };
+let editing = null, assigneeChoice = "Ch@o", priorityChoice = "medium", paused = false, dragId = null;
+const PRIORITY_RANK = { high:0, medium:1, low:2, none:1 };
 const PRIORITY_LABEL = { high:"High", medium:"Medium", low:"Low" };
+// "none" is retired — anything not high/low is treated as medium.
+function normPrio(p){ p=(p||"").toString().toLowerCase(); return (p==="high"||p==="low")?p:"medium"; }
 let recurDays = new Set();   // weekly selection, Mon=0..Sun=6
 let editSubtasks = [];        // [{text, done}] while editing a card
+let editAttachments = [];     // [{name,url,orig,type,size}] while editing a card
 let collapsedCols = (()=>{
   try{ const raw=localStorage.getItem("kanban_collapsed"); if(raw){ const o=JSON.parse(raw); if(o&&typeof o==="object") return o; } }catch(e){}
   let showDone=false; try{ showDone=localStorage.getItem("kanban_showdone")==="1"; }catch(e){}
@@ -439,21 +543,27 @@ function cardHTML(c){
   if(c.status==="needs_ok")
     extra += `<div class="working" style="color:var(--ok)">⏸ Waiting for your OK</div>
       <button class="okbtn" data-ok="${c.id}">✓ Approve &amp; run</button>`;
-  const prio = (c.priority && c.priority!=="none") ? c.priority : "";
+  // Medium is the baseline default, so only flag the deviations (high / low).
+  const prio = (c.priority==="high" || c.priority==="low") ? c.priority : "";
   const prioCls = prio ? ` prio-${prio}` : "";
   const doneBtn = c.status!=="done" ? `<button class="donebtn" data-done="${c.id}" title="Mark done">✓</button>` : "";
   return `<article class="card ${c.status==='done'?'is-done':''}${prioCls}" draggable="true" data-id="${c.id}">
     ${doneBtn}
     <p class="ttl">${esc(c.title)}</p>
     ${c.description?`<p class="desc">${esc(c.description)}</p>`:""}
-    <div class="row">${prioBadge(c)}${who}${projChip(c.project)}${dueBadge(c)}${subProgress(c)}</div>
+    <div class="row">${prioBadge(c)}${who}${projChip(c.project)}${dueBadge(c)}${subProgress(c)}${attachBadge(c)}</div>
     ${extra}
   </article>`;
 }
 function prioBadge(c){
   const p = c.priority;
-  if(!p || p==="none") return "";
+  if(p!=="high" && p!=="low") return "";   // medium is the silent baseline
   return `<span class="badge prio ${p}">⚑ ${PRIORITY_LABEL[p]||p}</span>`;
+}
+function attachBadge(c){
+  const n = (c.attachments||[]).length;
+  if(!n) return "";
+  return `<span class="att-badge" title="${n} attachment${n>1?'s':''}">📎 ${n}</span>`;
 }
 
 /* ---- due dates ---- */
@@ -482,7 +592,7 @@ function dueBadge(c){
 function projChip(p){
   p = p || "General";
   const col = projColor(p);
-  return `<span class="proj" style="background:${col}22;color:#3b4252;border:1px solid ${col}66">${esc(p)}</span>`;
+  return `<span class="proj" style="background:${col}2b;color:var(--chipink);border:1px solid ${col}80"><span class="pdot" style="background:${col}"></span>${esc(p)}</span>`;
 }
 function subProgress(c){
   const subs=c.subtasks||[]; if(!subs.length) return "";
@@ -664,13 +774,14 @@ function wireDnD(){
 
 /* ---- modal ---- */
 function openNew(){
-  editing=null; assigneeChoice="Ch@o"; priorityChoice="none";
+  editing=null; assigneeChoice="Ch@o"; priorityChoice="medium";
   $("#mTitle").textContent="New card";
   $("#fId").value=""; $("#fTitle").value=""; $("#fDesc").value="";
   populateProjectSelect($("#projFilter").value||"General");
   $("#fDue").value="";
   $("#delBtn").style.display="none"; $("#mLog").style.display="none";
   editSubtasks=[]; renderSubtasks();
+  editAttachments=[]; renderAttachments();
   setSeg(); setPrioSeg(); setRecurControls(null); refreshDatalist(); openScrim();
 }
 function setPrioSeg(){
@@ -679,13 +790,14 @@ function setPrioSeg(){
 }
 function openEdit(id){
   const c = board.cards.find(x=>x.id===id); if(!c)return;
-  editing=id; assigneeChoice=c.assignee; priorityChoice=c.priority||"none";
+  editing=id; assigneeChoice=c.assignee; priorityChoice=normPrio(c.priority);
   $("#mTitle").textContent="Edit card";
   $("#fId").value=c.id; $("#fTitle").value=c.title; $("#fDesc").value=c.description||"";
   populateProjectSelect(c.project||"General");
   $("#fDue").value=c.due||"";
   $("#delBtn").style.display="inline-block";
   editSubtasks=(c.subtasks||[]).map(s=>({text:s.text, done:!!s.done})); renderSubtasks();
+  editAttachments=(c.attachments||[]).map(a=>({...a})); renderAttachments();
   setSeg(); setPrioSeg(); setRecurControls(c); refreshDatalist();
   const log = c.log||[];
   $("#mLog").style.display = log.length?"block":"none";
@@ -750,6 +862,55 @@ function addSubtask(){
   editSubtasks.push({text:v, done:false});
   $("#fSubInput").value=""; renderSubtasks(); $("#fSubInput").focus();
 }
+/* ---- attachments ---- */
+function fmtSize(n){
+  if(!n && n!==0) return "";
+  if(n < 1024) return n+" B";
+  if(n < 1048576) return (n/1024).toFixed(0)+" KB";
+  return (n/1048576).toFixed(1)+" MB";
+}
+function isImageType(t){ return /^image\//.test(t||""); }
+function renderAttachments(){
+  const wrap=$("#fAttachments"); if(!wrap) return;
+  wrap.innerHTML = editAttachments.map((a,i)=>{
+    const thumb = isImageType(a.type)
+      ? `<img src="${esc(a.url)}" alt="">`
+      : `<span class="ai">📄</span>`;
+    return `<span class="attchip">
+      ${thumb}
+      <a href="${esc(a.url)}" target="_blank" title="${esc(a.orig||a.name)}">${esc(a.orig||a.name)}</a>
+      <span class="sz">${fmtSize(a.size)}</span>
+      <button type="button" class="x" data-ax="${i}" title="Remove">×</button>
+    </span>`;
+  }).join("");
+  wrap.querySelectorAll(".x").forEach(b=>
+    b.onclick=()=>{ editAttachments.splice(+b.dataset.ax,1); renderAttachments(); });
+}
+async function uploadOne(file){
+  const r = await fetch("/api/upload",{
+    method:"POST",
+    headers:{ "Content-Type": file.type||"application/octet-stream",
+              "X-Filename": encodeURIComponent(file.name||"attachment") },
+    body: file
+  });
+  if(!r.ok){ throw new Error("upload failed ("+r.status+")"); }
+  const j = await r.json();
+  return { name:j.name, url:j.url, orig:decodeURIComponent(j.orig||file.name||j.name),
+           type:j.type||file.type, size:j.size };
+}
+async function uploadFiles(files){
+  const list=[...files].filter(Boolean); if(!list.length) return;
+  const wrap=$("#fAttachments");
+  const note=document.createElement("div");
+  note.className="att-uploading"; note.textContent="Uploading "+list.length+" file(s)…";
+  wrap.appendChild(note);
+  for(const f of list){
+    try{ const a=await uploadOne(f); editAttachments.push(a); renderAttachments();
+         wrap.appendChild(note); }
+    catch(e){ alert("Couldn't attach "+(f.name||"file")+": "+e.message); }
+  }
+  note.remove();
+}
 function openScrim(){ paused=true; $("#scrim").classList.add("open"); $("#fTitle").focus(); }
 function closeScrim(){ $("#scrim").classList.remove("open"); setTimeout(()=>paused=false,300); }
 
@@ -764,6 +925,7 @@ function save(){
     c.title=title; c.description=desc; c.project=project; c.due=due; c.recur=recur;
     c.priority=priorityChoice;
     c.subtasks=editSubtasks.map(s=>({text:s.text, done:!!s.done}));
+    c.attachments=editAttachments.map(a=>({...a}));
     if(c.assignee!==assigneeChoice){
       (c.log=c.log||[]).push(new Date().toISOString()+" assigned to "+assigneeChoice);
       c.assignee=assigneeChoice;
@@ -775,7 +937,8 @@ function save(){
     board.cards.push({
       id:"k-"+String(n).padStart(3,"0"),
       title, description:desc, project, assignee:assigneeChoice, priority:priorityChoice,
-      status:"todo", due, recur, subtasks:editSubtasks.map(s=>({text:s.text, done:!!s.done})), skill:null, result_link:null,
+      status:"todo", due, recur, subtasks:editSubtasks.map(s=>({text:s.text, done:!!s.done})),
+      attachments:editAttachments.map(a=>({...a})), skill:null, result_link:null,
       created:new Date().toISOString(), updated:new Date().toISOString(),
       log:["created"]
     });
@@ -835,6 +998,70 @@ $("#projNew").addEventListener("keydown",e=>{ if(e.key==="Enter"){e.preventDefau
 $("#projClose").onclick=()=>$("#projScrim").classList.remove("open");
 $("#projScrim").addEventListener("click",e=>{ if(e.target===$("#projScrim")) $("#projScrim").classList.remove("open"); });
 function openProjects(){ renderProjectManager(); $("#projScrim").classList.add("open"); $("#projNew").focus(); }
+/* admin panel */
+$("#adminBtn").onclick=()=>{ refreshAiStatus(); $("#adminScrim").classList.add("open"); };
+$("#adminClose").onclick=()=>$("#adminScrim").classList.remove("open");
+$("#adminScrim").addEventListener("click",e=>{ if(e.target===$("#adminScrim")) $("#adminScrim").classList.remove("open"); });
+
+/* AI assistant config — key stored only in this browser (localStorage), never in board.json */
+const AI_STORE="kanban_ai";
+const AI_MODELS={
+  anthropic:["claude-haiku-4-5","claude-sonnet-4-6","claude-opus-4-6","claude-opus-4-8"],
+  openai:["gpt-4o-mini","gpt-4o","gpt-4.1","gpt-4.1-mini","o4-mini"]
+};
+let aiProvider="anthropic";
+function aiLoadCfg(){ try{ return JSON.parse(localStorage.getItem(AI_STORE)||"{}"); }catch(e){ return {}; } }
+function aiSaveCfg(o){ try{ localStorage.setItem(AI_STORE, JSON.stringify(o)); }catch(e){} }
+function refreshAiStatus(){
+  const a=aiLoadCfg(); const el=$("#aiStatus"); if(!el) return;
+  if(a && a.key && a.provider && a.model){
+    const name=a.provider==="openai"?"OpenAI":"Anthropic";
+    el.textContent="On — "+name+" · "+a.model+" (key stored on this device only).";
+  } else {
+    el.textContent="Use a real model to read your “Add by chat” requests.";
+  }
+}
+function aiFillModels(provider){
+  const dl=$("#aiModelList"); if(dl) dl.innerHTML=(AI_MODELS[provider]||[]).map(m=>'<option value="'+m+'">').join("");
+}
+function aiSetProviderSeg(){
+  document.querySelectorAll("#aiProviderSeg button").forEach(b=>
+    b.classList.toggle("on", b.dataset.v===aiProvider));
+}
+function openAiCfg(){
+  const a=aiLoadCfg();
+  aiProvider=a.provider||"anthropic";
+  aiSetProviderSeg(); aiFillModels(aiProvider);
+  $("#aiModel").value=a.model||AI_MODELS[aiProvider][0];
+  $("#aiKey").value=a.key||"";
+  $("#aiMsg").textContent="";
+  $("#aiScrim").classList.add("open");
+  setTimeout(()=>$("#aiKey").focus(),60);
+}
+document.querySelectorAll("#aiProviderSeg button").forEach(b=>
+  b.onclick=()=>{ aiProvider=b.dataset.v; aiSetProviderSeg(); aiFillModels(aiProvider);
+    const cur=$("#aiModel").value.trim();
+    if(!cur || !AI_MODELS[aiProvider].concat(AI_MODELS.anthropic,AI_MODELS.openai).includes(cur))
+      $("#aiModel").value=AI_MODELS[aiProvider][0]; });
+$("#aiBtn").onclick=openAiCfg;
+$("#aiCancel").onclick=()=>$("#aiScrim").classList.remove("open");
+$("#aiScrim").addEventListener("click",e=>{ if(e.target===$("#aiScrim")) $("#aiScrim").classList.remove("open"); });
+$("#aiClear").onclick=()=>{
+  if(!confirm("Remove the saved AI key and settings from this device?")) return;
+  try{ localStorage.removeItem(AI_STORE); }catch(e){}
+  $("#aiKey").value=""; $("#aiMsg").textContent="Cleared. The chat assistant will use the built-in parser.";
+  refreshAiStatus();
+};
+$("#aiSave").onclick=()=>{
+  const model=$("#aiModel").value.trim();
+  const key=$("#aiKey").value.trim();
+  if(!model){ $("#aiMsg").textContent="Pick or type a model first."; return; }
+  if(!key){ $("#aiMsg").textContent="Paste an API key first."; return; }
+  aiSaveCfg({ provider:aiProvider, model:model, key:key });
+  refreshAiStatus();
+  $("#aiMsg").textContent="Saved. The “Add by chat” assistant will now use "+(aiProvider==="openai"?"OpenAI":"Anthropic")+".";
+  setTimeout(()=>$("#aiScrim").classList.remove("open"),700);
+};
 function renderProjectManager(){
   const counts={};
   (board.cards||[]).forEach(c=>{ counts[c.project]=(counts[c.project]||0)+1; });
@@ -866,6 +1093,27 @@ function removeProject(p){
 $("#fRepeat").onchange=syncRepeatUI;
 $("#fSubAdd").onclick=addSubtask;
 $("#fSubInput").addEventListener("keydown",e=>{ if(e.key==="Enter"){e.preventDefault();addSubtask();} });
+/* attachments: choose-file, drag-drop, paste-screenshot */
+$("#fAttachBtn").onclick=()=>$("#fAttachInput").click();
+$("#fAttachInput").onchange=e=>{ uploadFiles(e.target.files); e.target.value=""; };
+(function(){
+  const drop=$("#fDrop");
+  drop.addEventListener("dragover",e=>{e.preventDefault();drop.classList.add("drag-over");});
+  drop.addEventListener("dragleave",()=>drop.classList.remove("drag-over"));
+  drop.addEventListener("drop",e=>{
+    e.preventDefault(); drop.classList.remove("drag-over");
+    if(e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length)
+      uploadFiles(e.dataTransfer.files);
+  });
+})();
+// Paste a screenshot/image anywhere while the card modal is open
+document.addEventListener("paste",e=>{
+  if(!$("#scrim").classList.contains("open")) return;
+  const items=(e.clipboardData && e.clipboardData.items)||[];
+  const files=[];
+  for(const it of items){ if(it.kind==="file"){ const f=it.getAsFile(); if(f) files.push(f); } }
+  if(files.length){ e.preventDefault(); uploadFiles(files); }
+});
 document.querySelectorAll("#fWeekdays button").forEach(b=>
   b.onclick=()=>{ const d=+b.dataset.d; recurDays.has(d)?recurDays.delete(d):recurDays.add(d); syncRepeatUI(); });
 $("#projFilter").onchange=render;
@@ -877,7 +1125,9 @@ $("#alertBtn").onclick=()=>{
     if(p==="granted"){ new Notification("Kanban alerts on",{body:"You'll be notified about due and overdue cards."}); checkNotifications(); }
   });
 };
-document.addEventListener("keydown",e=>{if(e.key==="Escape")closeScrim();});
+document.addEventListener("keydown",e=>{if(e.key==="Escape"){closeScrim();
+  $("#adminScrim").classList.remove("open"); $("#projScrim").classList.remove("open");
+  $("#aiScrim").classList.remove("open");}});
 
 function currentTheme(){ return document.documentElement.getAttribute("data-theme")==="dark" ? "dark" : "light"; }
 function updateThemeBtn(){
@@ -980,19 +1230,22 @@ setTimeout(checkNotifications, 2000);
   function kcISO(d){ const z=new Date(d.getTime()-d.getTimezoneOffset()*60000); return z.toISOString().slice(0,10); }
 
   function kcParse(text){
-    const out = { title:"", description:"", project:"General", assignee:"Ch@o", priority:"none", due:null, recur:null };
+    const out = { title:"", description:"", project:"General", assignee:"Ch@o", priority:"medium", due:null, recur:null,
+                  _projectGiven:false, _assigneeGiven:false, _priorityGiven:false };
     let work = " " + (text||"").trim() + " ";
     let m;
     function take(re){ const mm = work.match(re); if(mm){ work = work.replace(mm[0], " "); } return mm; }
 
     // priority
-    if(take(/\b(?:urgent|asap|high\s*priority|high\s*prio|!{2,})\b/i) || take(/\bp1\b/i)) out.priority="high";
-    else if(take(/\b(?:medium\s*priority|med\s*prio|p2)\b/i)) out.priority="medium";
-    else if(take(/\b(?:low\s*priority|low\s*prio|whenever|someday|p3)\b/i)) out.priority="low";
+    if(take(/\b(?:urgent|asap|high\s*priority|high\s*prio|!{2,})\b/i) || take(/\bp1\b/i)){ out.priority="high"; out._priorityGiven=true; }
+    else if(take(/\b(?:medium\s*priority|med\s*prio|p2)\b/i)){ out.priority="medium"; out._priorityGiven=true; }
+    else if(take(/\b(?:low\s*priority|low\s*prio|whenever|someday|p3)\b/i)){ out.priority="low"; out._priorityGiven=true; }
 
     // assignee — only assign to Claude when explicitly named
-    if(take(/\b(?:assign(?:ed)?\s+to\s+|have\s+|get\s+|ask\s+|for\s+|by\s+|tell\s+)?claude(?:\s+to)?\b/i))
-      out.assignee = "Claude";
+    if(take(/\b(?:assign(?:ed)?\s+to\s+|have\s+|get\s+|ask\s+|for\s+|by\s+|tell\s+)?claude(?:\s+to)?\b/i)){
+      out.assignee = "Claude"; out._assigneeGiven=true; }
+    else if(take(/\b(?:for\s+me|assign(?:ed)?\s+to\s+me|my\s+task|mine|i'?ll\s+do\s+it)\b/i)){
+      out.assignee = "Ch@o"; out._assigneeGiven=true; }
 
     // recurrence (before due, so "every monday" isn't read as a one-off due date)
     if(take(/\b(?:every\s+weekday|each\s+weekday|weekdays)\b/i)) out.recur = { freq:"weekdays" };
@@ -1034,13 +1287,13 @@ setTimeout(checkNotifications, 2000);
     if(out.recur && out.recur.freq==="monthly") out.recur.day = out.due ? +out.due.slice(8,10) : kcToday().getDate();
 
     // project — #tag wins; otherwise match a known project name
-    if(m = take(/(?:^|\s)#([A-Za-z0-9][\w-]*)/)) out.project = m[1];
+    if(m = take(/(?:^|\s)#([A-Za-z0-9][\w-]*)/)){ out.project = m[1]; out._projectGiven=true; }
     else {
       const known = (typeof projectsList==="function" ? projectsList() : (board.projects||[]))
         .filter(p=>p && p!=="General").sort((a,b)=>b.length-a.length);
       for(const p of known){
         const re = new RegExp("(?:^|\\s)(?:for\\s+|on\\s+|under\\s+|project\\s+)?"+esc4re(p)+"(?=\\s|$)", "i");
-        if(re.test(work)){ work = work.replace(re, " "); out.project = p; break; }
+        if(re.test(work)){ work = work.replace(re, " "); out.project = p; out._projectGiven=true; break; }
       }
     }
 
@@ -1071,7 +1324,7 @@ setTimeout(checkNotifications, 2000);
   function kcCommit(d){
     const n=(board.next_id||1); board.next_id=n+1;
     const card={ id:"k-"+String(n).padStart(3,"0"), title:d.title, description:d.description||"",
-      project:d.project||"General", assignee:d.assignee||"Ch@o", priority:d.priority||"none", status:"todo",
+      project:d.project||"General", assignee:d.assignee||"Ch@o", priority:normPrio(d.priority), status:"todo",
       due:d.due||null, recur:d.recur||null, subtasks:[], skill:null, result_link:null,
       created:new Date().toISOString(), updated:new Date().toISOString(),
       log:["created","added via chat assistant"] };
@@ -1088,7 +1341,7 @@ setTimeout(checkNotifications, 2000);
   // Hand a draft into the app's own New-card modal so it can be tweaked before saving
   function kcEditDraft(d){
     try{
-      editing=null; assigneeChoice=d.assignee||"Ch@o"; priorityChoice=d.priority||"none";
+      editing=null; assigneeChoice=d.assignee||"Ch@o"; priorityChoice=normPrio(d.priority);
       $("#mTitle").textContent="New card";
       $("#fId").value=""; $("#fTitle").value=d.title||""; $("#fDesc").value=d.description||"";
       populateProjectSelect(d.project||"General");
@@ -1195,7 +1448,127 @@ setTimeout(checkNotifications, 2000);
     return true;
   }
 
-  function kcSend(){
+  /* ---------- optional AI provider (config lives in Admin) ---------- */
+  // The key is stored only in this browser's localStorage and is NEVER written
+  // to board.json, so it is never committed to GitHub.
+  const AI_KEY="kanban_ai";
+  function kcAILoad(){ try{ return JSON.parse(localStorage.getItem(AI_KEY)||"{}"); }catch(e){ return {}; } }
+  function kcAIEnabled(){ const a=kcAILoad(); return !!(a && a.key && a.provider && a.model); }
+
+  // Ask the configured model to turn a sentence into card fields. Returns a draft
+  // (same shape as kcParse) or null. Project/assignee default to "not given" so the
+  // challenge step still fires when the user didn't actually specify them.
+  async function kcLLMParse(text){
+    const a=kcAILoad();
+    const projs=(typeof projectsList==="function" ? projectsList() : (board.projects||["General"]));
+    const today=kcISO(kcToday());
+    const sys =
+      "You convert a short task request into a JSON object for a kanban board. "+
+      "Today is "+today+". Reply with ONLY a JSON object, no prose. Keys: "+
+      "title (string, concise 3-8 words, no trailing full stop), "+
+      "description (string, any extra detail, else \"\"), "+
+      "project (one of "+JSON.stringify(projs)+" or null if the user did not name one), "+
+      "assignee (\"Claude\" if the user wants Claude to do it, \"Ch@o\" if the user said it's for them, else null), "+
+      "priority (\"high\"|\"medium\"|\"low\", default \"medium\"), "+
+      "due (YYYY-MM-DD or null), "+
+      "recur (null, or {\"freq\":\"daily|weekdays|weekly|monthly\",\"days\":[0-6 Mon=0],\"day\":1-31}).";
+    let jsonText="";
+    if(a.provider==="anthropic"){
+      const r=await fetch("https://api.anthropic.com/v1/messages",{
+        method:"POST",
+        headers:{ "content-type":"application/json", "x-api-key":a.key,
+          "anthropic-version":"2023-06-01", "anthropic-dangerous-direct-browser-access":"true" },
+        body:JSON.stringify({ model:a.model, max_tokens:400,
+          system:sys, messages:[{role:"user",content:text}] })
+      });
+      if(!r.ok) throw new Error("anthropic "+r.status);
+      const j=await r.json();
+      jsonText=(j.content&&j.content[0]&&j.content[0].text)||"";
+    } else { // openai
+      const r=await fetch("https://api.openai.com/v1/chat/completions",{
+        method:"POST",
+        headers:{ "content-type":"application/json", "authorization":"Bearer "+a.key },
+        body:JSON.stringify({ model:a.model, temperature:0,
+          response_format:{type:"json_object"},
+          messages:[{role:"system",content:sys},{role:"user",content:text}] })
+      });
+      if(!r.ok) throw new Error("openai "+r.status);
+      const j=await r.json();
+      jsonText=(j.choices&&j.choices[0]&&j.choices[0].message&&j.choices[0].message.content)||"";
+    }
+    let p; try{ p=JSON.parse(jsonText); }catch(e){ const m=jsonText.match(/\{[\s\S]*\}/); p=m?JSON.parse(m[0]):null; }
+    if(!p) return null;
+    const out={
+      title:(p.title||"").toString().trim(),
+      description:(p.description||"").toString(),
+      project:p.project||"General",
+      assignee:(p.assignee==="Claude"||p.assignee==="Ch@o")?p.assignee:"Ch@o",
+      priority:(p.priority==="high"||p.priority==="low")?p.priority:"medium",
+      due:(typeof p.due==="string" && /^\d{4}-\d{2}-\d{2}$/.test(p.due))?p.due:null,
+      recur:(p.recur&&p.recur.freq)?p.recur:null,
+      _projectGiven: !!(p.project && p.project!=="General"),
+      _assigneeGiven: (p.assignee==="Claude"||p.assignee==="Ch@o"),
+      _priorityGiven: (p.priority==="high"||p.priority==="low"||p.priority==="medium")
+    };
+    return out;
+  }
+
+  // Decide whether to challenge for the missing essentials (project / who).
+  function kcMaybeChallenge(d){
+    const needProject  = !d._projectGiven;
+    const needAssignee = !d._assigneeGiven;
+    if(needProject || needAssignee){
+      kcRenderChallenge(d, needProject, needAssignee);
+    } else {
+      kcPending=d;
+      kcAddMsg("bot","Here’s what I’ve got — add it?");
+      kcAddDraft(d);
+    }
+  }
+
+  // Interactive "challenge" card: pick the project and/or who it's for before adding.
+  function kcRenderChallenge(d, needProject, needAssignee){
+    const wrap=document.createElement("div"); wrap.className="kc-card";
+    let html='<div class="kc-ct">'+kcEsc(d.title)+'</div>'+
+             '<div class="kc-q">A couple of things before I add this:</div>';
+    if(needProject){
+      const projs=(typeof projectsList==="function" ? projectsList() : (board.projects||["General"]));
+      html+='<div class="kc-fld"><div class="kc-qlbl">Which project?</div><div class="kc-opts">'+
+        projs.map(p=>'<button class="kc-opt" data-k="project" data-v="'+kcEsc(p)+'">'+kcEsc(p)+'</button>').join("")+
+        '</div></div>';
+    }
+    if(needAssignee){
+      html+='<div class="kc-fld"><div class="kc-qlbl">Who’s it for?</div><div class="kc-opts">'+
+        '<button class="kc-opt" data-k="assignee" data-v="Ch@o">● Me</button>'+
+        '<button class="kc-opt" data-k="assignee" data-v="Claude">✦ Claude</button></div></div>';
+    }
+    html+='<div class="kc-acts"><button class="kc-go" disabled>Add card</button>'+
+          '<button class="kc-no">Cancel</button></div>';
+    wrap.innerHTML=html;
+    kcLogEl().appendChild(wrap); kcScroll();
+
+    const need={ project:!!needProject, assignee:!!needAssignee };
+    const goBtn=wrap.querySelector(".kc-go");
+    function refresh(){
+      const done=!need.project && !need.assignee;
+      goBtn.disabled=!done; goBtn.style.opacity=done?1:.45; goBtn.style.cursor=done?"pointer":"default";
+    }
+    refresh();
+    wrap.querySelectorAll(".kc-opt").forEach(b=>{
+      b.onclick=()=>{
+        const k=b.dataset.k, v=b.dataset.v;
+        if(k==="project"){ d.project=v; d._projectGiven=true; need.project=false; }
+        if(k==="assignee"){ d.assignee=v; d._assigneeGiven=true; need.assignee=false; }
+        b.parentElement.querySelectorAll(".kc-opt").forEach(x=>x.classList.remove("sel"));
+        b.classList.add("sel");
+        refresh();
+      };
+    });
+    goBtn.onclick=()=>{ if(goBtn.disabled) return; kcDisable(wrap); kcPending=null; kcDoCommit(d); };
+    wrap.querySelector(".kc-no").onclick=()=>{ kcDisable(wrap); kcPending=null; kcAddMsg("bot","Cancelled — nothing added."); };
+  }
+
+  async function kcSend(){
     const inp=document.getElementById("kcInput");
     const text=(inp.value||"").trim(); if(!text) return;
     inp.value="";
@@ -1211,11 +1584,17 @@ setTimeout(checkNotifications, 2000);
 
     if(kcAnswer(text)) return;
 
-    const d=kcParse(text);
+    let d=kcParse(text);
+    // If an AI provider+key is configured, let the model read the request too — it
+    // handles messy phrasing better. Falls back silently to the regex parse on any error.
+    if(typeof kcAIEnabled==="function" && kcAIEnabled()){
+      try{
+        const ai = await kcLLMParse(text);
+        if(ai && ai.title) d = ai;
+      }catch(e){ /* keep the regex draft */ }
+    }
     if(!d.title){ kcAddMsg("bot","I didn’t catch a task there. Try “Pay parking tomorrow”, or type “help”."); return; }
-    kcPending=d;
-    kcAddMsg("bot","Here’s what I’ve got — add it?");
-    kcAddDraft(d);
+    kcMaybeChallenge(d);
   }
 
   /* ---------- build + wire the widget ---------- */
@@ -1241,6 +1620,14 @@ setTimeout(checkNotifications, 2000);
   ".kc-acts{display:flex;gap:7px;margin-top:10px}"+
   ".kc-acts button{border:1px solid var(--line);background:#fff;border-radius:8px;padding:6px 11px;font-size:12px;cursor:pointer;font-weight:600}"+
   ".kc-acts .kc-go{background:var(--me);color:#fff;border-color:var(--me)}"+
+  ".kc-acts .kc-go[disabled]{opacity:.45;cursor:default}"+
+  ".kc-q{font-size:12px;color:var(--muted);margin-bottom:8px}"+
+  ".kc-fld{margin-bottom:9px}"+
+  ".kc-qlbl{font-size:11.5px;font-weight:600;color:#3b4252;margin-bottom:5px}"+
+  ".kc-opts{display:flex;flex-wrap:wrap;gap:6px}"+
+  ".kc-opt{border:1px solid var(--line);background:#fff;border-radius:8px;padding:5px 10px;font-size:12px;cursor:pointer;font-weight:600;color:#3b4252}"+
+  ".kc-opt:hover{border-color:var(--accent)}"+
+  ".kc-opt.sel{background:var(--accent);color:#fff;border-color:var(--accent)}"+
   ".kc-foot{display:flex;gap:8px;padding:10px;border-top:1px solid var(--line);background:#fff}"+
   ".kc-foot input{flex:1;border:1px solid var(--line);border-radius:10px;padding:9px 12px;font-size:13px;outline:none}"+
   ".kc-foot input:focus{border-color:var(--accent)}"+

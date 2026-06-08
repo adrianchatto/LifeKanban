@@ -44,6 +44,29 @@ The encoded argument has no spaces, pipes, `$`, or quotes, so it passes through
 osascript cleanly. (If you have a sandboxed Linux shell with the folder mounted,
 prefer Method A — it's simpler.)
 
+## Creating a card from a chat request — always do this
+
+When Ch@o asks you to add something to the board in chat ("add X to my kanban",
+"build an action for that", etc.), do NOT dump his whole sentence into the title.
+Instead:
+
+1. **Write a concise title yourself.** Use your judgement to distil a short,
+   specific title (roughly 3–8 words, no trailing full stop) — e.g. "Chase
+   Acme for signed SOW", not the full paragraph.
+2. **Put the detail in the description.** Everything else he said — context,
+   the deliverable, links, constraints — goes in `description`, not the title.
+3. **Ask before adding** (unless he already gave them): in one short prompt, ask
+   **who to assign it to** (Me/Ch@o or Claude), a **close/due date** (or none),
+   and a **priority** (high / medium / low / none). Use the AskUserQuestion tool
+   so he can pick quickly. Only skip a question he has already answered.
+4. Then add the card with those fields. Confirm with the card id and final title.
+
+(The board UI's New-card modal also supports **attachments** — drag a file in,
+click "Choose file", or paste a screenshot. Attachments are uploaded to the
+local server and stored under `attachments/`; the card carries an `attachments`
+array of `{name,url,orig,type,size}`. Attachments are NOT committed to GitHub —
+see `.gitignore` — so screenshots stay on Ch@o's machine.)
+
 ## Choosing the fields
 
 - **assignee**: default `Ch@o` (his own to-dos). Use `Claude` only when he wants
