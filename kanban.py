@@ -195,7 +195,9 @@ def _api(method, body=None):
     import urllib.request
     import urllib.error
     url = API_URL.rstrip("/") + "/api/board"
-    headers = {"Authorization": "Bearer " + (API_TOKEN or "")}
+    headers = {"Authorization": "Bearer " + (API_TOKEN or ""),
+               "User-Agent": "LifeKanban-worker/1.0",
+               "Accept": "application/json"}
     data = None
     if body is not None:
         headers["Content-Type"] = "application/json"

@@ -19,6 +19,10 @@ users.json
 .secret.key
 .users.lock
 
+# Worker secrets and output (live on the worker host, not in the repo)
+worker/worker.env
+worker-results/
+
 # Per-user data (other people's boards, results, attachments) stays local
 boards/
 results/u-*/
