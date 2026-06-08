@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated": "2026-06-08T10:18:19Z",
+  "updated": "2026-06-08T10:32:47Z",
   "projects": [
     "General",
     "Datasite",
@@ -585,7 +585,7 @@
       "project": "General",
       "assignee": "Claude",
       "priority": "medium",
-      "status": "doing",
+      "status": "done",
       "due": null,
       "recur": null,
       "subtasks": [],
@@ -593,7 +593,7 @@
       "skill": null,
       "result_link": "results/k-035.md",
       "created": "2026-06-08T09:48:11.229Z",
-      "updated": "2026-06-08T10:18:19Z",
+      "updated": "2026-06-08T10:32:47Z",
       "log": [
         "created",
         "2026-06-08T09:51:16Z priority defaulted to medium (none retired)",
@@ -602,7 +602,9 @@
         "2026-06-08T10:03:08Z Diagnosed: pushes fail from the worker sandbox (no git credentials), git_sync.sh hardcoded the Mac path, and a stale .git/index.lock (09:08) blocks commits. Fixed git_sync.sh to self-locate + clear stale locks. NEEDS OK: run rm -f .git/index.lock && bash git_sync.sh on the Mac to push the backlog.",
         "2026-06-08T10:03:13Z moved to needs_ok",
         "2026-06-08T10:09:51.722Z approved by Ch@o — proceed with the action",
-        "2026-06-08T10:18:19Z claimed by Claude worker"
+        "2026-06-08T10:18:19Z claimed by Claude worker",
+        "2026-06-08T10:32:42Z Approved action carried out on the Mac via Control-your-Mac: cleared stale index.lock+HEAD.lock, committed and pushed backlog (10b5469..c7eb435 then c7eb435..cc5d0a8, both push exit 0). Repo clean, main 0 ahead/0 behind origin. GitHub current.",
+        "2026-06-08T10:32:47Z moved to done"
       ],
       "approved": true
     },
@@ -613,17 +615,18 @@
       "project": "General",
       "assignee": "Claude",
       "priority": "medium",
-      "status": "todo",
+      "status": "doing",
       "due": null,
       "recur": null,
       "subtasks": [],
       "skill": null,
       "result_link": null,
       "created": "2026-06-08T10:17:30.287Z",
-      "updated": "2026-06-08T10:17:44.023Z",
+      "updated": "2026-06-08T10:32:27Z",
       "log": [
         "created",
-        "added via chat assistant"
+        "added via chat assistant",
+        "2026-06-08T10:32:27Z claimed by Claude worker"
       ],
       "attachments": []
     }
