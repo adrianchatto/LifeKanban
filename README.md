@@ -52,6 +52,54 @@ To keep it handy: drag `Kanban Board.app` to your Dock (or Applications).
 - **Assignee:** *Me* (you) or *Claude*.
 - **Filters:** by project and by owner, top-right.
 
+## Accounts & logins
+
+The board now sits behind a login. Each user has their own board, their own
+results and attachments, and provides their own AI API key (used by the
+"Add by chat" assistant). Sign-up is **admin-only** — there's no public
+registration; you create accounts internally.
+
+**First-time setup (once).** Create the first admin from the terminal:
+
+```bash
+cd ~/Documents/Claude/Projects/Kanban
+python3 kanban.py user-add <name> --admin        # prompts for a password
+```
+
+Then open the board and sign in. New users created from the admin panel start
+with a temporary password and are prompted to set their own.
+
+**Day-to-day.**
+
+- **Log in / out:** the login page is `/login.html`; the account menu (top-right
+  of the board) has *Settings*, *Admin* (admins only), and *Log out*.
+- **Create users:** *Admin* → *Create a user* (username, temporary password,
+  role). You can reset passwords, switch roles, or delete users there too. The
+  CLI commands (`user-add`, `user-list`, `user-del`, `user-passwd`, `user-role`)
+  do the same from the terminal.
+- **API key:** each user sets their own under *Settings*. It's stored
+  **encrypted** on the server (never in clear text, never committed to GitHub)
+  and only ever sent back to that user's own browser.
+
+**Security notes.** Passwords are PBKDF2-hashed; sessions are HttpOnly,
+SameSite=Strict cookies; state-changing requests carry a CSRF token; repeated
+failed logins are throttled. The files `users.json`, `.secret.key` and other
+users' `boards/` are gitignored — keep `.secret.key` safe, as losing it means
+stored API keys can no longer be decrypted (users would just re-enter them).
+**If you serve this beyond your own Mac, put it behind HTTPS and set
+`KANBAN_SECURE_COOKIES=1`.**
+
+## User guide
+
+There's a user guide for the app, published in Notion and linked in-app for
+admins (account menu → **User guide ↗**, admins only). The link is driven by
+`.guide_url` in this folder (or the `KANBAN_GUIDE_URL` env var) — put the Notion
+page URL there to light up the menu item.
+
+The source copy lives at `docs/USER_GUIDE.md`. **When you add or change a
+feature, update both `docs/USER_GUIDE.md` and the Notion page** (and add a dated
+line to the Changelog) so the guide stays current.
+
 ## How Claude cards work
 
 Any card assigned to **Claude** and sitting in **To Do** gets picked up

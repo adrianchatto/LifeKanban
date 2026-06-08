@@ -262,6 +262,73 @@
   .empty{color:var(--muted);font-size:12px;text-align:center;padding:16px 0;opacity:.7}
   footer{padding:6px 22px 22px;color:var(--muted);font-size:11.5px}
 </style>
+<script>
+/* Auth gate + account menu. Runs early so window.__csrf is set before any save.
+   If there is no valid session the page redirects to the login screen. */
+(function(){
+  fetch('/api/me',{cache:'no-store'}).then(function(r){
+    if(r.status===401){ location.replace('/login.html'); return null; }
+    return r.json();
+  }).then(function(d){
+    if(!d) return;
+    window.__csrf = d.csrf || '';
+    window.__me = d.user || null;
+    window.__guideUrl = d.guide_url || null;
+    // Hydrate the in-browser AI key from the account so "Add by chat" works on
+    // any device. Only overwrite when the account actually has a stored key.
+    try{
+      if(d.api_key){
+        localStorage.setItem('kanban_ai', JSON.stringify({
+          provider:d.ai_provider||'anthropic', model:d.ai_model||'', key:d.api_key }));
+      }
+    }catch(e){}
+    buildMenu(d.user);
+  }).catch(function(){});
+
+  function el(tag, css, txt){ var e=document.createElement(tag);
+    if(css) e.style.cssText=css; if(txt!=null) e.textContent=txt; return e; }
+
+  function buildMenu(user){
+    if(!user) return;
+    function go(){
+      if(document.getElementById('acctMenu')) return;
+      var wrap=el('div','position:fixed;top:10px;right:14px;z-index:9999;font:13px -apple-system,BlinkMacSystemFont,Segoe UI,sans-serif;');
+      wrap.id='acctMenu';
+      var btn=el('button','background:#fff;border:1px solid #d7dbe6;border-radius:8px;padding:6px 12px;cursor:pointer;color:#1d2330;box-shadow:0 1px 3px rgba(20,30,60,.08);', '● '+user.username);
+      var pop=el('div','display:none;position:absolute;right:0;top:38px;background:#fff;border:1px solid #d7dbe6;border-radius:10px;min-width:160px;box-shadow:0 6px 24px rgba(20,30,60,.14);overflow:hidden;');
+      function item(label, href, onclick){
+        var a=el('a','display:block;padding:10px 14px;color:#1d2330;text-decoration:none;border-bottom:1px solid #f0f2f7;', label);
+        a.href=href||'#';
+        a.onmouseenter=function(){a.style.background='#f5f7fb';};
+        a.onmouseleave=function(){a.style.background='#fff';};
+        if(onclick) a.onclick=onclick; return a;
+      }
+      pop.appendChild(item('Settings','/settings.html'));
+      if(user.role==='admin') pop.appendChild(item('Admin','/admin.html'));
+      if(user.role==='admin' && window.__guideUrl){
+        var g=item('User guide ↗', window.__guideUrl);
+        g.target='_blank'; g.rel='noopener'; pop.appendChild(g);
+      }
+      var out=item('Log out','#',function(ev){ ev.preventDefault();
+        fetch('/api/logout',{method:'POST',headers:{'X-Kanban-CSRF':window.__csrf||''}})
+          .then(function(){ location.replace('/login.html'); })
+          .catch(function(){ location.replace('/login.html'); }); });
+      out.style.borderBottom='none';
+      pop.appendChild(out);
+      btn.onclick=function(){ pop.style.display = pop.style.display==='none'?'block':'none'; };
+      document.addEventListener('click', function(e){ if(!wrap.contains(e.target)) pop.style.display='none'; });
+      wrap.appendChild(btn); wrap.appendChild(pop); document.body.appendChild(wrap);
+      if(user.must_change){
+        var b=el('div','position:fixed;top:0;left:0;right:0;z-index:9998;background:#fde68a;color:#7a5b00;text-align:center;padding:7px;font:13px sans-serif;cursor:pointer;',
+          'You’re using a temporary password. Click here to set your own in Settings.');
+        b.onclick=function(){ location.href='/settings.html'; };
+        document.body.appendChild(b);
+      }
+    }
+    if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', go); else go();
+  }
+})();
+</script>
 </head>
 <body>
 <header>
@@ -271,6 +338,13 @@
   <select id="projFilter" title="Filter by project"><option value="">All projects</option></select>
   <select id="whoFilter" title="Filter by owner">
     <option value="">Everyone</option><option value="Ch@o">Me</option><option value="Claude">Claude</option>
+  </select>
+  <select id="statusFilter" title="Filter by status" style="display:none">
+    <option value="">All statuses</option>
+    <option value="todo">To Do</option>
+    <option value="doing">Doing</option>
+    <option value="needs_ok">Needs OK</option>
+    <option value="done">Done</option>
   </select>
   <div class="seg viewseg" id="viewToggle">
     <button type="button" data-v="board">Board</button>
@@ -505,7 +579,8 @@ async function fetchBoard(){
 }
 async function pushBoard(){
   board.updated = new Date().toISOString();
-  try{ await fetch("/api/board",{method:"POST",headers:{"Content-Type":"application/json"},
+  try{ await fetch("/api/board",{method:"POST",headers:{"Content-Type":"application/json",
+        "X-Kanban-CSRF": (window.__csrf||"")},
         body:JSON.stringify(board)}); }catch(e){}
 }
 
@@ -543,13 +618,16 @@ function render(){
     $("#board").style.display="none";
     $("#calendar").style.display="none";
     $("#listview").style.display="block";
-    renderList(cards);
+    const sf = $("#statusFilter").value;
+    renderList(sf ? cards.filter(c=>(c.status||"todo")===sf) : cards);
   } else {
     $("#calendar").style.display="none";
     $("#listview").style.display="none";
     $("#board").style.display="grid";
     renderBoard(cards);
   }
+  // status filter only makes sense on the list view
+  $("#statusFilter").style.display = view==="list" ? "" : "none";
 
   const total = (board.cards||[]).length;
   const claude = (board.cards||[]).filter(c=>c.assignee==="Claude").length;
@@ -954,7 +1032,8 @@ async function uploadOne(file){
   const r = await fetch("/api/upload",{
     method:"POST",
     headers:{ "Content-Type": file.type||"application/octet-stream",
-              "X-Filename": encodeURIComponent(file.name||"attachment") },
+              "X-Filename": encodeURIComponent(file.name||"attachment"),
+              "X-Kanban-CSRF": (window.__csrf||"") },
     body: file
   });
   if(!r.ok){ throw new Error("upload failed ("+r.status+")"); }
@@ -1192,6 +1271,7 @@ document.querySelectorAll("#fWeekdays button").forEach(b=>
   b.onclick=()=>{ const d=+b.dataset.d; recurDays.has(d)?recurDays.delete(d):recurDays.add(d); syncRepeatUI(); });
 $("#projFilter").onchange=render;
 $("#whoFilter").onchange=render;
+$("#statusFilter").onchange=render;
 $("#alertBtn").onclick=()=>{
   if(!("Notification" in window)) return;
   Notification.requestPermission().then(p=>{
@@ -1415,6 +1495,38 @@ setTimeout(checkNotifications, 2000);
     return out;
   }
 
+  // Guarantee a concise heading for the title regardless of how the draft was
+  // produced (rule-based parse OR the AI model). If the title is more than a
+  // short headline, distil it to the first clause (≤8 words / 56 chars) and
+  // keep the full original request in the description so no detail is lost.
+  // This is what stops the whole sentence ending up in the card title.
+  function kcNormaliseTitle(d, originalText){
+    if(!d) return d;
+    let title = (d.title||"").trim()
+      .replace(/^["'“”`]+|["'“”`]+$/g,"")   // strip quotes the model sometimes adds
+      .replace(/[.\s]+$/,"")                  // drop trailing full stop / spaces
+      .trim();
+    const words = title.split(/\s+/).filter(Boolean);
+    const tooLong = title.length > 56 || words.length > 8;
+    if(tooLong){
+      let head = (title.split(/(?:[.!?]\s+|[—–]\s+| - |,\s+|;\s+|:\s+)/)[0] || title).trim();
+      const hw = head.split(/\s+/).filter(Boolean);
+      if(hw.length > 8) head = hw.slice(0,8).join(" ");
+      head = head.replace(/[\s,;:.\-]+$/,"");
+      if(head.length > 56) head = head.slice(0,56).replace(/\s+\S*$/,"");
+      // drop a dangling function word left at the end of the trimmed headline
+      head = head.replace(/\s+(?:in|on|at|to|of|for|by|the|a|an|and|or|with|from|into)$/i,"").trim();
+      if(!head) head = title.slice(0,56);
+      if(!d.description || !d.description.trim()){
+        d.description = (originalText || title).trim();
+      }
+      title = head;
+    }
+    if(title) title = title.charAt(0).toUpperCase() + title.slice(1);
+    d.title = title;
+    return d;
+  }
+
   /* ---------- helpers tied to the board ---------- */
   function kcRecurText(r){
     if(!r) return "";
@@ -1592,8 +1704,10 @@ setTimeout(checkNotifications, 2000);
     const sys =
       "You convert a short task request into a JSON object for a kanban board. "+
       "Today is "+today+". Reply with ONLY a JSON object, no prose. Keys: "+
-      "title (string, concise 3-8 words, no trailing full stop), "+
-      "description (string, any extra detail, else \"\"), "+
+      "title (a SHORT headline of 3-8 words that summarises the task — never the "+
+      "user's full sentence, no trailing full stop), "+
+      "description (string: the full request and any extra detail; if you shortened "+
+      "the title, put the original wording here so nothing is lost), "+
       "project (one of "+JSON.stringify(projs)+" or null if the user did not name one), "+
       "assignee (\"Claude\" if the user wants Claude to do it, \"Ch@o\" if the user said it's for them, else null), "+
       "priority (\"high\"|\"medium\"|\"low\", default \"medium\"), "+
@@ -1720,6 +1834,7 @@ setTimeout(checkNotifications, 2000);
         if(ai && ai.title) d = ai;
       }catch(e){ /* keep the regex draft */ }
     }
+    d = kcNormaliseTitle(d, text);
     if(!d.title){ kcAddMsg("bot","I didn’t catch a task there. Try “Pay parking tomorrow”, or type “help”."); return; }
     kcMaybeChallenge(d);
   }

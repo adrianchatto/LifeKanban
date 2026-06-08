@@ -13,6 +13,14 @@ node_modules/
 *.tmp
 .board.*.tmp
 
+# Accounts & secrets must never be baked into an image — they live in the
+# data volume and are created at runtime.
+users.json
+.secret.key
+.users.lock
+boards/
+.guide_url
+
 # macOS-only launcher cruft not needed in the container
 *.command
 *.plist

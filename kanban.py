@@ -21,6 +21,11 @@ Usage:
   python3 kanban.py get <id>
   python3 kanban.py claim-next        # next Claude+todo card -> doing, prints JSON
   python3 kanban.py requeue-stale     # recover cards orphaned in 'doing'
+  python3 kanban.py user-add <name> [--admin] [--password X]  # create a login
+  python3 kanban.py user-list
+  python3 kanban.py user-del <name>
+  python3 kanban.py user-passwd <name> [--password X]
+  python3 kanban.py user-role <name> <admin|user>
 
 All commands print JSON to stdout so they are easy to parse.
 """
@@ -30,6 +35,8 @@ import sys
 import time
 import tempfile
 from datetime import datetime, timezone
+
+import auth  # accounts, sessions, secret storage (shared with the web server)
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
 # Data dir can be relocated (e.g. a mounted Docker volume) via KANBAN_DATA.
@@ -488,6 +495,79 @@ def cmd_requeue_stale(args):
                      ensure_ascii=False))
 
 
+# --------------------------------------------------------------------------- #
+# User administration (bootstrap + backstop for the in-app admin panel).
+# --------------------------------------------------------------------------- #
+def _read_password(flt):
+    pw = flt.get("password")
+    if pw:
+        return pw
+    import getpass
+    p1 = getpass.getpass("Password (min 8 chars): ")
+    p2 = getpass.getpass("Confirm password: ")
+    if p1 != p2:
+        die("passwords do not match")
+    return p1
+
+
+def cmd_user_add(args):
+    """user-add <username> [--admin] [--role user|admin] [--password X]
+       [--must-change]. Prompts for the password if --password is omitted."""
+    if not args:
+        die("user-add needs a username")
+    username = args[0]
+    # Strip bare boolean flags so they don't get mistaken for --key <value> pairs.
+    rest = [a for a in args[1:] if a not in ("--admin", "--must-change")]
+    flt = parse_flags(rest)
+    role = "admin" if "--admin" in args else flt.get("role", "user")
+    pw = _read_password(flt)
+    try:
+        pub = auth.create_user(username, pw, role=role,
+                               must_change=("--must-change" in args))
+    except ValueError as e:
+        die(str(e))
+    print(json.dumps(pub, indent=2, ensure_ascii=False))
+
+
+def cmd_user_list(args):
+    print(json.dumps(auth.list_users(), indent=2, ensure_ascii=False))
+
+
+def cmd_user_del(args):
+    if not args:
+        die("user-del needs a username")
+    try:
+        auth.delete_user(args[0])
+    except ValueError as e:
+        die(str(e))
+    print(json.dumps({"deleted": args[0]}, indent=2))
+
+
+def cmd_user_passwd(args):
+    """user-passwd <username> [--password X] [--must-change]"""
+    if not args:
+        die("user-passwd needs a username")
+    rest = [a for a in args[1:] if a not in ("--must-change",)]
+    flt = parse_flags(rest)
+    pw = _read_password(flt)
+    try:
+        auth.set_password(args[0], pw, must_change=("--must-change" in args))
+    except ValueError as e:
+        die(str(e))
+    print(json.dumps({"password_updated": args[0]}, indent=2))
+
+
+def cmd_user_role(args):
+    """user-role <username> <admin|user>"""
+    if len(args) < 2:
+        die("user-role needs <username> <admin|user>")
+    try:
+        auth.set_role(args[0], args[1])
+    except ValueError as e:
+        die(str(e))
+    print(json.dumps({"username": args[0], "role": args[1]}, indent=2))
+
+
 def parse_flags(args):
     out = {}
     i = 0
@@ -523,6 +603,11 @@ COMMANDS = {
     "get": cmd_get,
     "claim-next": cmd_claim_next,
     "requeue-stale": cmd_requeue_stale,
+    "user-add": cmd_user_add,
+    "user-list": cmd_user_list,
+    "user-del": cmd_user_del,
+    "user-passwd": cmd_user_passwd,
+    "user-role": cmd_user_role,
 }
 
 

@@ -15,7 +15,8 @@ ENV KANBAN_HOST=0.0.0.0 \
 WORKDIR /app
 
 # Application code and static assets (no third-party dependencies).
-COPY server.py kanban.py notify.py index.html manifest.webmanifest ./
+COPY server.py auth.py kanban.py notify.py ./
+COPY index.html login.html settings.html admin.html manifest.webmanifest ./
 COPY icon-192.png icon-512.png icon-maskable-512.png ./
 COPY skills ./skills
 # Seed data baked into the image; copied to the volume on first run only.
@@ -28,8 +29,9 @@ RUN chmod +x /usr/local/bin/docker-entrypoint.sh && mkdir -p /data
 EXPOSE 8787
 VOLUME ["/data"]
 
-# Simple liveness check against the board API.
+# Liveness check against a public, unauthenticated endpoint (the board API now
+# requires a login, so we ping the login page instead).
 HEALTHCHECK --interval=30s --timeout=4s --start-period=5s --retries=3 \
-  CMD python3 -c "import os,urllib.request; urllib.request.urlopen('http://127.0.0.1:'+os.environ.get('KANBAN_PORT','8787')+'/api/board').read()" || exit 1
+  CMD python3 -c "import os,urllib.request; urllib.request.urlopen('http://127.0.0.1:'+os.environ.get('KANBAN_PORT','8787')+'/login.html').read()" || exit 1
 
 ENTRYPOINT ["docker-entrypoint.sh"]

@@ -19,7 +19,10 @@ import sys
 import threading
 import time
 import webbrowser
+from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+
+import auth
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
 # Data (board.json + results) can live outside the app dir so it can be mounted
@@ -33,6 +36,29 @@ MAX_UPLOAD = int(os.environ.get("KANBAN_MAX_UPLOAD", str(25 * 1024 * 1024)))
 # Bind to 127.0.0.1 by default (desktop); set KANBAN_HOST=0.0.0.0 in containers.
 HOST = os.environ.get("KANBAN_HOST", "127.0.0.1")
 PORT = int(os.environ.get("KANBAN_PORT", "8787"))
+
+# Session cookie config. Set KANBAN_SECURE_COOKIES=1 when serving over HTTPS
+# (you MUST do this in any deployment reachable beyond localhost).
+COOKIE_NAME = "kanban_session"
+SECURE_COOKIES = os.environ.get("KANBAN_SECURE_COOKIES", "0") == "1"
+
+
+def guide_url():
+    """URL of the published Notion user guide, surfaced to admins in the UI.
+    Set via KANBAN_GUIDE_URL or a `.guide_url` file in the data dir."""
+    u = os.environ.get("KANBAN_GUIDE_URL")
+    if u:
+        return u.strip()
+    p = os.path.join(DATA, ".guide_url")
+    if os.path.exists(p):
+        try:
+            return (open(p, encoding="utf-8").read().strip() or None)
+        except OSError:
+            return None
+    return None
+# Static UI shells served without a session (the data behind them is still gated
+# by the /api/* auth checks).
+PUBLIC_PAGES = ("login.html", "settings.html", "admin.html")
 
 MIME = {".md": "text/markdown; charset=utf-8", ".txt": "text/plain; charset=utf-8",
         ".html": "text/html; charset=utf-8", ".json": "application/json",
@@ -60,6 +86,80 @@ class Handler(BaseHTTPRequestHandler):
     def log_message(self, *a):
         pass  # quiet
 
+    # ----- auth helpers ----------------------------------------------------- #
+    def _json(self, code, obj, cookie=None):
+        body = json.dumps(obj, ensure_ascii=False).encode("utf-8")
+        self.send_response(code)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(body)))
+        self.send_header("Cache-Control", "no-store")
+        if cookie:
+            self.send_header("Set-Cookie", cookie)
+        self.end_headers()
+        self.wfile.write(body)
+
+    def _read_json(self):
+        length = int(self.headers.get("Content-Length", "0") or "0")
+        if length <= 0:
+            return {}
+        raw = self.rfile.read(length)
+        try:
+            return json.loads(raw or b"{}")
+        except Exception:
+            return None
+
+    def _cookie_token(self):
+        raw = self.headers.get("Cookie")
+        if not raw:
+            return None
+        try:
+            jar = SimpleCookie()
+            jar.load(raw)
+            if COOKIE_NAME in jar:
+                return jar[COOKIE_NAME].value
+        except Exception:
+            return None
+        return None
+
+    def _set_cookie(self, token, clear=False):
+        parts = ["%s=%s" % (COOKIE_NAME, "" if clear else token),
+                 "Path=/", "HttpOnly", "SameSite=Strict"]
+        if SECURE_COOKIES:
+            parts.append("Secure")
+        if clear:
+            parts.append("Max-Age=0")
+        else:
+            parts.append("Max-Age=%d" % auth.SESSION_TTL)
+        return "; ".join(parts)
+
+    def current_session(self):
+        return auth.get_session(self._cookie_token())
+
+    def require_user(self):
+        """Return the session dict, or send 401 and return None."""
+        s = self.current_session()
+        if not s:
+            self._json(401, {"error": "not authenticated"})
+            return None
+        return s
+
+    def require_admin(self):
+        s = self.require_user()
+        if not s:
+            return None
+        if s.get("role") != "admin":
+            self._json(403, {"error": "admin only"})
+            return None
+        return s
+
+    def check_csrf(self, session):
+        token = self.headers.get("X-Kanban-CSRF", "")
+        import hmac as _hmac
+        if not session or not _hmac.compare_digest(token, session.get("csrf", "")):
+            self._json(403, {"error": "bad or missing CSRF token"})
+            return False
+        return True
+
     def do_GET(self):
         path = self.path.split("?", 1)[0]
         if path == "/" or path == "/index.html":
@@ -69,18 +169,64 @@ class Handler(BaseHTTPRequestHandler):
             except FileNotFoundError:
                 self._send(404, "index.html missing", "text/plain")
             return
+        # Public UI shells (login/settings/admin). Their data is gated by /api.
+        page = path.lstrip("/")
+        if page in PUBLIC_PAGES:
+            fp = os.path.join(ROOT, page)
+            if os.path.exists(fp):
+                with open(fp, "rb") as f:
+                    self._send(200, f.read(), "text/html; charset=utf-8")
+            else:
+                self._send(404, "not found", "text/plain")
+            return
+        # ----- auth / account / admin read endpoints ----- #
+        if path == "/api/me":
+            s = self.require_user()
+            if not s:
+                return
+            u = auth.find_user(s["username"])
+            if not u:
+                self._json(401, {"error": "not authenticated"})
+                return
+            pub = auth._public(u)
+            self._json(200, {"user": pub, "csrf": s["csrf"],
+                             "api_key": auth.get_api_key(s["username"]),
+                             "ai_provider": u.get("ai_provider"),
+                             "ai_model": u.get("ai_model"),
+                             "guide_url": (guide_url() if s.get("role") == "admin" else None)})
+            return
+        if path == "/api/admin/users":
+            s = self.require_admin()
+            if not s:
+                return
+            self._json(200, {"users": auth.list_users()})
+            return
         if path == "/api/board":
+            s = self.require_user()
+            if not s:
+                return
+            u = auth.find_user(s["username"])
             try:
-                with open(BOARD, "rb") as f:
+                with open(auth.board_path(u), "rb") as f:
                     self._send(200, f.read(), "application/json")
             except FileNotFoundError:
-                self._send(200, json.dumps({"cards": []}), "application/json")
+                self._send(200, json.dumps(
+                    {"version": 1, "projects": ["General"], "next_id": 1,
+                     "cards": []}), "application/json")
             return
         if path.startswith("/results/"):
-            self._serve_result(path[len("/results/"):])
+            s = self.require_user()
+            if not s:
+                return
+            u = auth.find_user(s["username"])
+            self._serve_result(path[len("/results/"):], auth.results_dir(u))
             return
         if path.startswith("/attachments/"):
-            self._serve_attachment(path[len("/attachments/"):])
+            s = self.require_user()
+            if not s:
+                return
+            u = auth.find_user(s["username"])
+            self._serve_attachment(path[len("/attachments/"):], auth.attach_dir(u))
             return
         name = path.lstrip("/")
         if name in STATIC:
@@ -94,14 +240,15 @@ class Handler(BaseHTTPRequestHandler):
             return
         self._send(404, "not found", "text/plain")
 
-    def _serve_result(self, name):
+    def _serve_result(self, name, base=None):
+        base = base or RESULTS
         # prevent path traversal
         safe = os.path.normpath(name).lstrip("/")
         if safe.startswith("..") or "/" in safe and safe.split("/")[0] == "..":
             self._send(403, "forbidden", "text/plain")
             return
-        fp = os.path.join(RESULTS, safe)
-        if not os.path.abspath(fp).startswith(os.path.abspath(RESULTS)):
+        fp = os.path.join(base, safe)
+        if not os.path.abspath(fp).startswith(os.path.abspath(base)):
             self._send(403, "forbidden", "text/plain")
             return
         if not os.path.exists(fp):
@@ -118,14 +265,15 @@ class Handler(BaseHTTPRequestHandler):
         else:
             self._send(200, data, ctype)
 
-    def _serve_attachment(self, name):
+    def _serve_attachment(self, name, base=None):
+        base = base or ATTACH
         # prevent path traversal — attachments are flat files, no subdirs
         safe = os.path.basename(os.path.normpath(name))
         if not safe or safe.startswith("."):
             self._send(403, "forbidden", "text/plain")
             return
-        fp = os.path.join(ATTACH, safe)
-        if not os.path.abspath(fp).startswith(os.path.abspath(ATTACH)):
+        fp = os.path.join(base, safe)
+        if not os.path.abspath(fp).startswith(os.path.abspath(base)):
             self._send(403, "forbidden", "text/plain")
             return
         if not os.path.exists(fp):
@@ -155,27 +303,162 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         path = self.path.split("?", 1)[0]
-        if path == "/api/upload":
-            self._handle_upload()
-            return
-        if path != "/api/board":
-            self._send(404, "not found", "text/plain")
-            return
-        length = int(self.headers.get("Content-Length", "0"))
-        raw = self.rfile.read(length)
-        try:
-            data = json.loads(raw)
-            assert isinstance(data.get("cards"), list)
-        except Exception as e:
-            self._send(400, json.dumps({"error": str(e)}))
-            return
-        tmp = BOARD + ".tmp"
-        with open(tmp, "w", encoding="utf-8") as f:
-            json.dump(data, f, indent=2, ensure_ascii=False)
-        os.replace(tmp, BOARD)
-        self._send(200, json.dumps({"ok": True}))
 
-    def _handle_upload(self):
+        # ----- login is the one mutating endpoint with no session/CSRF ----- #
+        if path == "/api/login":
+            body = self._read_json()
+            if body is None:
+                self._json(400, {"error": "bad JSON"})
+                return
+            user, err = auth.authenticate(body.get("username", ""),
+                                          body.get("password", ""))
+            if err:
+                self._json(401, {"error": err})
+                return
+            token, csrf = auth.create_session(user)
+            self._json(200, {"user": auth._public(user), "csrf": csrf},
+                       cookie=self._set_cookie(token))
+            return
+
+        if path == "/api/logout":
+            s = self.current_session()
+            if s and not self.check_csrf(s):
+                return
+            auth.destroy_session(self._cookie_token())
+            self._json(200, {"ok": True}, cookie=self._set_cookie("", clear=True))
+            return
+
+        # Everything below requires a valid session + CSRF token.
+        if path == "/api/board":
+            s = self.require_user()
+            if not s or not self.check_csrf(s):
+                return
+            body = self._read_json()
+            if body is None or not isinstance(body.get("cards"), list):
+                self._json(400, {"error": "board must have a cards list"})
+                return
+            u = auth.find_user(s["username"])
+            bp = auth.board_path(u)
+            os.makedirs(os.path.dirname(bp), exist_ok=True)
+            tmp = bp + ".tmp"
+            with open(tmp, "w", encoding="utf-8") as f:
+                json.dump(body, f, indent=2, ensure_ascii=False)
+            os.replace(tmp, bp)
+            self._json(200, {"ok": True})
+            return
+
+        if path == "/api/upload":
+            s = self.require_user()
+            if not s or not self.check_csrf(s):
+                return
+            self._handle_upload(auth.attach_dir(auth.find_user(s["username"])))
+            return
+
+        if path == "/api/account/password":
+            s = self.require_user()
+            if not s or not self.check_csrf(s):
+                return
+            body = self._read_json() or {}
+            u = auth.find_user(s["username"])
+            if not auth.verify_password(body.get("old_password", ""), u["password"]):
+                self._json(403, {"error": "current password is incorrect"})
+                return
+            try:
+                auth.set_password(s["username"], body.get("new_password", ""))
+            except ValueError as e:
+                self._json(400, {"error": str(e)})
+                return
+            self._json(200, {"ok": True})
+            return
+
+        if path == "/api/account/apikey":
+            s = self.require_user()
+            if not s or not self.check_csrf(s):
+                return
+            body = self._read_json() or {}
+            try:
+                pub = auth.set_api_key(s["username"], body.get("api_key") or None,
+                                       provider=body.get("provider"),
+                                       model=body.get("model"))
+            except ValueError as e:
+                self._json(400, {"error": str(e)})
+                return
+            self._json(200, {"ok": True, "user": pub})
+            return
+
+        # ----- admin: create user ----- #
+        if path == "/api/admin/users":
+            s = self.require_admin()
+            if not s or not self.check_csrf(s):
+                return
+            body = self._read_json() or {}
+            try:
+                pub = auth.create_user(body.get("username", ""),
+                                       body.get("password", ""),
+                                       role=body.get("role", "user"),
+                                       must_change=True)
+            except ValueError as e:
+                self._json(400, {"error": str(e)})
+                return
+            self._json(200, {"ok": True, "user": pub})
+            return
+
+        # ----- admin: reset password / change role (POST sub-routes) ----- #
+        m = re.match(r"^/api/admin/users/([^/]+)/(password|role)$", path)
+        if m:
+            s = self.require_admin()
+            if not s or not self.check_csrf(s):
+                return
+            username, action = m.group(1), m.group(2)
+            body = self._read_json() or {}
+            try:
+                if action == "password":
+                    auth.set_password(username, body.get("new_password", ""),
+                                      must_change=True)
+                else:
+                    auth.set_role(username, body.get("role", "user"))
+            except ValueError as e:
+                self._json(400, {"error": str(e)})
+                return
+            self._json(200, {"ok": True})
+            return
+
+        self._json(404, {"error": "not found"})
+
+    def do_DELETE(self):
+        path = self.path.split("?", 1)[0]
+        if path == "/api/account/apikey":
+            s = self.require_user()
+            if not s or not self.check_csrf(s):
+                return
+            auth.set_api_key(s["username"], None)
+            self._json(200, {"ok": True})
+            return
+        m = re.match(r"^/api/admin/users/([^/]+)$", path)
+        if m:
+            s = self.require_admin()
+            if not s or not self.check_csrf(s):
+                return
+            username = m.group(1)
+            if username == s["username"]:
+                self._json(400, {"error": "you cannot delete your own account"})
+                return
+            target = auth.find_user(username)
+            if target and target.get("role") == "admin":
+                admins = [u for u in auth.list_users() if u["role"] == "admin"]
+                if len(admins) <= 1:
+                    self._json(400, {"error": "cannot delete the last admin"})
+                    return
+            try:
+                auth.delete_user(username)
+            except ValueError as e:
+                self._json(400, {"error": str(e)})
+                return
+            self._json(200, {"ok": True})
+            return
+        self._json(404, {"error": "not found"})
+
+    def _handle_upload(self, base):
         length = int(self.headers.get("Content-Length", "0"))
         if length <= 0:
             self._send(400, json.dumps({"error": "empty body"}))
@@ -187,9 +470,9 @@ class Handler(BaseHTTPRequestHandler):
         ctype = self.headers.get("Content-Type", "application/octet-stream")
         raw_name = self.headers.get("X-Filename", "")
         data = self.rfile.read(length)
-        os.makedirs(ATTACH, exist_ok=True)
+        os.makedirs(base, exist_ok=True)
         fname = self._safe_attach_name(raw_name, ctype)
-        fp = os.path.join(ATTACH, fname)
+        fp = os.path.join(base, fname)
         tmp = fp + ".tmp"
         with open(tmp, "wb") as f:
             f.write(data)
@@ -251,6 +534,11 @@ document.getElementById('c').innerHTML = md(src);
 def main():
     os.makedirs(RESULTS, exist_ok=True)
     os.makedirs(ATTACH, exist_ok=True)
+    os.makedirs(auth.BOARDS_DIR, exist_ok=True)
+    if auth.user_count() == 0:
+        print("WARNING: no users exist yet. Create the first admin with:\n"
+              "  python3 kanban.py user-add <name> --admin\n"
+              "Until then, login will reject everyone.")
     httpd = ThreadingHTTPServer((HOST, PORT), Handler)
     url = "http://%s:%d/" % (HOST, PORT)
     print("Kanban board running at " + url)

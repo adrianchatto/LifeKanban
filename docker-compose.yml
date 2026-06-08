@@ -16,6 +16,18 @@ services:
       KANBAN_HOST: "0.0.0.0"
       KANBAN_PORT: "8787"
       KANBAN_DATA: "/data"
+      # First-run admin bootstrap. Set these BEFORE the first `up` so an admin
+      # account is created automatically (change the password after signing in).
+      # Once users.json exists in the volume they're ignored, so you can blank
+      # them again afterwards. Manage further users in the in-app Admin panel.
+      KANBAN_ADMIN_USER: "Ch@o"
+      KANBAN_ADMIN_PASSWORD: "change-me-now-8+chars"
+      # The board is reachable over the network here. For real multi-user use,
+      # put HTTPS in front and set KANBAN_SECURE_COOKIES to "1". Leave it unset
+      # (or "0") while testing over plain http, or logins won't stick.
+      # KANBAN_SECURE_COOKIES: "1"
+      # Optional: the admin "User guide" link target.
+      # KANBAN_GUIDE_URL: "https://app.notion.com/p/3798568cba8981dbbbf4d069543641e4"
     volumes:
       - kanban-data:/data
     restart: unless-stopped

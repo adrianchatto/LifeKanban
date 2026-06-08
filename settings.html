@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Settings · LifeKanban</title>
+<style>
+  :root{ --blue:#3b6cf6; --ink:#1d2330; --muted:#6b7385; --line:#e4e7ef; --bg:#f7f8fb; }
+  *{box-sizing:border-box}
+  body{font:15px/1.5 -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:var(--ink);
+       background:var(--bg);margin:0;padding:30px 18px}
+  .wrap{max-width:560px;margin:0 auto}
+  a.back{color:var(--blue);text-decoration:none;font-size:13.5px}
+  h1{font-size:22px;margin:10px 0 2px}
+  .who{color:var(--muted);font-size:13.5px;margin-bottom:20px}
+  .card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:22px 24px;margin-bottom:18px;
+        box-shadow:0 1px 3px rgba(20,30,60,.05)}
+  h2{font-size:15.5px;margin:0 0 4px}
+  .hint{color:var(--muted);font-size:12.5px;margin:0 0 14px}
+  label{display:block;font-size:12.5px;color:var(--muted);margin:12px 0 6px;font-weight:600}
+  input,select{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:9px;font-size:14.5px;background:#fff}
+  input:focus,select:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 3px rgba(59,108,246,.15)}
+  .row{display:flex;gap:12px}.row>div{flex:1}
+  button{margin-top:16px;padding:10px 16px;background:var(--blue);color:#fff;border:0;border-radius:9px;
+         font-size:14px;font-weight:600;cursor:pointer}
+  button.ghost{background:#fff;color:var(--ink);border:1px solid var(--line)}
+  button.danger{background:#fff;color:#c0392b;border:1px solid #f0c4bd}
+  .msg{font-size:13px;margin-top:12px;display:none;padding:8px 11px;border-radius:8px}
+  .msg.ok{display:block;color:#1e7d4f;background:#e7f6ee;border:1px solid #b9e3cc}
+  .msg.bad{display:block;color:#c0392b;background:#fdecea;border:1px solid #f5c6c0}
+  .keystate{font-size:13px;color:var(--muted);margin-bottom:6px}
+  code{background:#eef1f7;padding:1px 6px;border-radius:5px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="/">&larr; Back to board</a>
+  <h1>Settings</h1>
+  <div class="who" id="who">Loading…</div>
+
+  <div class="card">
+    <h2>Your API key</h2>
+    <p class="hint">Used by the “Add by chat” assistant to turn a sentence into a card.
+       It’s stored encrypted on the server against your account and only ever sent back to your own browser.</p>
+    <div class="keystate" id="keystate">No key set.</div>
+    <div class="row">
+      <div>
+        <label for="provider">Provider</label>
+        <select id="provider">
+          <option value="anthropic">Anthropic</option>
+          <option value="openai">OpenAI</option>
+        </select>
+      </div>
+      <div>
+        <label for="model">Model</label>
+        <input id="model" placeholder="e.g. claude-3-5-sonnet-latest">
+      </div>
+    </div>
+    <label for="key">API key</label>
+    <input id="key" type="password" placeholder="Paste a new key to set/replace it">
+    <div>
+      <button id="saveKey">Save key</button>
+      <button id="clearKey" class="danger" type="button">Remove key</button>
+    </div>
+    <div class="msg" id="keyMsg"></div>
+  </div>
+
+  <div class="card">
+    <h2>Change password</h2>
+    <p class="hint">At least 8 characters.</p>
+    <label for="old">Current password</label>
+    <input id="old" type="password" autocomplete="current-password">
+    <label for="new1">New password</label>
+    <input id="new1" type="password" autocomplete="new-password">
+    <label for="new2">Confirm new password</label>
+    <input id="new2" type="password" autocomplete="new-password">
+    <button id="savePw">Update password</button>
+    <div class="msg" id="pwMsg"></div>
+  </div>
+</div>
+<script>
+  var csrf='';
+  function show(id, ok, text){ var m=document.getElementById(id);
+    m.className='msg '+(ok?'ok':'bad'); m.textContent=text; }
+  function H(){ return {'Content-Type':'application/json','X-Kanban-CSRF':csrf}; }
+
+  fetch('/api/me',{cache:'no-store'}).then(function(r){
+    if(r.status===401){ location.replace('/login.html'); return null; }
+    return r.json();
+  }).then(function(d){
+    if(!d) return;
+    csrf=d.csrf||'';
+    var u=d.user;
+    document.getElementById('who').textContent='Signed in as '+u.username+' ('+u.role+').';
+    if(u.has_api_key){ document.getElementById('keystate').innerHTML=
+      'Key set — ending in <code>…'+(u.api_key_last4||'????')+'</code>'+
+      (u.ai_provider?(' · '+u.ai_provider):'')+(u.ai_model?(' · '+u.ai_model):'')+'.'; }
+    if(u.ai_provider) document.getElementById('provider').value=u.ai_provider;
+    if(u.ai_model) document.getElementById('model').value=u.ai_model;
+  });
+
+  document.getElementById('saveKey').onclick=function(){
+    var key=document.getElementById('key').value.trim();
+    if(!key){ show('keyMsg',false,'Paste a key first (or use Remove key).'); return; }
+    fetch('/api/account/apikey',{method:'POST',headers:H(),body:JSON.stringify({
+      api_key:key, provider:document.getElementById('provider').value,
+      model:document.getElementById('model').value.trim() })})
+      .then(function(r){return r.json().then(function(j){return {ok:r.ok,j:j};});})
+      .then(function(res){ if(!res.ok) throw new Error(res.j.error||'Failed');
+        show('keyMsg',true,'Key saved. It will be used next time you open the board.');
+        document.getElementById('key').value='';
+        var l=res.j.user&&res.j.user.api_key_last4;
+        if(l) document.getElementById('keystate').innerHTML='Key set — ending in <code>…'+l+'</code>.';
+      }).catch(function(e){ show('keyMsg',false,e.message); });
+  };
+  document.getElementById('clearKey').onclick=function(){
+    fetch('/api/account/apikey',{method:'DELETE',headers:H()})
+      .then(function(r){ if(!r.ok) throw new Error('Failed'); show('keyMsg',true,'Key removed.');
+        document.getElementById('keystate').textContent='No key set.';
+        try{ localStorage.removeItem('kanban_ai'); }catch(e){} })
+      .catch(function(e){ show('keyMsg',false,e.message); });
+  };
+  document.getElementById('savePw').onclick=function(){
+    var o=document.getElementById('old').value, n1=document.getElementById('new1').value,
+        n2=document.getElementById('new2').value;
+    if(n1.length<8){ show('pwMsg',false,'New password must be at least 8 characters.'); return; }
+    if(n1!==n2){ show('pwMsg',false,'New passwords do not match.'); return; }
+    fetch('/api/account/password',{method:'POST',headers:H(),
+      body:JSON.stringify({old_password:o,new_password:n1})})
+      .then(function(r){return r.json().then(function(j){return {ok:r.ok,j:j};});})
+      .then(function(res){ if(!res.ok) throw new Error(res.j.error||'Failed');
+        show('pwMsg',true,'Password updated.');
+        document.getElementById('old').value=document.getElementById('new1').value=document.getElementById('new2').value='';
+      }).catch(function(e){ show('pwMsg',false,e.message); });
+  };
+</script>
+</body>
+</html>

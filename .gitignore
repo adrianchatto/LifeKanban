@@ -12,6 +12,18 @@
 # Card attachments / screenshots — kept local, not synced to GitHub
 attachments/
 
+# Accounts & secrets — NEVER commit these (password hashes, encrypted API keys,
+# the master encryption key). Losing .secret.key means stored API keys can no
+# longer be decrypted and users must re-enter them.
+users.json
+.secret.key
+.users.lock
+
+# Per-user data (other people's boards, results, attachments) stays local
+boards/
+results/u-*/
+attachments/u-*/
+
 # macOS
 .DS_Store
 

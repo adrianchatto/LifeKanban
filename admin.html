@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Admin · LifeKanban</title>
+<style>
+  :root{ --blue:#3b6cf6; --ink:#1d2330; --muted:#6b7385; --line:#e4e7ef; --bg:#f7f8fb; }
+  *{box-sizing:border-box}
+  body{font:15px/1.5 -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:var(--ink);
+       background:var(--bg);margin:0;padding:30px 18px}
+  .wrap{max-width:760px;margin:0 auto}
+  a.back{color:var(--blue);text-decoration:none;font-size:13.5px}
+  h1{font-size:22px;margin:10px 0 18px}
+  .card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:22px 24px;margin-bottom:18px;
+        box-shadow:0 1px 3px rgba(20,30,60,.05)}
+  h2{font-size:15.5px;margin:0 0 14px}
+  label{display:block;font-size:12.5px;color:var(--muted);margin:10px 0 6px;font-weight:600}
+  input,select{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:9px;font-size:14.5px;background:#fff}
+  input:focus,select:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 3px rgba(59,108,246,.15)}
+  .row{display:flex;gap:12px;flex-wrap:wrap}.row>div{flex:1;min-width:140px}
+  button{padding:9px 14px;background:var(--blue);color:#fff;border:0;border-radius:9px;font-size:13.5px;font-weight:600;cursor:pointer}
+  button.ghost{background:#fff;color:var(--ink);border:1px solid var(--line)}
+  button.danger{background:#fff;color:#c0392b;border:1px solid #f0c4bd}
+  button.sm{padding:6px 10px;font-size:12.5px;margin-left:6px}
+  table{width:100%;border-collapse:collapse;margin-top:6px}
+  th,td{text-align:left;padding:10px 8px;border-bottom:1px solid var(--line);font-size:13.5px;vertical-align:middle}
+  th{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.04em}
+  .pill{font-size:11.5px;padding:2px 8px;border-radius:20px;background:#eef1f7;color:#41506b}
+  .pill.admin{background:#e7eefe;color:#2a4fc0}
+  .msg{font-size:13px;margin-top:12px;display:none;padding:8px 11px;border-radius:8px}
+  .msg.ok{display:block;color:#1e7d4f;background:#e7f6ee;border:1px solid #b9e3cc}
+  .msg.bad{display:block;color:#c0392b;background:#fdecea;border:1px solid #f5c6c0}
+  .mono{font-family:ui-monospace,Menlo,monospace;font-size:12.5px;color:var(--muted)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="/">&larr; Back to board</a>
+  <h1>User administration</h1>
+
+  <div class="card">
+    <h2>Create a user</h2>
+    <div class="row">
+      <div><label for="nu">Username</label><input id="nu" autocomplete="off"></div>
+      <div><label for="np">Temporary password</label><input id="np" autocomplete="off" placeholder="min 8 chars"></div>
+      <div style="max-width:150px"><label for="nr">Role</label>
+        <select id="nr"><option value="user">User</option><option value="admin">Admin</option></select></div>
+    </div>
+    <div style="margin-top:14px"><button id="create">Create user</button>
+      <button id="gen" class="ghost" type="button">Suggest password</button></div>
+    <div class="msg" id="cMsg"></div>
+    <p class="mono" style="margin-top:10px">The new user signs in with this temporary password and is prompted to set their own. They add their own API key under Settings.</p>
+  </div>
+
+  <div class="card">
+    <h2>Users</h2>
+    <table id="tbl"><thead><tr><th>User</th><th>Role</th><th>Created</th><th>API key</th><th></th></tr></thead>
+      <tbody id="rows"><tr><td colspan="5" class="mono">Loading…</td></tr></tbody></table>
+    <div class="msg" id="uMsg"></div>
+  </div>
+</div>
+<script>
+  var csrf='', me=null;
+  function H(){ return {'Content-Type':'application/json','X-Kanban-CSRF':csrf}; }
+  function show(id, ok, text){ var m=document.getElementById(id); m.className='msg '+(ok?'ok':'bad'); m.textContent=text; }
+  function esc(s){ return (s||'').replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
+
+  fetch('/api/me',{cache:'no-store'}).then(function(r){
+    if(r.status===401){ location.replace('/login.html'); return null; }
+    return r.json();
+  }).then(function(d){
+    if(!d) return;
+    csrf=d.csrf||''; me=d.user;
+    if(me.role!=='admin'){ document.body.innerHTML='<div class="wrap"><div class="card">Admins only. <a href="/">Back to board</a>.</div></div>'; return; }
+    load();
+  });
+
+  function load(){
+    fetch('/api/admin/users',{cache:'no-store'}).then(function(r){return r.json();}).then(function(d){
+      var rows=(d.users||[]).map(function(u){
+        var keys=u.has_api_key?('…'+esc(u.api_key_last4||'????')):'<span class="mono">none</span>';
+        var isMe=me&&u.id===me.id;
+        var actions=''+
+          '<button class="ghost sm" onclick="resetPw(\''+esc(u.username)+'\')">Reset password</button>'+
+          '<button class="ghost sm" onclick="toggleRole(\''+esc(u.username)+'\',\''+(u.role==='admin'?'user':'admin')+'\')">'+(u.role==='admin'?'Make user':'Make admin')+'</button>'+
+          (isMe?'':'<button class="danger sm" onclick="delUser(\''+esc(u.username)+'\')">Delete</button>');
+        return '<tr><td><strong>'+esc(u.username)+'</strong>'+(isMe?' <span class="mono">(you)</span>':'')+'</td>'+
+          '<td><span class="pill '+(u.role==='admin'?'admin':'')+'">'+u.role+'</span></td>'+
+          '<td class="mono">'+esc((u.created||'').slice(0,10))+'</td>'+
+          '<td>'+keys+'</td><td style="text-align:right;white-space:nowrap">'+actions+'</td></tr>';
+      }).join('');
+      document.getElementById('rows').innerHTML=rows||'<tr><td colspan="5" class="mono">No users.</td></tr>';
+    });
+  }
+
+  document.getElementById('gen').onclick=function(){
+    var a='ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789', s='';
+    for(var i=0;i<14;i++) s+=a[Math.floor(Math.random()*a.length)];
+    document.getElementById('np').value=s;
+  };
+  document.getElementById('create').onclick=function(){
+    var body={ username:document.getElementById('nu').value.trim(),
+               password:document.getElementById('np').value,
+               role:document.getElementById('nr').value };
+    fetch('/api/admin/users',{method:'POST',headers:H(),body:JSON.stringify(body)})
+      .then(function(r){return r.json().then(function(j){return {ok:r.ok,j:j};});})
+      .then(function(res){ if(!res.ok) throw new Error(res.j.error||'Failed');
+        show('cMsg',true,'Created '+body.username+'. Share the temporary password securely.');
+        document.getElementById('nu').value=''; document.getElementById('np').value=''; load();
+      }).catch(function(e){ show('cMsg',false,e.message); });
+  };
+  window.resetPw=function(username){
+    var p=prompt('New temporary password for '+username+' (min 8 chars):'); if(!p) return;
+    fetch('/api/admin/users/'+encodeURIComponent(username)+'/password',{method:'POST',headers:H(),
+      body:JSON.stringify({new_password:p})})
+      .then(function(r){return r.json().then(function(j){return {ok:r.ok,j:j};});})
+      .then(function(res){ if(!res.ok) throw new Error(res.j.error||'Failed');
+        show('uMsg',true,'Password reset for '+username+'.'); }).catch(function(e){ show('uMsg',false,e.message); });
+  };
+  window.toggleRole=function(username,role){
+    fetch('/api/admin/users/'+encodeURIComponent(username)+'/role',{method:'POST',headers:H(),
+      body:JSON.stringify({role:role})})
+      .then(function(r){return r.json().then(function(j){return {ok:r.ok,j:j};});})
+      .then(function(res){ if(!res.ok) throw new Error(res.j.error||'Failed');
+        show('uMsg',true,username+' is now '+role+'.'); load(); }).catch(function(e){ show('uMsg',false,e.message); });
+  };
+  window.delUser=function(username){
+    if(!confirm('Delete user '+username+'? Their board files stay on disk but they can no longer sign in.')) return;
+    fetch('/api/admin/users/'+encodeURIComponent(username),{method:'DELETE',headers:H()})
+      .then(function(r){return r.json().then(function(j){return {ok:r.ok,j:j};});})
+      .then(function(res){ if(!res.ok) throw new Error(res.j.error||'Failed');
+        show('uMsg',true,'Deleted '+username+'.'); load(); }).catch(function(e){ show('uMsg',false,e.message); });
+  };
+</script>
+</body>
+</html>
