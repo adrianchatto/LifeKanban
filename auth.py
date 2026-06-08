@@ -307,6 +307,65 @@ def set_role(username, role):
     return True
 
 
+# --------------------------------------------------------------------------- #
+# API tokens (for programmatic clients like the Claude worker). A token acts as
+# the user it belongs to, so it reads/writes that user's board. Tokens are
+# stored only as a SHA-256 hash; the plaintext is shown once at creation.
+# --------------------------------------------------------------------------- #
+def _token_hash(tok):
+    return hashlib.sha256(tok.encode("utf-8")).hexdigest()
+
+
+def create_token(username, name="worker"):
+    """Create an API token for a user. Returns (plaintext_token, public_meta).
+    The plaintext is returned ONCE and never stored."""
+    with _Lock():
+        data = _load_raw()
+        u = next((x for x in data["users"] if x["username"] == username), None)
+        if not u:
+            raise ValueError("no such user: " + username)
+        tok = "lk_" + secrets.token_urlsafe(32)
+        rec = {"id": "tok_" + secrets.token_hex(4), "name": (name or "token"),
+               "hash": _token_hash(tok), "created": now_iso()}
+        u.setdefault("tokens", []).append(rec)
+        _save_raw(data)
+    return tok, {"id": rec["id"], "name": rec["name"], "created": rec["created"]}
+
+
+def list_tokens(username):
+    u = find_user(username)
+    if not u:
+        raise ValueError("no such user: " + username)
+    return [{"id": t["id"], "name": t.get("name"), "created": t.get("created")}
+            for t in u.get("tokens", [])]
+
+
+def revoke_token(username, token_id):
+    with _Lock():
+        data = _load_raw()
+        u = next((x for x in data["users"] if x["username"] == username), None)
+        if not u:
+            raise ValueError("no such user: " + username)
+        before = len(u.get("tokens", []))
+        u["tokens"] = [t for t in u.get("tokens", []) if t["id"] != token_id]
+        if len(u.get("tokens", [])) == before:
+            raise ValueError("no such token: " + token_id)
+        _save_raw(data)
+    return True
+
+
+def verify_token(tok):
+    """Return the user record a token belongs to, or None."""
+    if not tok:
+        return None
+    h = _token_hash(tok)
+    for u in _load_raw().get("users", []):
+        for t in u.get("tokens", []):
+            if hmac.compare_digest(t.get("hash", ""), h):
+                return u
+    return None
+
+
 def set_api_key(username, api_key, provider=None, model=None):
     """Store (and encrypt) a user's API key. Pass api_key=None to clear it."""
     with _Lock():

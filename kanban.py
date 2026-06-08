@@ -26,6 +26,13 @@ Usage:
   python3 kanban.py user-del <name>
   python3 kanban.py user-passwd <name> [--password X]
   python3 kanban.py user-role <name> <admin|user>
+  python3 kanban.py token-add <name> [label]   # create an API token (printed once)
+  python3 kanban.py token-list <name>
+  python3 kanban.py token-del <name> <token-id>
+
+Remote mode: set KANBAN_API_URL (and KANBAN_API_TOKEN) to drive a board over the
+HTTP API instead of the local board.json — e.g.
+  KANBAN_API_URL=http://host:8787 KANBAN_API_TOKEN=lk_... python3 kanban.py add "Buy milk"
 
 All commands print JSON to stdout so they are easy to parse.
 """
@@ -172,7 +179,46 @@ class Lock:
             pass
 
 
+# Remote mode: when KANBAN_API_URL is set, the board is read/written over the
+# authenticated HTTP API (with KANBAN_API_TOKEN) instead of the local file. This
+# lets a worker on another machine drive a Dockerised board. All the card
+# commands below are unchanged — only load()/save() change destination.
+API_URL = os.environ.get("KANBAN_API_URL")
+API_TOKEN = os.environ.get("KANBAN_API_TOKEN")
+
+
+def _remote():
+    return bool(API_URL)
+
+
+def _api(method, body=None):
+    import urllib.request
+    import urllib.error
+    url = API_URL.rstrip("/") + "/api/board"
+    headers = {"Authorization": "Bearer " + (API_TOKEN or "")}
+    data = None
+    if body is not None:
+        headers["Content-Type"] = "application/json"
+        data = json.dumps(body).encode("utf-8")
+    req = urllib.request.Request(url, data=data, method=method, headers=headers)
+    try:
+        with urllib.request.urlopen(req, timeout=15) as r:
+            raw = r.read()
+            return json.loads(raw) if raw else {}
+    except urllib.error.HTTPError as e:
+        detail = ""
+        try:
+            detail = json.loads(e.read()).get("error", "")
+        except Exception:
+            pass
+        die("API %s %s: %s %s" % (method, url, e.code, detail))
+    except Exception as e:
+        die("could not reach API at %s: %s" % (url, e))
+
+
 def load():
+    if _remote():
+        return _api("GET")
     if not os.path.exists(BOARD):
         return {"version": 1, "updated": now(), "projects": ["General"],
                 "next_id": 1, "cards": []}
@@ -182,6 +228,9 @@ def load():
 
 def save(data):
     data["updated"] = now()
+    if _remote():
+        _api("POST", data)
+        return
     fd, tmp = tempfile.mkstemp(dir=DATA, prefix=".board.", suffix=".tmp")
     with os.fdopen(fd, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2, ensure_ascii=False)
@@ -568,6 +617,41 @@ def cmd_user_role(args):
     print(json.dumps({"username": args[0], "role": args[1]}, indent=2))
 
 
+def cmd_token_add(args):
+    """token-add <username> [name]  — create an API token for programmatic
+    access (e.g. the remote Claude worker). Prints the token ONCE."""
+    if not args:
+        die("token-add needs a username")
+    name = args[1] if len(args) > 1 else "worker"
+    try:
+        tok, meta = auth.create_token(args[0], name)
+    except ValueError as e:
+        die(str(e))
+    print(json.dumps({"token": tok, "id": meta["id"], "name": meta["name"],
+                      "username": args[0],
+                      "note": "Save this token now — it is not stored and cannot be shown again."},
+                     indent=2, ensure_ascii=False))
+
+
+def cmd_token_list(args):
+    if not args:
+        die("token-list needs a username")
+    try:
+        print(json.dumps(auth.list_tokens(args[0]), indent=2, ensure_ascii=False))
+    except ValueError as e:
+        die(str(e))
+
+
+def cmd_token_del(args):
+    if len(args) < 2:
+        die("token-del needs <username> <token-id>")
+    try:
+        auth.revoke_token(args[0], args[1])
+    except ValueError as e:
+        die(str(e))
+    print(json.dumps({"revoked": args[1], "username": args[0]}, indent=2))
+
+
 def parse_flags(args):
     out = {}
     i = 0
@@ -608,6 +692,9 @@ COMMANDS = {
     "user-del": cmd_user_del,
     "user-passwd": cmd_user_passwd,
     "user-role": cmd_user_role,
+    "token-add": cmd_token_add,
+    "token-list": cmd_token_list,
+    "token-del": cmd_token_del,
 }
 
 

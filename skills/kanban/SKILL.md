@@ -44,6 +44,24 @@ The encoded argument has no spaces, pipes, `$`, or quotes, so it passes through
 osascript cleanly. (If you have a sandboxed Linux shell with the folder mounted,
 prefer Method A — it's simpler.)
 
+**Method C — the board runs remotely (Docker, behind a login).** When the board
+is served from a container/another host, the local `board.json` is NOT the live
+board — you must go through the authenticated HTTP API with an API token. Set two
+env vars and run the SAME CLI commands; `load`/`save` then talk to the API:
+
+```
+KANBAN_API_URL=http://<host>:8787 KANBAN_API_TOKEN=lk_xxx \
+  python3 kanban.py add "Buy milk" --assignee Claude
+```
+
+The token identifies the user whose board you're editing, so it reads/writes
+that account's board. Mint one (on the host, inside the container) with
+`python3 kanban.py token-add <username> "claude-worker"` — it's printed once.
+Revoke with `token-del`. The token replaces the browser login and is exempt from
+CSRF. This is the right path for the Dockerised board at, e.g.,
+`http://172.22.20.5:8787`. (Requires network access to that host — a session
+with no route to it cannot reach the board.)
+
 ## Creating a card from a chat request — always do this
 
 When Ch@o asks you to add something to the board in chat ("add X to my kanban",

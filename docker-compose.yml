@@ -9,6 +9,10 @@ services:
   kanban:
     build: .
     image: lifekanban:latest
+    # Build this image locally — never try to pull it from a registry (it isn't
+    # published anywhere). This stops "pull access denied for lifekanban" when a
+    # stack deployer (e.g. Portainer) would otherwise pull before starting.
+    pull_policy: build
     container_name: lifekanban
     ports:
       - "8787:8787"

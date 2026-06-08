@@ -67,6 +67,18 @@ Admins see an **Admin** entry in the account menu. From there you can:
 
 The same actions are available from the terminal via `kanban.py` (`user-add`, `user-list`, `user-del`, `user-passwd`, `user-role`) — useful for creating the very first admin.
 
+## API tokens (for automation / the remote worker)
+
+If the board runs behind a login (for example in Docker on another machine), an
+automated client such as the Claude worker can't use a browser session. Instead
+it uses an **API token** that acts as a specific user:
+
+- An admin mints one on the host with `python3 kanban.py token-add <username> "label"` (printed once).
+- The client sends it as a bearer token; it then reads and writes that user's board over the API, with no login screen and no CSRF token needed.
+- Tokens can be listed (`token-list`) and revoked (`token-del`) at any time.
+
+Keep tokens secret — anyone holding one can act as that user on their board.
+
 ## Security notes
 
 - Passwords are stored hashed (PBKDF2), never in plain text.
@@ -89,3 +101,4 @@ The same actions are available from the terminal via `kanban.py` (`user-add`, `u
 ## Changelog
 
 - **8 June 2026** — Added multi-user accounts: login/logout, admin-only user creation, per-user boards, per-user encrypted API keys, settings and admin screens. Chat assistant now always writes a concise heading as the card title. Stuck-in-Doing cards now auto-recover.
+- **8 June 2026** — Added API tokens for programmatic/remote access (bearer-token auth, exempt from CSRF) so the Claude worker can drive a Dockerised board over the network; `kanban.py` gained a remote (HTTP) mode and `token-add`/`token-list`/`token-del`. Docker image now ships the auth module and login/settings/admin pages, and bootstraps the first admin from env on first run.

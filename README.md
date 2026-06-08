@@ -89,6 +89,35 @@ stored API keys can no longer be decrypted (users would just re-enter them).
 **If you serve this beyond your own Mac, put it behind HTTPS and set
 `KANBAN_SECURE_COOKIES=1`.**
 
+## API access for the Claude worker (remote / Docker)
+
+When the board runs behind a login (e.g. in Docker on another host), the worker
+can't use the local `board.json` and there's no anonymous API. Instead, give it
+an **API token**:
+
+1. Mint a token for the board's owner (run on the host, inside the container):
+
+   ```bash
+   docker exec -it lifekanban python3 kanban.py token-add Ch@o "claude-worker"
+   ```
+
+   The token (`lk_…`) is printed once — copy it.
+
+2. Point the worker at the API and run the normal CLI commands:
+
+   ```bash
+   KANBAN_API_URL=http://172.22.20.5:8787 KANBAN_API_TOKEN=lk_… \
+     python3 kanban.py add "Buy milk" --assignee Claude
+   # add / move / claim-next / set-result / log all work over the API
+   ```
+
+A token acts as the user it belongs to (so it reads/writes that account's
+board), replaces the browser login, and is exempt from CSRF. Revoke with
+`token-del <user> <token-id>`; list with `token-list <user>`. The worker must
+have network access to the board's host. (Result *files* produced remotely
+aren't yet uploaded to the container — cards and their fields sync, but a
+`↗ View result` link needs the file to live in the board's results area.)
+
 ## User guide
 
 There's a user guide for the app, published in Notion and linked in-app for

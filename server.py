@@ -135,9 +135,30 @@ class Handler(BaseHTTPRequestHandler):
     def current_session(self):
         return auth.get_session(self._cookie_token())
 
+    def _bearer_token(self):
+        authz = self.headers.get("Authorization", "")
+        if authz.startswith("Bearer "):
+            return authz[7:].strip()
+        return self.headers.get("X-Kanban-Token")
+
+    def resolve_session(self):
+        """Authenticate a request by API token first (programmatic clients like
+        the Claude worker), then by browser session cookie."""
+        tok = self._bearer_token()
+        if tok:
+            u = auth.verify_token(tok)
+            if u:
+                return {"uid": u["id"], "username": u["username"],
+                        "role": u.get("role", "user"), "csrf": None, "via": "token"}
+        s = auth.get_session(self._cookie_token())
+        if s:
+            s = dict(s)
+            s["via"] = "cookie"
+        return s
+
     def require_user(self):
         """Return the session dict, or send 401 and return None."""
-        s = self.current_session()
+        s = self.resolve_session()
         if not s:
             self._json(401, {"error": "not authenticated"})
             return None
@@ -153,6 +174,10 @@ class Handler(BaseHTTPRequestHandler):
         return s
 
     def check_csrf(self, session):
+        # API-token clients aren't subject to CSRF: the token isn't a cookie the
+        # browser sends automatically, so cross-site forgery doesn't apply.
+        if session and session.get("via") == "token":
+            return True
         token = self.headers.get("X-Kanban-CSRF", "")
         import hmac as _hmac
         if not session or not _hmac.compare_digest(token, session.get("csrf", "")):
