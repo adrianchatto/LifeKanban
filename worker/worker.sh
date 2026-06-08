@@ -32,8 +32,6 @@ if [ -f "$HERE/worker.env" ]; then
   set -a; . "$HERE/worker.env"; set +a
 fi
 
-: "${KANBAN_API_URL:?set KANBAN_API_URL, e.g. https://kanban.chattoweb.com}"
-: "${KANBAN_API_TOKEN:?set KANBAN_API_TOKEN (the lk_... token)}"
 REPO_DIR="${KANBAN_REPO_DIR:-$(cd "$HERE/.." && pwd)}"
 KANBAN_CLI="${KANBAN_CLI:-$REPO_DIR/kanban.py}"
 CLAUDE_BIN="${CLAUDE_BIN:-claude}"
@@ -42,7 +40,17 @@ RESULTS_DIR="${KANBAN_WORKER_RESULTS:-$REPO_DIR/worker-results}"
 MAX_CARDS="${KANBAN_WORKER_MAX:-3}"
 LOCK_DIR="${KANBAN_WORKER_LOCK:-${TMPDIR:-/tmp}/kanban-worker.lock.d}"
 
-export KANBAN_API_URL KANBAN_API_TOKEN
+# Two modes:
+#   * REMOTE — KANBAN_API_URL set: drive the board over the HTTP API (needs a
+#     token). Use this when the board runs on another host / behind a login.
+#   * LOCAL  — KANBAN_API_URL unset: edit the local board.json directly via
+#     kanban.py. Use this when the worker runs on the same machine as the board.
+if [ -n "${KANBAN_API_URL:-}" ]; then
+  : "${KANBAN_API_TOKEN:?KANBAN_API_URL is set, so KANBAN_API_TOKEN is required}"
+  export KANBAN_API_URL KANBAN_API_TOKEN
+else
+  unset KANBAN_API_URL KANBAN_API_TOKEN 2>/dev/null || true
+fi
 mkdir -p "$RESULTS_DIR"
 
 log(){ echo "$(date '+%Y-%m-%dT%H:%M:%S%z') [worker] $*"; }
@@ -68,6 +76,8 @@ if ! mkdir "$LOCK_DIR" 2>/dev/null; then
   fi
 fi
 trap 'rmdir "$LOCK_DIR" 2>/dev/null || true' EXIT INT TERM
+
+if [ -n "${KANBAN_API_URL:-}" ]; then log "mode: remote API ($KANBAN_API_URL)"; else log "mode: local board.json"; fi
 
 process_one(){
   local card id title desc project prompt result rc reason

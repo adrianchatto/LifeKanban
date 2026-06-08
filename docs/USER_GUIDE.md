@@ -98,6 +98,32 @@ Keep tokens secret — anyone holding one can act as that user on their board.
 - **Chat assistant ignores my key** — confirm the key, provider, and model are all set under Settings.
 - **A Claude card looks stuck** — it will be retried automatically on the next worker pass; no action needed.
 
+## Updating & deploying changes
+
+App changes — new features and bug fixes — only appear after the code is pushed
+to GitHub and the server is rebuilt. (The worker does not edit the app; it only
+produces written deliverables.)
+
+1. **Push from the Mac:**
+
+   ```bash
+   cd ~/Documents/Claude/Projects/Kanban && bash git_sync.sh
+   ```
+
+   Confirm it worked: `tail -n 15 .sync-result.txt` — look for `commit: created`
+   (or "nothing to commit") and `push exit: 0`.
+
+2. **Redeploy on the server** (from wherever the repo lives there):
+
+   ```bash
+   git pull && docker compose up -d --build
+   ```
+
+3. **Hard-refresh** the board in the browser (Cmd-Shift-R) to clear the cached page.
+
+The live board data, user accounts, API tokens and the encryption key live in the
+Docker `/data` volume and are preserved across rebuilds.
+
 ## Changelog
 
 - **8 June 2026** — Added multi-user accounts: login/logout, admin-only user creation, per-user boards, per-user encrypted API keys, settings and admin screens. Chat assistant now always writes a concise heading as the card title. Stuck-in-Doing cards now auto-recover.

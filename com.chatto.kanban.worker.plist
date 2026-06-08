@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.chatto.kanban.worker</string>
+
+  <!-- Autonomous worker: claims the next card assigned to Claude, runs the
+       `claude` CLI to do it, saves the result, and moves the card to Done (or
+       Needs OK if it needs approval). Drives the LIVE board over the API
+       (see worker/worker.env), so it is never fooled by a stale board.json. -->
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>/Users/adrianchatto/Documents/Claude/Projects/Kanban/worker/worker.sh</string>
+  </array>
+
+  <key>WorkingDirectory</key>
+  <string>/Users/adrianchatto/Documents/Claude/Projects/Kanban</string>
+
+  <!-- Run once at load, then every 15 minutes. worker.sh self-locks (atomic
+       mkdir lock), so an overlapping fire is safe. Do NOT use KeepAlive here —
+       this is a periodic job, not a daemon; it should exit between runs. -->
+  <key>RunAtLoad</key>
+  <true/>
+  <key>StartInterval</key>
+  <integer>900</integer>
+
+  <!-- launchd starts jobs with a minimal PATH, so `claude`/`python3` may not be
+       found. Give it the usual install locations; if `claude` lives elsewhere,
+       set CLAUDE_BIN to its absolute path in worker/worker.env. -->
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key>
+    <string>/Users/adrianchatto/.local/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+  </dict>
+
+  <key>StandardOutPath</key>
+  <string>/Users/adrianchatto/Documents/Claude/Projects/Kanban/worker/worker.log</string>
+  <key>StandardErrorPath</key>
+  <string>/Users/adrianchatto/Documents/Claude/Projects/Kanban/worker/worker.log</string>
+</dict>
+</plist>

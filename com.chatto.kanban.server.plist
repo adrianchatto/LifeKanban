@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.chatto.kanban.server</string>
+
+  <!-- Start the local board server. --no-browser so it doesn't pop a tab on
+       every login; open http://127.0.0.1:8787 yourself (bookmark it). -->
+  <key>ProgramArguments</key>
+  <array>
+    <string>/usr/bin/python3</string>
+    <string>/Users/adrianchatto/Documents/Claude/Projects/Kanban/server.py</string>
+    <string>--no-browser</string>
+  </array>
+
+  <key>WorkingDirectory</key>
+  <string>/Users/adrianchatto/Documents/Claude/Projects/Kanban</string>
+
+  <!-- Start at login and keep it alive (restart if it ever exits). -->
+  <key>RunAtLoad</key>
+  <true/>
+  <key>KeepAlive</key>
+  <true/>
+
+  <key>StandardOutPath</key>
+  <string>/Users/adrianchatto/Documents/Claude/Projects/Kanban/.server.log</string>
+  <key>StandardErrorPath</key>
+  <string>/Users/adrianchatto/Documents/Claude/Projects/Kanban/.server.log</string>
+</dict>
+</plist>
