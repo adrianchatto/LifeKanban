@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated": "2026-06-08T13:49:47Z",
+  "updated": "2026-06-08T21:43:43.025Z",
   "projects": [
     "General",
     "Datasite",
@@ -8,7 +8,7 @@
     "MOJ",
     "Neovance"
   ],
-  "next_id": 48,
+  "next_id": 52,
   "cards": [
     {
       "id": "k-001",
@@ -891,6 +891,91 @@
         "2026-06-08T13:48:13Z claimed by Claude worker",
         "2026-06-08T13:49:41Z result: results/k-047.md",
         "2026-06-08T13:49:47Z moved to done"
+      ]
+    },
+    {
+      "id": "k-048",
+      "title": "When I add from Add by Chat",
+      "description": "When I add from Add by Chat, I'd like the ability to add projects from that window",
+      "project": "General",
+      "assignee": "Claude",
+      "priority": "medium",
+      "status": "done",
+      "due": null,
+      "recur": null,
+      "subtasks": [],
+      "skill": null,
+      "result_link": null,
+      "created": "2026-06-08T21:26:26.817Z",
+      "updated": "2026-06-08T21:30:33Z",
+      "log": [
+        "created",
+        "added via chat assistant",
+        "2026-06-08T21:27:30Z claimed by Claude worker",
+        "2026-06-08T21:30:33Z worker completed; result file on worker host: /Users/adrianchatto/Documents/Claude/Projects/Kanban/worker-results/k-048.md",
+        "2026-06-08T21:30:33Z moved to done"
+      ]
+    },
+    {
+      "id": "k-049",
+      "title": "Do the Neovance project deck",
+      "description": "",
+      "project": "Neovance",
+      "assignee": "Ch@o",
+      "priority": "medium",
+      "status": "todo",
+      "due": null,
+      "recur": null,
+      "subtasks": [],
+      "skill": null,
+      "result_link": null,
+      "created": "2026-06-08T21:38:48.979Z",
+      "updated": "2026-06-08T21:39:05.328Z",
+      "log": [
+        "created",
+        "added via chat assistant"
+      ],
+      "attachments": []
+    },
+    {
+      "id": "k-050",
+      "title": "When I add a task from Add by",
+      "description": "When I add a task from Add by Chat, I'd like the ability to add projects from there and not just choose projects that already exist",
+      "project": "General",
+      "assignee": "Claude",
+      "priority": "medium",
+      "status": "doing",
+      "due": null,
+      "recur": null,
+      "subtasks": [],
+      "skill": null,
+      "result_link": null,
+      "created": "2026-06-08T21:39:41.559Z",
+      "updated": "2026-06-08T21:40:09Z",
+      "log": [
+        "created",
+        "added via chat assistant",
+        "2026-06-08T21:40:09Z claimed by Claude worker"
+      ]
+    },
+    {
+      "id": "k-051",
+      "title": "I'd like the Pomodoro box at the bottom",
+      "description": "I'd like the Pomodoro box at the bottom to be a line across the whole bottom",
+      "project": "General",
+      "assignee": "Claude",
+      "priority": "medium",
+      "status": "todo",
+      "due": null,
+      "recur": null,
+      "subtasks": [],
+      "skill": null,
+      "result_link": null,
+      "created": "2026-06-08T21:43:43.016Z",
+      "updated": "2026-06-08T21:43:43.019Z",
+      "log": [
+        "created",
+        "added via chat assistant"
       ]
     }
   ],

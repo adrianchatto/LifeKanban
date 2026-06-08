@@ -7,8 +7,9 @@
 
   <!-- Autonomous worker: claims the next card assigned to Claude, runs the
        `claude` CLI to do it, saves the result, and moves the card to Done (or
-       Needs OK if it needs approval). Drives the LIVE board over the API
-       (see worker/worker.env), so it is never fooled by a stale board.json. -->
+       Needs OK if it needs approval). Runs in LOCAL mode (see worker/worker.env)
+       — it edits this repo's board.json directly, the same file the local
+       server at 127.0.0.1:8787 serves. -->
   <key>ProgramArguments</key>
   <array>
     <string>/bin/bash</string>

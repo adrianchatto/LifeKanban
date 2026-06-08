@@ -132,57 +132,35 @@ class Handler(BaseHTTPRequestHandler):
             parts.append("Max-Age=%d" % auth.SESSION_TTL)
         return "; ".join(parts)
 
-    def current_session(self):
-        return auth.get_session(self._cookie_token())
+    # ----- no-auth single-user mode ----------------------------------------- #
+    # Login, users and passwords were removed. This board is local-only (binds
+    # to 127.0.0.1) and serves a single board.json. Every request is treated as
+    # the implicit owner, so nothing is gated. The owner record uses the legacy
+    # single-board layout (board.json / results / attachments at the data root).
+    OWNER = {"id": "owner", "username": "Ch@o", "role": "admin",
+             "board": "board.json", "results_dir": "results",
+             "attach_dir": "attachments", "api_key": None,
+             "ai_provider": None, "ai_model": None, "must_change": False,
+             "created": None}
 
-    def _bearer_token(self):
-        authz = self.headers.get("Authorization", "")
-        if authz.startswith("Bearer "):
-            return authz[7:].strip()
-        return self.headers.get("X-Kanban-Token")
+    def _owner(self):
+        return dict(self.OWNER)
+
+    def current_session(self):
+        return {"uid": "owner", "username": "Ch@o", "role": "admin",
+                "csrf": "", "via": "local"}
 
     def resolve_session(self):
-        """Authenticate a request by API token first (programmatic clients like
-        the Claude worker), then by browser session cookie."""
-        tok = self._bearer_token()
-        if tok:
-            u = auth.verify_token(tok)
-            if u:
-                return {"uid": u["id"], "username": u["username"],
-                        "role": u.get("role", "user"), "csrf": None, "via": "token"}
-        s = auth.get_session(self._cookie_token())
-        if s:
-            s = dict(s)
-            s["via"] = "cookie"
-        return s
+        return self.current_session()
 
     def require_user(self):
-        """Return the session dict, or send 401 and return None."""
-        s = self.resolve_session()
-        if not s:
-            self._json(401, {"error": "not authenticated"})
-            return None
-        return s
+        return self.current_session()
 
     def require_admin(self):
-        s = self.require_user()
-        if not s:
-            return None
-        if s.get("role") != "admin":
-            self._json(403, {"error": "admin only"})
-            return None
-        return s
+        return self.current_session()
 
     def check_csrf(self, session):
-        # API-token clients aren't subject to CSRF: the token isn't a cookie the
-        # browser sends automatically, so cross-site forgery doesn't apply.
-        if session and session.get("via") == "token":
-            return True
-        token = self.headers.get("X-Kanban-CSRF", "")
-        import hmac as _hmac
-        if not session or not _hmac.compare_digest(token, session.get("csrf", "")):
-            self._json(403, {"error": "bad or missing CSRF token"})
-            return False
+        # No login session or cookie to forge in local no-auth mode.
         return True
 
     def do_GET(self):
@@ -206,33 +184,17 @@ class Handler(BaseHTTPRequestHandler):
             return
         # ----- auth / account / admin read endpoints ----- #
         if path == "/api/me":
-            s = self.require_user()
-            if not s:
-                return
-            u = auth.find_user(s["username"])
-            if not u:
-                self._json(401, {"error": "not authenticated"})
-                return
-            pub = auth._public(u)
-            self._json(200, {"user": pub, "csrf": s["csrf"],
-                             "api_key": auth.get_api_key(s["username"]),
-                             "ai_provider": u.get("ai_provider"),
-                             "ai_model": u.get("ai_model"),
-                             "guide_url": (guide_url() if s.get("role") == "admin" else None)})
-            return
-        if path == "/api/admin/users":
-            s = self.require_admin()
-            if not s:
-                return
-            self._json(200, {"users": auth.list_users()})
+            # Static owner — no accounts exist; the UI just needs a user object.
+            self._json(200, {"user": {"id": "owner", "username": "Ch@o",
+                                      "role": "admin", "must_change": False,
+                                      "has_api_key": False},
+                             "csrf": "", "api_key": None,
+                             "ai_provider": None, "ai_model": None,
+                             "guide_url": guide_url()})
             return
         if path == "/api/board":
-            s = self.require_user()
-            if not s:
-                return
-            u = auth.find_user(s["username"])
             try:
-                with open(auth.board_path(u), "rb") as f:
+                with open(auth.board_path(self._owner()), "rb") as f:
                     self._send(200, f.read(), "application/json")
             except FileNotFoundError:
                 self._send(200, json.dumps(
@@ -240,18 +202,12 @@ class Handler(BaseHTTPRequestHandler):
                      "cards": []}), "application/json")
             return
         if path.startswith("/results/"):
-            s = self.require_user()
-            if not s:
-                return
-            u = auth.find_user(s["username"])
-            self._serve_result(path[len("/results/"):], auth.results_dir(u))
+            self._serve_result(path[len("/results/"):],
+                               auth.results_dir(self._owner()))
             return
         if path.startswith("/attachments/"):
-            s = self.require_user()
-            if not s:
-                return
-            u = auth.find_user(s["username"])
-            self._serve_attachment(path[len("/attachments/"):], auth.attach_dir(u))
+            self._serve_attachment(path[len("/attachments/"):],
+                                   auth.attach_dir(self._owner()))
             return
         name = path.lstrip("/")
         if name in STATIC:
@@ -329,41 +285,23 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self):
         path = self.path.split("?", 1)[0]
 
-        # ----- login is the one mutating endpoint with no session/CSRF ----- #
+        # Login/logout are retained only so any stale client call succeeds —
+        # there are no accounts, so they are no-ops in local no-auth mode.
         if path == "/api/login":
-            body = self._read_json()
-            if body is None:
-                self._json(400, {"error": "bad JSON"})
-                return
-            user, err = auth.authenticate(body.get("username", ""),
-                                          body.get("password", ""))
-            if err:
-                self._json(401, {"error": err})
-                return
-            token, csrf = auth.create_session(user)
-            self._json(200, {"user": auth._public(user), "csrf": csrf},
-                       cookie=self._set_cookie(token))
+            self._json(200, {"user": {"username": "Ch@o", "role": "admin"},
+                             "csrf": ""})
             return
 
         if path == "/api/logout":
-            s = self.current_session()
-            if s and not self.check_csrf(s):
-                return
-            auth.destroy_session(self._cookie_token())
-            self._json(200, {"ok": True}, cookie=self._set_cookie("", clear=True))
+            self._json(200, {"ok": True})
             return
 
-        # Everything below requires a valid session + CSRF token.
         if path == "/api/board":
-            s = self.require_user()
-            if not s or not self.check_csrf(s):
-                return
             body = self._read_json()
             if body is None or not isinstance(body.get("cards"), list):
                 self._json(400, {"error": "board must have a cards list"})
                 return
-            u = auth.find_user(s["username"])
-            bp = auth.board_path(u)
+            bp = auth.board_path(self._owner())
             os.makedirs(os.path.dirname(bp), exist_ok=True)
             tmp = bp + ".tmp"
             with open(tmp, "w", encoding="utf-8") as f:
@@ -373,78 +311,13 @@ class Handler(BaseHTTPRequestHandler):
             return
 
         if path == "/api/upload":
-            s = self.require_user()
-            if not s or not self.check_csrf(s):
-                return
-            self._handle_upload(auth.attach_dir(auth.find_user(s["username"])))
+            self._handle_upload(auth.attach_dir(self._owner()))
             return
 
-        if path == "/api/account/password":
-            s = self.require_user()
-            if not s or not self.check_csrf(s):
-                return
-            body = self._read_json() or {}
-            u = auth.find_user(s["username"])
-            if not auth.verify_password(body.get("old_password", ""), u["password"]):
-                self._json(403, {"error": "current password is incorrect"})
-                return
-            try:
-                auth.set_password(s["username"], body.get("new_password", ""))
-            except ValueError as e:
-                self._json(400, {"error": str(e)})
-                return
-            self._json(200, {"ok": True})
-            return
-
+        # The in-browser "Add by chat" AI key lives in the browser's
+        # localStorage; with no accounts there is nothing to persist server
+        # side, so this is a harmless no-op kept for UI compatibility.
         if path == "/api/account/apikey":
-            s = self.require_user()
-            if not s or not self.check_csrf(s):
-                return
-            body = self._read_json() or {}
-            try:
-                pub = auth.set_api_key(s["username"], body.get("api_key") or None,
-                                       provider=body.get("provider"),
-                                       model=body.get("model"))
-            except ValueError as e:
-                self._json(400, {"error": str(e)})
-                return
-            self._json(200, {"ok": True, "user": pub})
-            return
-
-        # ----- admin: create user ----- #
-        if path == "/api/admin/users":
-            s = self.require_admin()
-            if not s or not self.check_csrf(s):
-                return
-            body = self._read_json() or {}
-            try:
-                pub = auth.create_user(body.get("username", ""),
-                                       body.get("password", ""),
-                                       role=body.get("role", "user"),
-                                       must_change=True)
-            except ValueError as e:
-                self._json(400, {"error": str(e)})
-                return
-            self._json(200, {"ok": True, "user": pub})
-            return
-
-        # ----- admin: reset password / change role (POST sub-routes) ----- #
-        m = re.match(r"^/api/admin/users/([^/]+)/(password|role)$", path)
-        if m:
-            s = self.require_admin()
-            if not s or not self.check_csrf(s):
-                return
-            username, action = m.group(1), m.group(2)
-            body = self._read_json() or {}
-            try:
-                if action == "password":
-                    auth.set_password(username, body.get("new_password", ""),
-                                      must_change=True)
-                else:
-                    auth.set_role(username, body.get("role", "user"))
-            except ValueError as e:
-                self._json(400, {"error": str(e)})
-                return
             self._json(200, {"ok": True})
             return
 
@@ -452,33 +325,8 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_DELETE(self):
         path = self.path.split("?", 1)[0]
+        # Clearing the in-browser AI key is a no-op server side (no accounts).
         if path == "/api/account/apikey":
-            s = self.require_user()
-            if not s or not self.check_csrf(s):
-                return
-            auth.set_api_key(s["username"], None)
-            self._json(200, {"ok": True})
-            return
-        m = re.match(r"^/api/admin/users/([^/]+)$", path)
-        if m:
-            s = self.require_admin()
-            if not s or not self.check_csrf(s):
-                return
-            username = m.group(1)
-            if username == s["username"]:
-                self._json(400, {"error": "you cannot delete your own account"})
-                return
-            target = auth.find_user(username)
-            if target and target.get("role") == "admin":
-                admins = [u for u in auth.list_users() if u["role"] == "admin"]
-                if len(admins) <= 1:
-                    self._json(400, {"error": "cannot delete the last admin"})
-                    return
-            try:
-                auth.delete_user(username)
-            except ValueError as e:
-                self._json(400, {"error": str(e)})
-                return
             self._json(200, {"ok": True})
             return
         self._json(404, {"error": "not found"})
@@ -559,11 +407,7 @@ document.getElementById('c').innerHTML = md(src);
 def main():
     os.makedirs(RESULTS, exist_ok=True)
     os.makedirs(ATTACH, exist_ok=True)
-    os.makedirs(auth.BOARDS_DIR, exist_ok=True)
-    if auth.user_count() == 0:
-        print("WARNING: no users exist yet. Create the first admin with:\n"
-              "  python3 kanban.py user-add <name> --admin\n"
-              "Until then, login will reject everyone.")
+    # No-auth single-user mode: no accounts, no login. The board is local-only.
     httpd = ThreadingHTTPServer((HOST, PORT), Handler)
     url = "http://%s:%d/" % (HOST, PORT)
     print("Kanban board running at " + url)

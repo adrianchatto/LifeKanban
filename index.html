@@ -263,74 +263,10 @@
   footer{padding:6px 22px 22px;color:var(--muted);font-size:11.5px}
 </style>
 <script>
-/* Auth gate + account menu. Runs early so window.__csrf is set before any save.
-   If there is no valid session the page redirects to the login screen. */
-(function(){
-  fetch('/api/me',{cache:'no-store'}).then(function(r){
-    if(r.status===401){ location.replace('/login.html'); return null; }
-    return r.json();
-  }).then(function(d){
-    if(!d) return;
-    window.__csrf = d.csrf || '';
-    window.__me = d.user || null;
-    window.__guideUrl = d.guide_url || null;
-    // Hydrate the in-browser AI key from the account so "Add by chat" works on
-    // any device. Only overwrite when the account actually has a stored key.
-    try{
-      if(d.api_key){
-        localStorage.setItem('kanban_ai', JSON.stringify({
-          provider:d.ai_provider||'anthropic', model:d.ai_model||'', key:d.api_key }));
-      }
-    }catch(e){}
-    buildMenu(d.user);
-  }).catch(function(){});
-
-  function el(tag, css, txt){ var e=document.createElement(tag);
-    if(css) e.style.cssText=css; if(txt!=null) e.textContent=txt; return e; }
-
-  function buildMenu(user){
-    if(!user) return;
-    function go(){
-      if(document.getElementById('acctMenu')) return;
-      var wrap=el('div','position:relative;display:inline-flex;align-items:center;margin-left:8px;font:13px -apple-system,BlinkMacSystemFont,Segoe UI,sans-serif;');
-      wrap.id='acctMenu';
-      var btn=el('button','background:#fff;border:1px solid #d7dbe6;border-radius:8px;padding:6px 12px;cursor:pointer;color:#1d2330;box-shadow:0 1px 3px rgba(20,30,60,.08);', '● '+user.username);
-      var pop=el('div','display:none;position:absolute;right:0;top:calc(100% + 6px);background:#fff;border:1px solid #d7dbe6;border-radius:10px;min-width:160px;box-shadow:0 6px 24px rgba(20,30,60,.14);overflow:hidden;z-index:9999;');
-      function item(label, href, onclick){
-        var a=el('a','display:block;padding:10px 14px;color:#1d2330;text-decoration:none;border-bottom:1px solid #f0f2f7;', label);
-        a.href=href||'#';
-        a.onmouseenter=function(){a.style.background='#f5f7fb';};
-        a.onmouseleave=function(){a.style.background='#fff';};
-        if(onclick) a.onclick=onclick; return a;
-      }
-      pop.appendChild(item('Settings','/settings.html'));
-      if(user.role==='admin') pop.appendChild(item('Manage users','/admin.html'));
-      if(user.role==='admin' && window.__guideUrl){
-        var g=item('User guide ↗', window.__guideUrl);
-        g.target='_blank'; g.rel='noopener'; pop.appendChild(g);
-      }
-      var out=item('Log out','#',function(ev){ ev.preventDefault();
-        fetch('/api/logout',{method:'POST',headers:{'X-Kanban-CSRF':window.__csrf||''}})
-          .then(function(){ location.replace('/login.html'); })
-          .catch(function(){ location.replace('/login.html'); }); });
-      out.style.borderBottom='none';
-      pop.appendChild(out);
-      btn.onclick=function(){ pop.style.display = pop.style.display==='none'?'block':'none'; };
-      document.addEventListener('click', function(e){ if(!wrap.contains(e.target)) pop.style.display='none'; });
-      wrap.appendChild(btn); wrap.appendChild(pop);
-      var hdr=document.querySelector('header');
-      if(hdr){ hdr.appendChild(wrap); }
-      else { wrap.style.position='fixed'; wrap.style.top='10px'; wrap.style.right='14px'; wrap.style.zIndex='9999'; document.body.appendChild(wrap); }
-      if(user.must_change){
-        var b=el('div','position:fixed;top:0;left:0;right:0;z-index:9998;background:#fde68a;color:#7a5b00;text-align:center;padding:7px;font:13px sans-serif;cursor:pointer;',
-          'You’re using a temporary password. Click here to set your own in Settings.');
-        b.onclick=function(){ location.href='/settings.html'; };
-        document.body.appendChild(b);
-      }
-    }
-    if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', go); else go();
-  }
-})();
+/* Local no-auth board: no login, no users, no passwords. CSRF is not used.
+   This just keeps window.__csrf defined so the existing save code is happy. */
+window.__csrf = '';
+window.__me = { username: 'Ch@o', role: 'admin' };
 </script>
 </head>
 <body>
@@ -1711,7 +1647,7 @@ setTimeout(checkNotifications, 2000);
       "user's full sentence, no trailing full stop), "+
       "description (string: the full request and any extra detail; if you shortened "+
       "the title, put the original wording here so nothing is lost), "+
-      "project (one of "+JSON.stringify(projs)+" or null if the user did not name one), "+
+      "project (if the user named a project, return it exactly — use one from "+JSON.stringify(projs)+" if it matches, or return the new name they specified if it's clearly a project name and not in that list; return null only if the user did not name a project at all), "+
       "assignee (\"Claude\" if the user wants Claude to do it, \"Ch@o\" if the user said it's for them, else null), "+
       "priority (\"high\"|\"medium\"|\"low\", default \"medium\"), "+
       "due (YYYY-MM-DD or null), "+
@@ -1777,8 +1713,14 @@ setTimeout(checkNotifications, 2000);
              '<div class="kc-q">A couple of things before I add this:</div>';
     if(needProject){
       const projs=(typeof projectsList==="function" ? projectsList() : (board.projects||["General"]));
-      html+='<div class="kc-fld"><div class="kc-qlbl">Which project?</div><div class="kc-opts">'+
+      html+='<div class="kc-fld"><div class="kc-qlbl">Which project?</div><div class="kc-opts" id="kcProjOpts">'+
         projs.map(p=>'<button class="kc-opt" data-k="project" data-v="'+kcEsc(p)+'">'+kcEsc(p)+'</button>').join("")+
+        '<button class="kc-opt kc-newproj" type="button">＋ New…</button>'+
+        '</div>'+
+        '<div class="kc-newrow" style="display:none;gap:6px;margin-top:6px">'+
+          '<input class="kc-newinp" type="text" placeholder="New project name" '+
+            'style="flex:1;min-width:0;border:1px solid var(--line);border-radius:8px;padding:5px 9px;font-size:12px;outline:none">'+
+          '<button class="kc-newadd kc-opt" type="button">Add</button>'+
         '</div></div>';
     }
     if(needAssignee){
@@ -1798,16 +1740,54 @@ setTimeout(checkNotifications, 2000);
       goBtn.disabled=!done; goBtn.style.opacity=done?1:.45; goBtn.style.cursor=done?"pointer":"default";
     }
     refresh();
-    wrap.querySelectorAll(".kc-opt").forEach(b=>{
+    wrap.querySelectorAll(".kc-opt[data-k]").forEach(b=>{
       b.onclick=()=>{
         const k=b.dataset.k, v=b.dataset.v;
         if(k==="project"){ d.project=v; d._projectGiven=true; need.project=false; }
         if(k==="assignee"){ d.assignee=v; d._assigneeGiven=true; need.assignee=false; }
-        b.parentElement.querySelectorAll(".kc-opt").forEach(x=>x.classList.remove("sel"));
+        b.parentElement.querySelectorAll(".kc-opt[data-k]").forEach(x=>x.classList.remove("sel"));
         b.classList.add("sel");
         refresh();
       };
     });
+
+    // "＋ New…" creates a project right here in the picker, persists it to the
+    // board, then selects it — so you don't have to leave the Add-by-chat window.
+    const newBtn=wrap.querySelector(".kc-newproj");
+    if(newBtn){
+      const optWrap=wrap.querySelector("#kcProjOpts");
+      const row=wrap.querySelector(".kc-newrow");
+      const inp=wrap.querySelector(".kc-newinp");
+      const addB=wrap.querySelector(".kc-newadd");
+      function selectProject(btn,name){
+        d.project=name; d._projectGiven=true; need.project=false;
+        optWrap.querySelectorAll('.kc-opt[data-k="project"]').forEach(x=>x.classList.remove("sel"));
+        btn.classList.add("sel"); refresh();
+      }
+      function commitNew(){
+        const name=(inp.value||"").trim(); if(!name) return;
+        if(!(board.projects||[]).includes(name)){
+          (board.projects=board.projects||[]).push(name);
+          (board.projectColors=board.projectColors||{})[name]=projColor(name);
+          if(typeof pushBoard==="function") pushBoard();   // persist the new project
+        }
+        let btn=Array.from(optWrap.querySelectorAll('.kc-opt[data-k="project"]'))
+                  .find(x=>x.dataset.v===name);
+        if(!btn){
+          btn=document.createElement("button");
+          btn.className="kc-opt"; btn.dataset.k="project"; btn.dataset.v=name;
+          btn.textContent=name;
+          btn.onclick=()=>selectProject(btn,name);
+          optWrap.insertBefore(btn,newBtn);
+        }
+        selectProject(btn,name);
+        row.style.display="none"; inp.value="";
+      }
+      newBtn.onclick=()=>{ row.style.display="flex"; setTimeout(()=>inp.focus(),0); };
+      addB.onclick=commitNew;
+      inp.addEventListener("keydown",e=>{ if(e.key==="Enter"){ e.preventDefault(); commitNew(); } });
+    }
+
     goBtn.onclick=()=>{ if(goBtn.disabled) return; kcDisable(wrap); kcPending=null; kcDoCommit(d); };
     wrap.querySelector(".kc-no").onclick=()=>{ kcDisable(wrap); kcPending=null; kcAddMsg("bot","Cancelled — nothing added."); };
   }
@@ -1873,6 +1853,8 @@ setTimeout(checkNotifications, 2000);
   ".kc-opt{border:1px solid var(--line);background:#fff;border-radius:8px;padding:5px 10px;font-size:12px;cursor:pointer;font-weight:600;color:#3b4252}"+
   ".kc-opt:hover{border-color:var(--accent)}"+
   ".kc-opt.sel{background:var(--accent);color:#fff;border-color:var(--accent)}"+
+  ".kc-newproj{border-style:dashed;color:var(--accent);background:#f5f7ff}"+
+  ".kc-newproj:hover{background:#eef1ff;border-style:dashed}"+
   ".kc-foot{display:flex;gap:8px;padding:10px;border-top:1px solid var(--line);background:#fff}"+
   ".kc-foot input{flex:1;border:1px solid var(--line);border-radius:10px;padding:9px 12px;font-size:13px;outline:none}"+
   ".kc-foot input:focus{border-color:var(--accent)}"+

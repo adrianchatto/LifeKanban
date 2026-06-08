@@ -33,6 +33,9 @@ if [ -f "$HERE/worker.env" ]; then
 fi
 
 REPO_DIR="${KANBAN_REPO_DIR:-$(cd "$HERE/.." && pwd)}"
+# Run from the repo so the worker's claude edits the app's files (index.html etc.)
+# in the right place, whatever directory the job was launched from.
+cd "$REPO_DIR"
 KANBAN_CLI="${KANBAN_CLI:-$REPO_DIR/kanban.py}"
 CLAUDE_BIN="${CLAUDE_BIN:-claude}"
 CLAUDE_ARGS="${KANBAN_CLAUDE_ARGS:-}"
@@ -120,6 +123,16 @@ EOF
   fi
 
   printf '%s\n' "$result" > "$RESULTS_DIR/$id.md"
+
+  # Safety net: if Claude couldn't actually act (still asking for file/edit
+  # permission or reporting it was blocked), don't pretend it's done — park it
+  # in Needs OK for review instead of falsely marking it complete.
+  if printf '%s' "$result" | grep -qiE "write permission|permission hasn't been granted|approve the (edit|file|permission|changes)|permission to (edit|write|make)"; then
+    kb log "$id" "worker could not complete — it was blocked (permissions). Parked for review | result: $RESULTS_DIR/$id.md" >/dev/null
+    kb move "$id" needs_ok >/dev/null
+    log "$id -> needs_ok (worker was blocked, not actually done)"
+    return 0
+  fi
 
   if printf '%s' "$result" | head -n1 | grep -qiE '^NEEDS_OK:'; then
     reason="$(printf '%s' "$result" | head -n1 | sed -E 's/^[Nn][Ee][Ee][Dd][Ss]_[Oo][Kk]:[[:space:]]*//')"

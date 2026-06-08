@@ -1,71 +1,46 @@
-# Running the Kanban worker on your Mac (reliable setup)
+# Running the Kanban worker on your Mac (local, no-login setup)
 
-## Why this changed
+## How this works now
 
-The worker used to run as a **Cowork scheduled task**. That runs in an isolated
-sandbox that has **no network route to your board** — it can't reach
-`127.0.0.1:8787` (that loopback is your Mac, not the sandbox) and it can't even
-resolve `kanban.chattoweb.com`. On top of that, your live board runs in Docker
-and keeps its data in a Docker volume, so the `board.json` in this repo is only a
-stale copy. The sandbox worker therefore read old data and kept reporting
-"nothing to do" while live cards sat in **To Do**.
+The board runs **locally with no login**: `server.py` on `127.0.0.1:8787`, with
+all data in this repo's `board.json`. There are no users, passwords, or API
+tokens any more.
 
-The fix: run the purpose-built `worker/worker.sh` **on your Mac**, talking to the
-**live board over its authenticated API**. One worker, one source of truth, no
-file-sync lag. The Cowork scheduled task is retired.
+The worker runs the purpose-built `worker/worker.sh` **on your Mac** in **local
+file mode** — it edits `board.json` directly via `kanban.py`. No API URL, no
+token, and it doesn't even need the web server running. The board UI and the
+worker both read/write the same `board.json` through an atomic file lock, so they
+can't corrupt each other.
+
+> The old **Cowork scheduled task** is retired. It ran in an isolated sandbox
+> that can't reach your Mac's files or run the `claude` CLI, so it could never
+> actually do the work. Don't re-enable it.
 
 ## Prerequisites
 
-- The board is running and reachable from your Mac (open it in a browser to check).
-- Claude Code CLI is installed and logged in. Confirm with:
+- Claude Code CLI installed and logged in (this is what does each card's work):
 
   ```bash
   which claude && claude --version
   ```
 
+  If `which claude` prints a path that isn't on launchd's minimal PATH, set
+  `CLAUDE_BIN` to that absolute path in `worker/worker.env`.
 - `python3` is available (it is, on macOS).
 
-## One-time setup
+## Setup
 
-### 1. Mint an API token for your account
-
-The token identifies the board owner and lets the worker read/write your board.
-
-```bash
-# If the board runs in Docker (it does, per docker-compose.yml):
-docker exec -it lifekanban python3 kanban.py token-add "Ch@o" "claude-worker"
-
-# If you run it with plain server.py instead, drop the docker prefix:
-# python3 /Users/adrianchatto/Documents/Claude/Projects/Kanban/kanban.py token-add "Ch@o" "claude-worker"
-```
-
-It prints a token like `lk_xxxx…` **once** — copy it now.
-
-### 2. Paste the token into worker.env
-
-Edit `worker/worker.env` and replace the placeholder:
-
-```
-KANBAN_API_URL=https://kanban.chattoweb.com
-KANBAN_API_TOKEN=lk_xxxx…           # <- your token
-```
-
-`worker.env` is gitignored, so the token stays on your Mac and never reaches
-GitHub. If your Mac can't reach the public domain, switch the URL to
-`http://127.0.0.1:8787` (token auth works over plain http).
-
-### 3. Test it by hand
+### 1. Test it by hand
 
 ```bash
 bash /Users/adrianchatto/Documents/Claude/Projects/Kanban/worker/worker.sh
 ```
 
-You should see `mode: remote API (https://kanban.chattoweb.com)` and, if a Claude
-card is waiting, `working <id>: <title>` … `<id> -> done`. Watch the board — the
-card should move To Do → Doing → Done (or Needs OK). If it prints
-`mode: local board.json`, the token/URL didn't load — recheck step 2.
+You should see `mode: local board.json`. If a card is waiting in **To Do**
+assigned to **Claude**, you'll then see `working <id>: <title>` … `<id> -> done`,
+and the card moves To Do → Doing → Done (or Needs OK) on the board.
 
-### 4. Schedule it with launchd (every 15 minutes)
+### 2. Schedule it with launchd (every 15 minutes)
 
 ```bash
 cp /Users/adrianchatto/Documents/Claude/Projects/Kanban/com.chatto.kanban.worker.plist ~/Library/LaunchAgents/
@@ -78,17 +53,12 @@ and every 15 minutes after. Logs go to `worker/worker.log`. The job exits betwee
 runs (it's a periodic task, not a daemon) and self-locks so overlapping fires are
 safe.
 
-To check it's registered:
+Check it's registered:
 
 ```bash
 launchctl list | grep com.chatto.kanban.worker
 tail -f /Users/adrianchatto/Documents/Claude/Projects/Kanban/worker/worker.log
 ```
-
-### 5. Retire the old Cowork scheduled task
-
-It's already been disabled. If you ever want it back (you shouldn't — it can't
-reach the live board), re-enable `kanban-worker` from your scheduled tasks.
 
 ## Notes / known limits
 
@@ -99,6 +69,6 @@ reach the live board), re-enable `kanban-worker` from your scheduled tasks.
   **Needs OK** for you to approve. Approve from the card (or
   `python3 kanban.py approve <id>`) and the next run carries out the action.
 - Result files are written to `worker-results/<id>.md` on your Mac. The card log
-  records the path; the in-board "↗ View result" link doesn't upload them yet.
+  records the path.
 - The Mac only processes cards while it's **awake and online**. If it's been
   asleep, cards are picked up on the next run after it wakes.
