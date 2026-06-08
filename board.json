@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated": "2026-06-08T10:32:47Z",
+  "updated": "2026-06-08T10:34:55Z",
   "projects": [
     "General",
     "Datasite",
@@ -615,18 +615,21 @@
       "project": "General",
       "assignee": "Claude",
       "priority": "medium",
-      "status": "doing",
+      "status": "done",
       "due": null,
       "recur": null,
       "subtasks": [],
       "skill": null,
-      "result_link": null,
+      "result_link": "results/k-036.md",
       "created": "2026-06-08T10:17:30.287Z",
-      "updated": "2026-06-08T10:32:27Z",
+      "updated": "2026-06-08T10:34:55Z",
       "log": [
         "created",
         "added via chat assistant",
-        "2026-06-08T10:32:27Z claimed by Claude worker"
+        "2026-06-08T10:32:27Z claimed by Claude worker",
+        "2026-06-08T10:34:44Z result: results/k-036.md",
+        "2026-06-08T10:34:50Z Researched multi-user options (A: views-only, B: API-key scoping [recommended], C: password+sessions, D: auth proxy). Report saved; awaiting Ch@o's pick before any code change.",
+        "2026-06-08T10:34:55Z moved to done"
       ],
       "attachments": []
     }
