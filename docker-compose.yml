@@ -26,10 +26,11 @@ services:
       # them again afterwards. Manage further users in the in-app Admin panel.
       KANBAN_ADMIN_USER: "Ch@o"
       KANBAN_ADMIN_PASSWORD: "change-me-now-8+chars"
-      # The board is reachable over the network here. For real multi-user use,
-      # put HTTPS in front and set KANBAN_SECURE_COOKIES to "1". Leave it unset
-      # (or "0") while testing over plain http, or logins won't stick.
-      # KANBAN_SECURE_COOKIES: "1"
+      # Served behind HTTPS (https://kanban.chattoweb.com), so mark session
+      # cookies Secure. NOTE: with this on, logins only work over HTTPS — reach
+      # the board via the domain, not http://<ip>:8787 directly. Set to "0" if
+      # you ever need plain-http access again.
+      KANBAN_SECURE_COOKIES: "1"
       # Optional: the admin "User guide" link target.
       # KANBAN_GUIDE_URL: "https://app.notion.com/p/3798568cba8981dbbbf4d069543641e4"
     volumes:
