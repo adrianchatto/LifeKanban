@@ -25,6 +25,7 @@ The board has four columns: **To Do → Doing → Needs OK → Done**. Drag a ca
 - **Priority** — high, medium, or low.
 - **Filters** — filter by project and by owner, top-right.
 - **Calendar view** — switch from Board to Calendar to see cards with due dates and recurring cards laid out by day.
+- **Ticket number** — each card shows its ticket ID, such as `k-052`, on the board, in list/calendar views, and at the top of the edit window.
 - **Projects** — manage your list of projects via the **Projects** button.
 
 ## Adding cards by chat
@@ -126,6 +127,7 @@ Docker `/data` volume and are preserved across rebuilds.
 
 ## Changelog
 
+- **10 June 2026** — Added visible ticket IDs to cards across board, list, calendar, and edit views.
 - **10 June 2026** — Restored authenticated Docker-ready server flow, added public signup, kept first-user admin bootstrap, and moved BYOAI chat parsing server-side through `/api/ai/parse`.
 - **10 June 2026** — Renamed the worker-facing assignee from Claude to AI. Old cards assigned to Claude are still picked up for compatibility and are normalized when claimed.
 - **8 June 2026** — Added multi-user accounts: login/logout, admin user creation, per-user boards, per-user encrypted API keys, settings and admin screens. Chat assistant now always writes a concise heading as the card title. Stuck-in-Doing cards now auto-recover.

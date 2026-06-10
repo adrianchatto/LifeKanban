@@ -102,6 +102,10 @@
   .card{background:var(--panel);border:1px solid var(--line);border-radius:11px;padding:12px 13px;
     box-shadow:var(--shadow);cursor:grab;position:relative}
   .card:active{cursor:grabbing}
+  .ticket-id{display:inline-flex;align-items:center;align-self:flex-start;color:var(--muted);
+    background:var(--chip);border:1px solid var(--line);border-radius:6px;padding:1px 6px;
+    font-size:10.5px;font-weight:700;line-height:1.4;text-transform:uppercase;letter-spacing:0}
+  .card .ticket-id{margin:0 0 6px}
   .card .ttl{font-weight:600;margin:0 0 6px;font-size:13.5px}
   .card .desc{color:var(--muted);font-size:12.5px;margin:0 0 9px;
     display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
@@ -152,6 +156,9 @@
   .modal{background:#fff;border-radius:16px;width:min(520px,92vw);box-shadow:0 20px 60px rgba(10,20,40,.3);
     padding:22px 24px;max-height:88vh;overflow:auto}
   .modal h3{margin:0 0 16px;font-size:16px}
+  .modal-title{display:flex;align-items:center;gap:8px;margin:0 0 16px}
+  .modal-title h3{margin:0}
+  .modal-title .ticket-id{font-size:11px}
   label{display:block;font-size:12px;font-weight:600;color:var(--muted);margin:12px 0 5px}
   input[type=text],textarea,.modal select{width:100%;border:1px solid var(--line);border-radius:9px;padding:9px 11px;background:var(--field);color:var(--ink)}
   textarea{min-height:84px;resize:vertical}
@@ -186,6 +193,7 @@
     border-radius:6px;padding:2px 7px;color:#fff;white-space:nowrap}
   .lv-st.todo{background:var(--todo)} .lv-st.doing{background:var(--doing)}
   .lv-st.needs_ok{background:var(--ok)} .lv-st.done{background:var(--done)}
+  .lv-id{flex:0 0 auto}
   .lv-ttl{flex:1 1 auto;font-size:13.5px;font-weight:600;color:var(--ink);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .lv-meta{flex:0 0 auto;display:flex;align-items:center;gap:6px}
   .lv-empty{color:var(--muted);padding:18px;text-align:center}
@@ -412,7 +420,10 @@ async function initSession(){
 
 <div class="scrim" id="scrim">
   <div class="modal">
-    <h3 id="mTitle">New card</h3>
+    <div class="modal-title">
+      <h3 id="mTitle">New card</h3>
+      <span class="ticket-id" id="mTicketId" style="display:none"></span>
+    </div>
     <input type="hidden" id="fId">
     <label>Title</label>
     <input type="text" id="fTitle" placeholder="What needs doing?">
@@ -605,6 +616,7 @@ function render(){
 }
 
 function cardHTML(c){
+  const idBadge = `<span class="ticket-id">${esc(c.id)}</span>`;
   const who = isAIAssignee(c.assignee)
     ? `<span class="badge claude">✦ AI</span>`
     : `<span class="badge me">● Me</span>`;
@@ -622,6 +634,7 @@ function cardHTML(c){
   const doneBtn = c.status!=="done" ? `<button class="donebtn" data-done="${c.id}" title="Mark done">✓</button>` : "";
   return `<article class="card ${c.status==='done'?'is-done':''}${prioCls}" draggable="true" data-id="${c.id}">
     ${doneBtn}
+    ${idBadge}
     <p class="ttl">${esc(c.title)}</p>
     ${c.description?`<p class="desc">${esc(c.description)}</p>`:""}
     <div class="row">${prioBadge(c)}${who}${projChip(c.project)}${dueBadge(c)}${subProgress(c)}${attachBadge(c)}</div>
@@ -753,6 +766,7 @@ function renderList(cards){
       const okBtn = st==="needs_ok" ? `<button class="okbtn" data-ok="${c.id}" title="Approve & run">✓ OK</button>` : "";
       return `<div class="lv-row ${st==='done'?'is-done':''}" data-id="${c.id}">
         <span class="lv-st ${st}">${STATUS_NAME[st]||st}</span>
+        <span class="ticket-id lv-id">${esc(c.id)}</span>
         <span class="lv-ttl">${esc(c.title)}</span>
         <span class="lv-meta">${prioBadge(c)}${isAIAssignee(c.assignee)?'<span class="badge claude">✦ AI</span>':''}${dueBadge(c)}${subProgress(c)}${attachBadge(c)}${okBtn}${doneBtn}</span>
       </div>`;
@@ -823,11 +837,11 @@ function renderCalendar(cards){
       else { const days=Math.round((startOfDay(iso+"T00:00:00")-today)/86400000);
         if(days<0) cls+=" over"; else if(days<=1) cls+=" soon"; }
       if(isAIAssignee(c.assignee)) cls+=" claude";
-      return `<div class="${cls}" data-id="${c.id}" style="border-left-color:${projColor(c.project||'General')}" title="${esc(c.title)} · ${esc(c.project||'General')}">${esc(c.title)}</div>`;
+      return `<div class="${cls}" data-id="${c.id}" style="border-left-color:${projColor(c.project||'General')}" title="${esc(c.id)} · ${esc(c.title)} · ${esc(c.project||'General')}">${esc(c.id)} · ${esc(c.title)}</div>`;
     }).join("");
     const rchips = recurring.filter(c=>recurOccursOn(c,d)).map(c=>{
       const cls = "calchip recur" + (isAIAssignee(c.assignee)?" claude":"");
-      return `<div class="${cls}" data-id="${c.id}" style="border-left-color:${projColor(c.project||'General')}" title="${esc(c.title)} · ${esc(c.project||'General')} (repeats)">🔁 ${esc(c.title)}</div>`;
+      return `<div class="${cls}" data-id="${c.id}" style="border-left-color:${projColor(c.project||'General')}" title="${esc(c.id)} · ${esc(c.title)} · ${esc(c.project||'General')} (repeats)">🔁 ${esc(c.id)} · ${esc(c.title)}</div>`;
     }).join("");
     cells += `<div class="calcell${other}${isToday}"><span class="caldate">${d.getDate()}</span>${chips}${rchips}</div>`;
   }
@@ -887,6 +901,7 @@ function wireDnD(){
 function openNew(){
   editing=null; assigneeChoice="Ch@o"; priorityChoice="medium";
   $("#mTitle").textContent="New card";
+  $("#mTicketId").style.display="none"; $("#mTicketId").textContent="";
   $("#fId").value=""; $("#fTitle").value=""; $("#fDesc").value="";
   populateProjectSelect($("#projFilter").value||"General");
   $("#fDue").value="";
@@ -903,6 +918,7 @@ function openEdit(id){
   const c = board.cards.find(x=>x.id===id); if(!c)return;
   editing=id; assigneeChoice=normAssignee(c.assignee); priorityChoice=normPrio(c.priority);
   $("#mTitle").textContent="Edit card";
+  $("#mTicketId").style.display="inline-flex"; $("#mTicketId").textContent=c.id;
   $("#fId").value=c.id; $("#fTitle").value=c.title; $("#fDesc").value=c.description||"";
   populateProjectSelect(c.project||"General");
   $("#fDue").value=c.due||"";

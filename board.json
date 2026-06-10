@@ -1,14 +1,15 @@
 {
   "version": 1,
-  "updated": "2026-06-10T09:07:06Z",
+  "updated": "2026-06-10T09:29:44Z",
   "projects": [
     "General",
     "Datasite",
     "Abenson",
     "MOJ",
-    "Neovance"
+    "Neovance",
+    "Rank"
   ],
-  "next_id": 52,
+  "next_id": 54,
   "cards": [
     {
       "id": "k-001",
@@ -993,11 +994,57 @@
         "2026-06-10T09:07:05Z worker completed; result file on worker host: /Users/adrianchatto/GitHub/LifeKanban/results/k-051.md",
         "2026-06-10T09:07:06Z moved to done"
       ]
+    },
+    {
+      "id": "k-052",
+      "title": "Start to build out to-be workshops for Rank",
+      "description": "Start to build out to-be workshops for Rank (Agenda) Objectives outcomes, attendees",
+      "project": "Rank",
+      "assignee": "Ch@o",
+      "priority": "medium",
+      "status": "todo",
+      "due": null,
+      "recur": null,
+      "subtasks": [],
+      "skill": null,
+      "result_link": null,
+      "created": "2026-06-10T09:19:06.470Z",
+      "updated": "2026-06-10T09:19:06.470Z",
+      "log": [
+        "created",
+        "added via chat assistant"
+      ]
+    },
+    {
+      "id": "k-053",
+      "title": "I'd like to see the ticket number e.g",
+      "description": "I'd like to see the ticket number e.g k-52 in the ticket. Can you do that?",
+      "project": "General",
+      "assignee": "AI",
+      "priority": "medium",
+      "status": "done",
+      "due": null,
+      "recur": null,
+      "subtasks": [],
+      "skill": null,
+      "result_link": "k-053.md",
+      "created": "2026-06-10T09:20:06.553Z",
+      "updated": "2026-06-10T09:29:44Z",
+      "log": [
+        "created",
+        "added via chat assistant",
+        "2026-06-10T09:26:26Z claimed by AI worker",
+        "2026-06-10T09:29:43Z result: k-053.md",
+        "2026-06-10T09:29:44Z worker completed; result file on worker host: /Users/adrianchatto/GitHub/LifeKanban/results/k-053.md",
+        "2026-06-10T09:29:44Z moved to done"
+      ],
+      "attachments": []
     }
   ],
   "projectColors": {
     "Datasite": "#a21667",
     "Abenson": "#d6409f",
-    "MOJ": "#3b6cf6"
+    "MOJ": "#3b6cf6",
+    "Rank": "#d6409f"
   }
 }
