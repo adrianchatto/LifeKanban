@@ -13,11 +13,11 @@
   <key>ProgramArguments</key>
   <array>
     <string>/bin/bash</string>
-    <string>/Users/adrianchatto/Documents/Claude/Projects/Kanban/worker/worker.sh</string>
+    <string>/Users/adrianchatto/GitHub/LifeKanban/worker/worker.sh</string>
   </array>
 
   <key>WorkingDirectory</key>
-  <string>/Users/adrianchatto/Documents/Claude/Projects/Kanban</string>
+  <string>/Users/adrianchatto/GitHub/LifeKanban</string>
 
   <!-- Run once at load, then every 15 minutes. worker.sh self-locks (atomic
        mkdir lock), so an overlapping fire is safe. Do NOT use KeepAlive here —
@@ -37,8 +37,8 @@
   </dict>
 
   <key>StandardOutPath</key>
-  <string>/Users/adrianchatto/Documents/Claude/Projects/Kanban/worker/worker.log</string>
+  <string>/Users/adrianchatto/GitHub/LifeKanban/worker/worker.log</string>
   <key>StandardErrorPath</key>
-  <string>/Users/adrianchatto/Documents/Claude/Projects/Kanban/worker/worker.log</string>
+  <string>/Users/adrianchatto/GitHub/LifeKanban/worker/worker.log</string>
 </dict>
 </plist>

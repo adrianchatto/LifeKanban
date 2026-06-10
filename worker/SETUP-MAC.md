@@ -38,7 +38,7 @@ minutes.
 ### 2. Test it by hand
 
 ```bash
-bash /Users/adrianchatto/Documents/Claude/Projects/Kanban/worker/worker.sh
+bash /Users/adrianchatto/GitHub/LifeKanban/worker/worker.sh
 ```
 
 You should see `mode: local board.json`. If a card is waiting in **To Do**
@@ -52,7 +52,7 @@ Check it's registered:
 
 ```bash
 launchctl list | grep com.chatto.kanban.worker
-tail -f /Users/adrianchatto/Documents/Claude/Projects/Kanban/worker/worker.log
+tail -f /Users/adrianchatto/GitHub/LifeKanban/worker/worker.log
 ```
 
 ## Notes / known limits
