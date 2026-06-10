@@ -51,12 +51,12 @@ env vars and run the SAME CLI commands; `load`/`save` then talk to the API:
 
 ```
 KANBAN_API_URL=http://<host>:8787 KANBAN_API_TOKEN=lk_xxx \
-  python3 kanban.py add "Buy milk" --assignee Claude
+  python3 kanban.py add "Buy milk" --assignee AI
 ```
 
 The token identifies the user whose board you're editing, so it reads/writes
 that account's board. Mint one (on the host, inside the container) with
-`python3 kanban.py token-add <username> "claude-worker"` — it's printed once.
+`python3 kanban.py token-add <username> "ai-worker"` — it's printed once.
 Revoke with `token-del`. The token replaces the browser login and is exempt from
 CSRF. This is the right path for the Dockerised board at, e.g.,
 `http://172.22.20.5:8787`. (Requires network access to that host — a session
@@ -74,7 +74,7 @@ Instead:
 2. **Put the detail in the description.** Everything else he said — context,
    the deliverable, links, constraints — goes in `description`, not the title.
 3. **Ask before adding** (unless he already gave them): in one short prompt, ask
-   **who to assign it to** (Me/Ch@o or Claude), a **close/due date** (or none),
+   **who to assign it to** (Me/Ch@o or AI), a **close/due date** (or none),
    and a **priority** (high / medium / low / none). Use the AskUserQuestion tool
    so he can pick quickly. Only skip a question he has already answered.
 4. Then add the card with those fields. Confirm with the card id and final title.
@@ -87,7 +87,7 @@ see `.gitignore` — so screenshots stay on Ch@o's machine.)
 
 ## Choosing the fields
 
-- **assignee**: default `Ch@o` (his own to-dos). Use `Claude` only when he wants
+- **assignee**: default `Ch@o` (his own to-dos). Use `AI` only when he wants
   *you* to do the task — the background worker then picks it up.
 - **project**: `General` for personal errands; otherwise the project he names
   (e.g. `NEO-015`). Valid statuses: `todo`, `doing`, `done`, `needs_ok`.
@@ -108,12 +108,12 @@ see `.gitignore` — so screenshots stay on Ch@o's machine.)
 ## Other operations (same CLI)
 
 ```
-python3 kanban.py list [--assignee Claude] [--status todo]
+python3 kanban.py list [--assignee AI] [--status todo]
 python3 kanban.py move <id> <todo|doing|done|needs_ok>
-python3 kanban.py assign <id> <Ch@o|Claude>
+python3 kanban.py assign <id> <Ch@o|AI>
 python3 kanban.py set-due <id> <YYYY-MM-DD|clear>
 python3 kanban.py set-result <id> <results/<id>.md>
-python3 kanban.py claim-next        # worker: oldest Claude+todo -> doing
+python3 kanban.py claim-next        # worker: oldest AI+todo -> doing
 ```
 
 ## Sync to GitHub — ALWAYS do this after any change
@@ -130,9 +130,9 @@ The helper commits everything and pushes to `origin main` using Ch@o's stored
 git credentials. If the push fails (no credentials on that machine), tell him —
 the commit is still saved locally. Do NOT handle tokens or passwords yourself.
 
-## Worker loop (processing Claude cards) — unchanged
+## Worker loop (processing AI cards)
 
-For cards with `assignee=Claude` and `status=todo`: `claim-next` → do the work →
+For cards with `assignee=AI` and `status=todo`: `claim-next` → do the work →
 save to `results/<id>.md` → `set-result` → `move <id> done`. If the task needs a
 risky/irreversible step (send, publish, delete, pay, move money), do the safe
 prep, `log` what needs approval, and `move <id> needs_ok` — never take the

@@ -158,7 +158,7 @@
   .seg{display:inline-flex;border:1px solid var(--line);border-radius:9px;overflow:hidden}
   .seg button{border:0;background:#fff;padding:8px 16px;border-radius:0;font-weight:600;color:var(--muted)}
   .seg button.on[data-v="Ch@o"]{background:var(--me);color:#fff}
-  .seg button.on[data-v="Claude"]{background:var(--claude);color:#fff}
+  .seg button.on[data-v="AI"]{background:var(--claude);color:#fff}
   .seg.prio button.on[data-v="high"]{background:var(--ok);color:#fff}
   .seg.prio button.on[data-v="medium"]{background:var(--doing);color:#fff}
   .seg.prio button.on[data-v="low"]{background:#6b7280;color:#fff}
@@ -263,10 +263,20 @@
   footer{padding:6px 22px 22px;color:var(--muted);font-size:11.5px}
 </style>
 <script>
-/* Local no-auth board: no login, no users, no passwords. CSRF is not used.
-   This just keeps window.__csrf defined so the existing save code is happy. */
 window.__csrf = '';
-window.__me = { username: 'Ch@o', role: 'admin' };
+window.__me = null;
+window.__ai = {};
+async function initSession(){
+  const r = await fetch('/api/me',{cache:'no-store'});
+  if(r.status===401){ location.replace('/login.html'); return false; }
+  if(!r.ok) throw new Error('Could not load your account');
+  const d = await r.json();
+  window.__csrf = d.csrf || '';
+  window.__me = d.user || null;
+  window.__ai = {provider:d.ai_provider||'', model:d.ai_model||'',
+                 hasKey:!!(d.user&&d.user.has_api_key), last4:(d.user&&d.user.api_key_last4)||''};
+  return true;
+}
 </script>
 </head>
 <body>
@@ -276,7 +286,7 @@ window.__me = { username: 'Ch@o', role: 'admin' };
   <div class="spacer"></div>
   <select id="projFilter" title="Filter by project"><option value="">All projects</option></select>
   <select id="whoFilter" title="Filter by owner">
-    <option value="">Everyone</option><option value="Ch@o">Me</option><option value="Claude">Claude</option>
+    <option value="">Everyone</option><option value="Ch@o">Me</option><option value="AI">AI</option>
   </select>
   <select id="statusFilter" title="Filter by status" style="display:none">
     <option value="">All statuses</option>
@@ -292,7 +302,7 @@ window.__me = { username: 'Ch@o', role: 'admin' };
   </div>
   <button class="btn" id="refreshBtn" title="Refresh now">↻ Refresh</button>
   <button class="btn" id="projBtn" title="Add or remove projects">⋮ Projects</button>
-  <button class="btn" id="adminBtn" title="Alerts, backup, restore, theme and more">⚙ Admin</button>
+  <button class="btn" id="adminBtn" title="Settings, alerts, backup, restore, theme and more">⚙ Settings</button>
   <input type="file" id="restoreFile" accept="application/json,.json" style="display:none">
   <button class="btn primary" id="newBtn">+ New card</button>
 </header>
@@ -304,7 +314,21 @@ window.__me = { username: 'Ch@o', role: 'admin' };
 
 <div class="scrim" id="adminScrim">
   <div class="modal" style="width:min(440px,92vw)">
-    <h3>Admin</h3>
+    <h3>Settings</h3>
+    <div class="adminsec">
+      <div class="adminrow">
+        <div><strong id="accountName">Account</strong><span>Manage your login, AI key and access.</span></div>
+        <button class="btn" id="settingsBtn" title="Open account settings">Settings</button>
+      </div>
+      <div class="adminrow" id="usersRow">
+        <div><strong>Users</strong><span>Create accounts and reset passwords.</span></div>
+        <button class="btn" id="usersBtn" title="Open user administration">Users</button>
+      </div>
+      <div class="adminrow">
+        <div><strong>Sign out</strong><span>End this browser session.</span></div>
+        <button class="btn" id="logoutBtn" title="Sign out">Log out</button>
+      </div>
+    </div>
     <div class="adminsec">
       <div class="adminrow">
         <div><strong>Desktop alerts</strong><span>Notify me when cards are due or overdue.</span></div>
@@ -351,8 +375,8 @@ window.__me = { username: 'Ch@o', role: 'admin' };
     <h3>AI assistant</h3>
     <p style="font-size:12.5px;color:var(--muted);margin:0 0 12px">
       Choose a provider and paste an API key so the “Add by chat” assistant can use a
-      real model to read your requests. The key is stored only on this device (your
-      browser) and is never saved to the board or pushed to GitHub.</p>
+      real model to read your requests. The key is stored encrypted on the server
+      against your account, never in board.json.</p>
     <label>Provider</label>
     <div class="seg" id="aiProviderSeg">
       <button type="button" data-v="anthropic">Anthropic</button>
@@ -393,7 +417,7 @@ window.__me = { username: 'Ch@o', role: 'admin' };
     <label>Title</label>
     <input type="text" id="fTitle" placeholder="What needs doing?">
     <label>Description</label>
-    <textarea id="fDesc" placeholder="Detail. For Claude cards, be specific about the deliverable."></textarea>
+    <textarea id="fDesc" placeholder="Detail. For AI cards, be specific about the deliverable."></textarea>
     <div class="row" style="gap:24px">
       <div style="flex:1">
         <label>Project</label>
@@ -406,7 +430,7 @@ window.__me = { username: 'Ch@o', role: 'admin' };
         <label>Assignee</label>
         <div class="seg" id="fAssignee">
           <button type="button" data-v="Ch@o">Me</button>
-          <button type="button" data-v="Claude">Claude</button>
+          <button type="button" data-v="AI">AI</button>
         </div>
       </div>
     </div>
@@ -468,6 +492,8 @@ const COLUMNS = [
 ];
 let board = {cards:[], projects:[]};
 let editing = null, assigneeChoice = "Ch@o", priorityChoice = "medium", paused = false, dragId = null;
+function normAssignee(v){ return v==="Claude" ? "AI" : (v||"Ch@o"); }
+function isAIAssignee(v){ return normAssignee(v)==="AI"; }
 const PRIORITY_RANK = { high:0, medium:1, low:2, none:1 };
 const PRIORITY_LABEL = { high:"High", medium:"Medium", low:"Low" };
 // "none" is retired — anything not high/low is treated as medium.
@@ -511,6 +537,8 @@ const $ = s => document.querySelector(s);
 async function fetchBoard(){
   try{
     const r = await fetch("/api/board",{cache:"no-store"});
+    if(r.status===401){ location.replace('/login.html'); return; }
+    if(!r.ok) throw new Error("board fetch failed");
     board = await r.json();
     $("#livedot").classList.add("live");
     if(!paused) render();
@@ -518,9 +546,11 @@ async function fetchBoard(){
 }
 async function pushBoard(){
   board.updated = new Date().toISOString();
-  try{ await fetch("/api/board",{method:"POST",headers:{"Content-Type":"application/json",
+  try{ const r = await fetch("/api/board",{method:"POST",headers:{"Content-Type":"application/json",
         "X-Kanban-CSRF": (window.__csrf||"")},
-        body:JSON.stringify(board)}); }catch(e){}
+        body:JSON.stringify(board)});
+    if(r.status===401) location.replace('/login.html');
+  }catch(e){}
 }
 
 function projectsList(){
@@ -546,7 +576,7 @@ function render(){
   $("#projFilter").value = pf;
 
   const cards = (board.cards||[]).filter(c=>
-    (!pf || c.project===pf) && (!wf || c.assignee===wf));
+    (!pf || c.project===pf) && (!wf || normAssignee(c.assignee)===wf));
 
   if(view==="calendar"){
     $("#board").style.display="none";
@@ -569,18 +599,18 @@ function render(){
   $("#statusFilter").style.display = view==="list" ? "" : "none";
 
   const total = (board.cards||[]).length;
-  const claude = (board.cards||[]).filter(c=>c.assignee==="Claude").length;
+  const ai = (board.cards||[]).filter(c=>isAIAssignee(c.assignee)).length;
   $("#foot").textContent =
-    `${total} cards · ${claude} assigned to Claude · last sync ${new Date().toLocaleTimeString()}`;
+    `${total} cards · ${ai} assigned to AI · last sync ${new Date().toLocaleTimeString()}`;
 }
 
 function cardHTML(c){
-  const who = c.assignee==="Claude"
-    ? `<span class="badge claude">✦ Claude</span>`
+  const who = isAIAssignee(c.assignee)
+    ? `<span class="badge claude">✦ AI</span>`
     : `<span class="badge me">● Me</span>`;
   let extra = "";
-  if(c.status==="doing" && c.assignee==="Claude")
-    extra = `<div class="working"><span class="spin"></span>Claude is working…</div>`;
+  if(c.status==="doing" && isAIAssignee(c.assignee))
+    extra = `<div class="working"><span class="spin"></span>AI is working…</div>`;
   if(c.result_link)
     extra += `<a class="reslink" href="/results/${encodeURIComponent(c.result_link.replace(/^results\//,""))}" target="_blank">↗ View result</a>`;
   if(c.status==="needs_ok")
@@ -724,7 +754,7 @@ function renderList(cards){
       return `<div class="lv-row ${st==='done'?'is-done':''}" data-id="${c.id}">
         <span class="lv-st ${st}">${STATUS_NAME[st]||st}</span>
         <span class="lv-ttl">${esc(c.title)}</span>
-        <span class="lv-meta">${prioBadge(c)}${c.assignee==='Claude'?'<span class="badge claude">✦ Claude</span>':''}${dueBadge(c)}${subProgress(c)}${attachBadge(c)}${okBtn}${doneBtn}</span>
+        <span class="lv-meta">${prioBadge(c)}${isAIAssignee(c.assignee)?'<span class="badge claude">✦ AI</span>':''}${dueBadge(c)}${subProgress(c)}${attachBadge(c)}${okBtn}${doneBtn}</span>
       </div>`;
     }).join("");
     return `<section class="lv-proj">
@@ -792,11 +822,11 @@ function renderCalendar(cards){
       if(c.status==="done") cls+=" done";
       else { const days=Math.round((startOfDay(iso+"T00:00:00")-today)/86400000);
         if(days<0) cls+=" over"; else if(days<=1) cls+=" soon"; }
-      if(c.assignee==="Claude") cls+=" claude";
+      if(isAIAssignee(c.assignee)) cls+=" claude";
       return `<div class="${cls}" data-id="${c.id}" style="border-left-color:${projColor(c.project||'General')}" title="${esc(c.title)} · ${esc(c.project||'General')}">${esc(c.title)}</div>`;
     }).join("");
     const rchips = recurring.filter(c=>recurOccursOn(c,d)).map(c=>{
-      const cls = "calchip recur" + (c.assignee==="Claude"?" claude":"");
+      const cls = "calchip recur" + (isAIAssignee(c.assignee)?" claude":"");
       return `<div class="${cls}" data-id="${c.id}" style="border-left-color:${projColor(c.project||'General')}" title="${esc(c.title)} · ${esc(c.project||'General')} (repeats)">🔁 ${esc(c.title)}</div>`;
     }).join("");
     cells += `<div class="calcell${other}${isToday}"><span class="caldate">${d.getDate()}</span>${chips}${rchips}</div>`;
@@ -871,7 +901,7 @@ function setPrioSeg(){
 }
 function openEdit(id){
   const c = board.cards.find(x=>x.id===id); if(!c)return;
-  editing=id; assigneeChoice=c.assignee; priorityChoice=normPrio(c.priority);
+  editing=id; assigneeChoice=normAssignee(c.assignee); priorityChoice=normPrio(c.priority);
   $("#mTitle").textContent="Edit card";
   $("#fId").value=c.id; $("#fTitle").value=c.title; $("#fDesc").value=c.description||"";
   populateProjectSelect(c.project||"General");
@@ -1031,10 +1061,10 @@ function save(){
 }
 function approveCard(id){
   const c=board.cards.find(x=>x.id===id); if(!c) return;
-  if(!confirm(`Approve "${c.title}" and let Claude carry out the action?`)) return;
+  if(!confirm(`Approve "${c.title}" and let AI carry out the action?`)) return;
   c.approved=true;
-  c.status="todo";              // back to To Do so the Claude worker reclaims it
-  c.assignee="Claude";
+  c.status="todo";              // back to To Do so the AI worker reclaims it
+  c.assignee="AI";
   c.updated=new Date().toISOString();
   (c.log=c.log||[]).push(new Date().toISOString()+" approved by Ch@o — proceed with the action");
   render(); pushBoard();
@@ -1081,24 +1111,47 @@ $("#projClose").onclick=()=>$("#projScrim").classList.remove("open");
 $("#projScrim").addEventListener("click",e=>{ if(e.target===$("#projScrim")) $("#projScrim").classList.remove("open"); });
 function openProjects(){ renderProjectManager(); $("#projScrim").classList.add("open"); $("#projNew").focus(); }
 /* admin panel */
-$("#adminBtn").onclick=()=>{ refreshAiStatus(); $("#adminScrim").classList.add("open"); };
+$("#adminBtn").onclick=()=>{
+  refreshAiStatus();
+  const me=window.__me||{};
+  $("#accountName").textContent = me.username ? "Signed in as "+me.username : "Account";
+  $("#usersRow").style.display = me.role==="admin" ? "flex" : "none";
+  $("#adminScrim").classList.add("open");
+};
 $("#adminClose").onclick=()=>$("#adminScrim").classList.remove("open");
 $("#adminScrim").addEventListener("click",e=>{ if(e.target===$("#adminScrim")) $("#adminScrim").classList.remove("open"); });
+$("#settingsBtn").onclick=()=>{ location.href="/settings.html"; };
+$("#usersBtn").onclick=()=>{ location.href="/admin.html"; };
+$("#logoutBtn").onclick=()=>{
+  fetch('/api/logout',{method:'POST',headers:{"Content-Type":"application/json","X-Kanban-CSRF":(window.__csrf||"")}})
+    .finally(()=>location.replace('/login.html'));
+};
 
-/* AI assistant config — key stored only in this browser (localStorage), never in board.json */
-const AI_STORE="kanban_ai";
+/* AI assistant config — key is stored encrypted against the signed-in account. */
 const AI_MODELS={
   anthropic:["claude-haiku-4-5","claude-sonnet-4-6","claude-opus-4-6","claude-opus-4-8"],
   openai:["gpt-4o-mini","gpt-4o","gpt-4.1","gpt-4.1-mini","o4-mini"]
 };
 let aiProvider="anthropic";
-function aiLoadCfg(){ try{ return JSON.parse(localStorage.getItem(AI_STORE)||"{}"); }catch(e){ return {}; } }
-function aiSaveCfg(o){ try{ localStorage.setItem(AI_STORE, JSON.stringify(o)); }catch(e){} }
+function aiLoadCfg(){ return Object.assign({}, window.__ai||{}); }
+function aiSaveCfg(o){
+  return fetch('/api/account/apikey',{method:'POST',
+    headers:{"Content-Type":"application/json","X-Kanban-CSRF":(window.__csrf||"")},
+    body:JSON.stringify({provider:o.provider,model:o.model,api_key:o.key})})
+    .then(r=>r.json().then(j=>({ok:r.ok,j:j})))
+    .then(res=>{
+      if(!res.ok) throw new Error(res.j.error||'Could not save AI settings');
+      const u=res.j.user||{};
+      window.__ai={provider:u.ai_provider||o.provider,model:u.ai_model||o.model,
+        hasKey:!!u.has_api_key,last4:u.api_key_last4||''};
+      return window.__ai;
+    });
+}
 function refreshAiStatus(){
   const a=aiLoadCfg(); const el=$("#aiStatus"); if(!el) return;
-  if(a && a.key && a.provider && a.model){
+  if(a && a.hasKey && a.provider && a.model){
     const name=a.provider==="openai"?"OpenAI":"Anthropic";
-    el.textContent="On — "+name+" · "+a.model+" (key stored on this device only).";
+    el.textContent="On — "+name+" · "+a.model+(a.last4?" · ..."+a.last4:"")+".";
   } else {
     el.textContent="Use a real model to read your “Add by chat” requests.";
   }
@@ -1115,7 +1168,8 @@ function openAiCfg(){
   aiProvider=a.provider||"anthropic";
   aiSetProviderSeg(); aiFillModels(aiProvider);
   $("#aiModel").value=a.model||AI_MODELS[aiProvider][0];
-  $("#aiKey").value=a.key||"";
+  $("#aiKey").value="";
+  $("#aiKey").placeholder=a.hasKey?"Paste a new key to replace the saved one":"Paste your secret key";
   $("#aiMsg").textContent="";
   $("#aiScrim").classList.add("open");
   setTimeout(()=>$("#aiKey").focus(),60);
@@ -1129,20 +1183,26 @@ $("#aiBtn").onclick=openAiCfg;
 $("#aiCancel").onclick=()=>$("#aiScrim").classList.remove("open");
 $("#aiScrim").addEventListener("click",e=>{ if(e.target===$("#aiScrim")) $("#aiScrim").classList.remove("open"); });
 $("#aiClear").onclick=()=>{
-  if(!confirm("Remove the saved AI key and settings from this device?")) return;
-  try{ localStorage.removeItem(AI_STORE); }catch(e){}
-  $("#aiKey").value=""; $("#aiMsg").textContent="Cleared. The chat assistant will use the built-in parser.";
-  refreshAiStatus();
+  if(!confirm("Remove the saved AI key from your account?")) return;
+  fetch('/api/account/apikey',{method:'DELETE',headers:{"X-Kanban-CSRF":(window.__csrf||"")}})
+    .then(r=>{ if(!r.ok) throw new Error('Could not clear AI key');
+      window.__ai={provider:'',model:'',hasKey:false,last4:''};
+      $("#aiKey").value=""; $("#aiMsg").textContent="Cleared. The chat assistant will use the built-in parser.";
+      refreshAiStatus();
+    }).catch(e=>$("#aiMsg").textContent=e.message);
 };
 $("#aiSave").onclick=()=>{
   const model=$("#aiModel").value.trim();
   const key=$("#aiKey").value.trim();
   if(!model){ $("#aiMsg").textContent="Pick or type a model first."; return; }
   if(!key){ $("#aiMsg").textContent="Paste an API key first."; return; }
-  aiSaveCfg({ provider:aiProvider, model:model, key:key });
-  refreshAiStatus();
-  $("#aiMsg").textContent="Saved. The “Add by chat” assistant will now use "+(aiProvider==="openai"?"OpenAI":"Anthropic")+".";
-  setTimeout(()=>$("#aiScrim").classList.remove("open"),700);
+  aiSaveCfg({ provider:aiProvider, model:model, key:key })
+    .then(()=>{
+      refreshAiStatus();
+      $("#aiKey").value="";
+      $("#aiMsg").textContent="Saved. The “Add by chat” assistant will now use "+(aiProvider==="openai"?"OpenAI":"Anthropic")+".";
+      setTimeout(()=>$("#aiScrim").classList.remove("open"),700);
+    }).catch(e=>$("#aiMsg").textContent=e.message);
 };
 function renderProjectManager(){
   const counts={};
@@ -1319,10 +1379,13 @@ $("#refreshBtn").onclick=()=>{
 
 setViewToggle();
 updateAlertBtn();
-fetchBoard();
-setInterval(fetchBoard, 3000);
-setInterval(checkNotifications, 60000);
-setTimeout(checkNotifications, 2000);
+initSession().then(ok=>{
+  if(!ok) return;
+  fetchBoard();
+  setInterval(fetchBoard, 3000);
+  setInterval(checkNotifications, 60000);
+  setTimeout(checkNotifications, 2000);
+}).catch(()=>location.replace('/login.html'));
 </script>
 
 <!-- ===== Chat assistant: add cards by natural language (k-020) ===== -->
@@ -1352,9 +1415,9 @@ setTimeout(checkNotifications, 2000);
     else if(take(/\b(?:medium\s*priority|med\s*prio|p2)\b/i)){ out.priority="medium"; out._priorityGiven=true; }
     else if(take(/\b(?:low\s*priority|low\s*prio|whenever|someday|p3)\b/i)){ out.priority="low"; out._priorityGiven=true; }
 
-    // assignee — only assign to Claude when explicitly named
-    if(take(/\b(?:assign(?:ed)?\s+to\s+|have\s+|get\s+|ask\s+|for\s+|by\s+|tell\s+)?claude(?:\s+to)?\b/i)){
-      out.assignee = "Claude"; out._assigneeGiven=true; }
+    // assignee — only assign to AI when explicitly named
+    if(take(/\b(?:assign(?:ed)?\s+to\s+|have\s+|get\s+|ask\s+|for\s+|by\s+|tell\s+)?(?:ai|artificial intelligence|codex|claude)(?:\s+to)?\b/i)){
+      out.assignee = "AI"; out._assigneeGiven=true; }
     else if(take(/\b(?:for\s+me|assign(?:ed)?\s+to\s+me|my\s+task|mine|i'?ll\s+do\s+it)\b/i)){
       out.assignee = "Ch@o"; out._assigneeGiven=true; }
 
@@ -1538,7 +1601,7 @@ setTimeout(checkNotifications, 2000);
     const wrap=document.createElement("div"); wrap.className="kc-card";
     const chips=[];
     chips.push('<span class="kc-chip">'+kcEsc(d.project)+'</span>');
-    chips.push('<span class="kc-chip">'+(d.assignee==="Claude"?"✦ Claude":"● Me")+'</span>');
+    chips.push('<span class="kc-chip">'+(isAIAssignee(d.assignee)?"✦ AI":"● Me")+'</span>');
     if(d.priority && d.priority!=="none") chips.push('<span class="kc-chip">⚑ '+kcEsc(d.priority.charAt(0).toUpperCase()+d.priority.slice(1))+'</span>');
     if(d.due)   chips.push('<span class="kc-chip">⏰ '+kcEsc(kcDueText(d.due))+'</span>');
     if(d.recur) chips.push('<span class="kc-chip">🔁 '+kcEsc(kcRecurText(d.recur))+'</span>');
@@ -1557,7 +1620,7 @@ setTimeout(checkNotifications, 2000);
     const card=kcCommit(d); kcPending=null;
     kcAddMsg("bot","Added "+card.id+": “"+card.title+"” → "+card.project+
       (card.due?" · due "+kcDueText(card.due):"")+
-      (card.assignee==="Claude"?" · Claude will pick it up":"")+".");
+      (isAIAssignee(card.assignee)?" · AI will pick it up":"")+".");
   }
 
   function kcHelp(){
@@ -1566,11 +1629,11 @@ setTimeout(checkNotifications, 2000);
       "Examples:\n"+
       "• Pay parking tomorrow\n"+
       "• Review PR for NEO-015 by 12/06/2026\n"+
-      "• Have Claude draft the status report due Friday\n"+
+      "• Have AI draft the status report due Friday\n"+
       "• Submit timesheet every Friday\n"+
       "• Buy milk #Home\n\n"+
       "I read dates (today, tomorrow, Friday, 15 June, 12/06/2026, in 3 days), projects "+
-      "(a name or #tag), who it’s for (say “Claude” to assign me), and repeats (daily, "+
+      "(a name or #tag), who it’s for (say “AI” to assign the worker), and repeats (daily, "+
       "weekly, every Monday, monthly). You can also ask “what’s on my board” or “what’s due today”.\n\n"+
       "To set up projects, say “add project NEO-015” (or “create projects Home, Work and Admin”).");
   }
@@ -1613,9 +1676,9 @@ setTimeout(checkNotifications, 2000);
       kcAddMsg("bot", due.length? "Due today:\n"+due.map(c=>"• "+c.title+" ("+c.project+")").join("\n") : "Nothing due today.");
       return true;
     }
-    if(/claude/.test(t)){
-      const cc=cards.filter(c=>c.assignee==="Claude"&&c.status!=="done");
-      kcAddMsg("bot", cc.length? "Claude’s queue:\n"+cc.map(c=>"• "+c.title+" ["+c.status+"]").join("\n") : "Nothing assigned to Claude right now.");
+    if(/\b(ai|claude|codex)\b/.test(t)){
+      const cc=cards.filter(c=>isAIAssignee(c.assignee)&&c.status!=="done");
+      kcAddMsg("bot", cc.length? "AI queue:\n"+cc.map(c=>"• "+c.title+" ["+c.status+"]").join("\n") : "Nothing assigned to AI right now.");
       return true;
     }
     const by=s=>cards.filter(c=>c.status===s).length;
@@ -1626,68 +1689,32 @@ setTimeout(checkNotifications, 2000);
     return true;
   }
 
-  /* ---------- optional AI provider (config lives in Admin) ---------- */
-  // The key is stored only in this browser's localStorage and is NEVER written
-  // to board.json, so it is never committed to GitHub.
-  const AI_KEY="kanban_ai";
-  function kcAILoad(){ try{ return JSON.parse(localStorage.getItem(AI_KEY)||"{}"); }catch(e){ return {}; } }
-  function kcAIEnabled(){ const a=kcAILoad(); return !!(a && a.key && a.provider && a.model); }
+  /* ---------- optional AI provider (config lives in account settings) ---------- */
+  function kcAILoad(){ return Object.assign({}, window.__ai||{}); }
+  function kcAIEnabled(){ const a=kcAILoad(); return !!(a && a.hasKey && a.provider && a.model); }
 
   // Ask the configured model to turn a sentence into card fields. Returns a draft
   // (same shape as kcParse) or null. Project/assignee default to "not given" so the
   // challenge step still fires when the user didn't actually specify them.
   async function kcLLMParse(text){
-    const a=kcAILoad();
     const projs=(typeof projectsList==="function" ? projectsList() : (board.projects||["General"]));
-    const today=kcISO(kcToday());
-    const sys =
-      "You convert a short task request into a JSON object for a kanban board. "+
-      "Today is "+today+". Reply with ONLY a JSON object, no prose. Keys: "+
-      "title (a SHORT headline of 3-8 words that summarises the task — never the "+
-      "user's full sentence, no trailing full stop), "+
-      "description (string: the full request and any extra detail; if you shortened "+
-      "the title, put the original wording here so nothing is lost), "+
-      "project (if the user named a project, return it exactly — use one from "+JSON.stringify(projs)+" if it matches, or return the new name they specified if it's clearly a project name and not in that list; return null only if the user did not name a project at all), "+
-      "assignee (\"Claude\" if the user wants Claude to do it, \"Ch@o\" if the user said it's for them, else null), "+
-      "priority (\"high\"|\"medium\"|\"low\", default \"medium\"), "+
-      "due (YYYY-MM-DD or null), "+
-      "recur (null, or {\"freq\":\"daily|weekdays|weekly|monthly\",\"days\":[0-6 Mon=0],\"day\":1-31}).";
-    let jsonText="";
-    if(a.provider==="anthropic"){
-      const r=await fetch("https://api.anthropic.com/v1/messages",{
-        method:"POST",
-        headers:{ "content-type":"application/json", "x-api-key":a.key,
-          "anthropic-version":"2023-06-01", "anthropic-dangerous-direct-browser-access":"true" },
-        body:JSON.stringify({ model:a.model, max_tokens:400,
-          system:sys, messages:[{role:"user",content:text}] })
-      });
-      if(!r.ok) throw new Error("anthropic "+r.status);
-      const j=await r.json();
-      jsonText=(j.content&&j.content[0]&&j.content[0].text)||"";
-    } else { // openai
-      const r=await fetch("https://api.openai.com/v1/chat/completions",{
-        method:"POST",
-        headers:{ "content-type":"application/json", "authorization":"Bearer "+a.key },
-        body:JSON.stringify({ model:a.model, temperature:0,
-          response_format:{type:"json_object"},
-          messages:[{role:"system",content:sys},{role:"user",content:text}] })
-      });
-      if(!r.ok) throw new Error("openai "+r.status);
-      const j=await r.json();
-      jsonText=(j.choices&&j.choices[0]&&j.choices[0].message&&j.choices[0].message.content)||"";
-    }
-    let p; try{ p=JSON.parse(jsonText); }catch(e){ const m=jsonText.match(/\{[\s\S]*\}/); p=m?JSON.parse(m[0]):null; }
+    const r=await fetch('/api/ai/parse',{method:'POST',
+      headers:{"Content-Type":"application/json","X-Kanban-CSRF":(window.__csrf||"")},
+      body:JSON.stringify({text:text,projects:projs})});
+    const j=await r.json().catch(()=>({}));
+    if(!r.ok) throw new Error(j.error||("AI parse "+r.status));
+    const p=j.card;
     if(!p) return null;
     const out={
       title:(p.title||"").toString().trim(),
       description:(p.description||"").toString(),
       project:p.project||"General",
-      assignee:(p.assignee==="Claude"||p.assignee==="Ch@o")?p.assignee:"Ch@o",
+      assignee:(p.assignee==="AI"||p.assignee==="Claude"||p.assignee==="Ch@o")?normAssignee(p.assignee):"Ch@o",
       priority:(p.priority==="high"||p.priority==="low")?p.priority:"medium",
       due:(typeof p.due==="string" && /^\d{4}-\d{2}-\d{2}$/.test(p.due))?p.due:null,
       recur:(p.recur&&p.recur.freq)?p.recur:null,
       _projectGiven: !!(p.project && p.project!=="General"),
-      _assigneeGiven: (p.assignee==="Claude"||p.assignee==="Ch@o"),
+      _assigneeGiven: (p.assignee==="AI"||p.assignee==="Claude"||p.assignee==="Ch@o"),
       _priorityGiven: (p.priority==="high"||p.priority==="low"||p.priority==="medium")
     };
     return out;
@@ -1726,7 +1753,7 @@ setTimeout(checkNotifications, 2000);
     if(needAssignee){
       html+='<div class="kc-fld"><div class="kc-qlbl">Who’s it for?</div><div class="kc-opts">'+
         '<button class="kc-opt" data-k="assignee" data-v="Ch@o">● Me</button>'+
-        '<button class="kc-opt" data-k="assignee" data-v="Claude">✦ Claude</button></div></div>';
+        '<button class="kc-opt" data-k="assignee" data-v="AI">✦ AI</button></div></div>';
     }
     html+='<div class="kc-acts"><button class="kc-go" disabled>Add card</button>'+
           '<button class="kc-no">Cancel</button></div>';

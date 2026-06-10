@@ -22,37 +22,58 @@
   .err{color:#c0392b;background:#fdecea;border:1px solid #f5c6c0;border-radius:8px;
        padding:9px 12px;font-size:13px;margin-top:16px;display:none}
   .brand{font-weight:700;letter-spacing:-.2px}
+  .switch{margin-top:14px;text-align:center;font-size:13px;color:var(--muted)}
+  .switch a{color:var(--blue);text-decoration:none;font-weight:600}
 </style>
 </head>
 <body>
   <form class="card" id="f">
     <h1><span class="brand">LifeKanban</span></h1>
-    <p class="sub">Sign in to your board.</p>
+    <p class="sub" id="sub">Sign in to your board.</p>
     <label for="u">Username</label>
     <input id="u" name="username" autocomplete="username" autofocus required>
     <label for="p">Password</label>
     <input id="p" name="password" type="password" autocomplete="current-password" required>
+    <label for="p2" id="p2Label" style="display:none">Confirm password</label>
+    <input id="p2" name="password2" type="password" autocomplete="new-password" style="display:none">
     <div class="err" id="err"></div>
     <button id="btn" type="submit">Sign in</button>
+    <div class="switch"><span id="switchText">Need an account?</span>
+      <a href="#" id="modeLink">Sign up</a></div>
   </form>
 <script>
   // If already signed in, go straight to the board.
   fetch('/api/me',{cache:'no-store'}).then(function(r){ if(r.ok) location.replace('/'); }).catch(function(){});
 
   var f=document.getElementById('f'), err=document.getElementById('err'), btn=document.getElementById('btn');
+  var signup=false, p2=document.getElementById('p2'), p2Label=document.getElementById('p2Label');
+  document.getElementById('modeLink').onclick=function(e){
+    e.preventDefault(); signup=!signup; err.style.display='none';
+    document.getElementById('sub').textContent=signup?'Create your LifeKanban account.':'Sign in to your board.';
+    btn.textContent=signup?'Create account':'Sign in';
+    document.getElementById('switchText').textContent=signup?'Already have an account?':'Need an account?';
+    document.getElementById('modeLink').textContent=signup?'Sign in':'Sign up';
+    p2.style.display=signup?'block':'none'; p2Label.style.display=signup?'block':'none';
+    document.getElementById('p').autocomplete=signup?'new-password':'current-password';
+  };
   f.addEventListener('submit', function(e){
     e.preventDefault(); err.style.display='none'; btn.disabled=true; btn.textContent='Signing in…';
-    fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({username:document.getElementById('u').value,
-                           password:document.getElementById('p').value})})
+    var pw=document.getElementById('p').value;
+    if(signup && pw!==p2.value){
+      err.textContent='Passwords do not match.'; err.style.display='block';
+      btn.disabled=false; btn.textContent='Create account'; return;
+    }
+    btn.textContent=signup?'Creating…':'Signing in…';
+    fetch(signup?'/api/signup':'/api/login',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({username:document.getElementById('u').value, password:pw})})
       .then(function(r){ return r.json().then(function(j){ return {ok:r.ok, j:j}; }); })
       .then(function(res){
-        if(!res.ok){ throw new Error(res.j.error||'Sign in failed'); }
+        if(!res.ok){ throw new Error(res.j.error||(signup?'Sign up failed':'Sign in failed')); }
         if(res.j.user && res.j.user.must_change){ location.replace('/settings.html'); }
         else location.replace('/');
       })
       .catch(function(ex){ err.textContent=ex.message; err.style.display='block';
-        btn.disabled=false; btn.textContent='Sign in'; });
+        btn.disabled=false; btn.textContent=signup?'Create account':'Sign in'; });
   });
 </script>
 </body>

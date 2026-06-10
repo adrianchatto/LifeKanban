@@ -3,23 +3,23 @@
 kanban.py - command line helper for the Kanban board.
 
 Single source of truth is board.json next to this file. Both the local
-server (via the UI) and the Claude worker use this module so all writes
+server (via the UI) and the AI worker use this module so all writes
 go through one atomic read-modify-write path.
 
 Usage:
-  python3 kanban.py list [--assignee Claude] [--status todo]
+  python3 kanban.py list [--assignee AI] [--status todo]
   python3 kanban.py add "Title" [--desc "..."] [--project General]
-                              [--assignee Ch@o|Claude] [--status todo]
+                              [--assignee Ch@o|AI] [--status todo]
                               [--priority high|medium|low]
   python3 kanban.py move <id> <todo|doing|done|needs_ok>
-  python3 kanban.py assign <id> <Ch@o|Claude>
+  python3 kanban.py assign <id> <Ch@o|AI>
   python3 kanban.py set-result <id> <relative/path/to/result.md>
   python3 kanban.py set-due <id> <YYYY-MM-DD|clear>
   python3 kanban.py set-priority <id> <high|medium|low>
   python3 kanban.py normalise-priority  # set any none/blank card -> medium
   python3 kanban.py log <id> "message"
   python3 kanban.py get <id>
-  python3 kanban.py claim-next        # next Claude+todo card -> doing, prints JSON
+  python3 kanban.py claim-next        # next AI+todo card -> doing, prints JSON
   python3 kanban.py requeue-stale     # recover cards orphaned in 'doing'
   python3 kanban.py user-add <name> [--admin] [--password X]  # create a login
   python3 kanban.py user-list
@@ -52,14 +52,15 @@ DATA = os.environ.get("KANBAN_DATA", ROOT)
 BOARD = os.path.join(DATA, "board.json")
 LOCK = os.path.join(DATA, ".board.lock")
 VALID_STATUS = ("todo", "doing", "done", "needs_ok")
-VALID_ASSIGNEE = ("Ch@o", "Claude")
+VALID_ASSIGNEE = ("Ch@o", "AI")
+AI_ASSIGNEES = ("AI", "Claude")  # "Claude" is a legacy value kept for old cards.
 VALID_PRIORITY = ("high", "medium", "low")
 
 # Self-healing for orphaned cards. A worker run claims a card (todo -> doing)
 # then does the work in the same pass. If that run crashes, times out, or errors
 # before finishing, the card is stranded in "doing" and — because claim-next only
 # ever looks at todo — would never be retried. So before claiming, we requeue any
-# Claude card that has sat in "doing" longer than STALE_DOING_MIN (its `updated`
+# AI card that has sat in "doing" longer than STALE_DOING_MIN (its `updated`
 # stamp moves forward whenever the worker logs progress, so a genuinely active
 # card is safe). A card that keeps failing is poison: after MAX_REQUEUES bounces
 # we park it in needs_ok for Ch@o to look at instead of looping forever.
@@ -78,6 +79,17 @@ def norm_priority(v):
     return v if v in VALID_PRIORITY else "medium"
 
 
+def norm_assignee(v):
+    v = (v or "Ch@o").strip()
+    aliases = {"Claude": "AI", "claude": "AI", "ai": "AI", "AI": "AI",
+               "me": "Ch@o", "Me": "Ch@o", "Ch@o": "Ch@o"}
+    return aliases.get(v, v)
+
+
+def is_ai_assignee(v):
+    return v in AI_ASSIGNEES
+
+
 def now():
     return datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
 
@@ -94,14 +106,14 @@ def parse_ts(s):
 
 
 def requeue_stale(data):
-    """Recover Claude cards orphaned in 'doing'. Mutates `data` in place and
+    """Recover AI cards orphaned in 'doing'. Mutates `data` in place and
     returns a list of {id,title,action,age_min} describing what changed. The
     caller is responsible for save() (so it can run inside an existing Lock)."""
     actions = []
     cutoff_secs = STALE_DOING_MIN * 60
     current = datetime.now(timezone.utc)
     for c in data.get("cards", []):
-        if c.get("assignee") != "Claude" or c.get("status") != "doing":
+        if not is_ai_assignee(c.get("assignee")) or c.get("status") != "doing":
             continue
         ts = parse_ts(c.get("updated"))
         if ts is None:
@@ -257,7 +269,8 @@ def cmd_list(args):
     cards = data["cards"]
     flt = parse_flags(args)
     if "assignee" in flt:
-        cards = [c for c in cards if c["assignee"] == flt["assignee"]]
+        want = norm_assignee(flt["assignee"])
+        cards = [c for c in cards if norm_assignee(c.get("assignee")) == want]
     if "status" in flt:
         cards = [c for c in cards if c["status"] == flt["status"]]
     print(json.dumps(cards, indent=2, ensure_ascii=False))
@@ -275,7 +288,7 @@ def cmd_add(args):
             "title": title,
             "description": flt.get("desc", ""),
             "project": flt.get("project", "General"),
-            "assignee": flt.get("assignee", "Ch@o"),
+            "assignee": norm_assignee(flt.get("assignee", "Ch@o")),
             "priority": norm_priority(flt.get("priority")),
             "status": flt.get("status", "todo"),
             "due": flt.get("due") or None,
@@ -323,7 +336,7 @@ def cmd_move(args):
 def cmd_assign(args):
     if len(args) < 2:
         die("assign needs <id> <assignee>")
-    cid, who = args[0], args[1]
+    cid, who = args[0], norm_assignee(args[1])
     if who not in VALID_ASSIGNEE:
         die("bad assignee: " + who)
     with Lock():
@@ -378,7 +391,7 @@ def cmd_addb64(args):
             "title": spec["title"],
             "description": spec.get("description", ""),
             "project": spec.get("project", "General"),
-            "assignee": spec.get("assignee", "Ch@o"),
+            "assignee": norm_assignee(spec.get("assignee", "Ch@o")),
             "priority": norm_priority(spec.get("priority")),
             "status": spec.get("status", "todo"),
             "due": spec.get("due") or None,
@@ -463,7 +476,7 @@ def cmd_set_priority(args):
 
 def cmd_approve(args):
     """Approve a needs_ok card: flag approved and send back to todo so the
-    Claude worker reclaims it and performs the previously-paused action."""
+    AI worker reclaims it and performs the previously-paused action."""
     if not args:
         die("approve needs <id>")
     cid = args[0]
@@ -474,7 +487,7 @@ def cmd_approve(args):
             die("no such card: " + cid)
         c["approved"] = True
         c["status"] = "todo"
-        c["assignee"] = "Claude"
+        c["assignee"] = "AI"
         c["updated"] = now()
         c["log"].append("%s approved by Ch@o — proceed with the action" % now())
         save(data)
@@ -506,7 +519,7 @@ def cmd_get(args):
 
 
 def cmd_claim_next(args):
-    """Atomically take the oldest Claude+todo card into doing.
+    """Atomically take the oldest AI+todo card into doing.
 
     First recovers any card orphaned in 'doing' (see requeue_stale) so a crashed
     earlier pass can't strand work forever. A freshly requeued card becomes
@@ -515,7 +528,7 @@ def cmd_claim_next(args):
         data = load()
         recovered = requeue_stale(data)
         todo = [c for c in data["cards"]
-                if c["assignee"] == "Claude" and c["status"] == "todo"]
+                if is_ai_assignee(c.get("assignee")) and c["status"] == "todo"]
         todo.sort(key=lambda c: c["created"])
         if not todo:
             if recovered:
@@ -527,8 +540,10 @@ def cmd_claim_next(args):
             return
         c = todo[0]
         c["status"] = "doing"
+        if c.get("assignee") == "Claude":
+            c["assignee"] = "AI"
         c["updated"] = now()
-        c["log"].append("%s claimed by Claude worker" % now())
+        c["log"].append("%s claimed by AI worker" % now())
         save(data)
     print(json.dumps(c, indent=2, ensure_ascii=False))
 
@@ -621,7 +636,7 @@ def cmd_user_role(args):
 
 def cmd_token_add(args):
     """token-add <username> [name]  — create an API token for programmatic
-    access (e.g. the remote Claude worker). Prints the token ONCE."""
+    access (e.g. the remote AI worker). Prints the token ONCE."""
     if not args:
         die("token-add needs a username")
     name = args[1] if len(args) > 1 else "worker"

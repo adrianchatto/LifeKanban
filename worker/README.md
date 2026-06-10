@@ -1,7 +1,7 @@
 # LifeKanban worker
 
 `worker.sh` is the autonomous worker. On each run it claims the next card
-assigned to **Claude**, runs the `claude` CLI to do it, saves the result, and
+assigned to **AI**, runs the configured AI CLI to do it, saves the result, and
 moves the card to **Done** — or to **Needs OK** if the task needs an
 irreversible/external action (send, publish, delete, pay) that you must approve.
 
@@ -22,7 +22,7 @@ cron job on a machine that has the `claude` CLI.
 1. Mint a token for the board owner (on the Docker host, inside the container):
 
    ```bash
-   docker exec -it lifekanban python3 kanban.py token-add Ch@o "claude-worker"
+   docker exec -it lifekanban python3 kanban.py token-add Ch@o "ai-worker"
    ```
 
 2. Create `worker/worker.env` from the example and paste the token:
@@ -56,5 +56,5 @@ cron job on a machine that has the `claude` CLI.
   not yet uploaded into the board, so the in-board "↗ View result" link won't
   resolve to them — the card log records where the file is. (An upload endpoint
   can be added later if you want clickable results.)
-- If a `claude` run fails, the card is left in Doing; the board's stale-card
+- If an AI CLI run fails, the card is left in Doing; the board's stale-card
   recovery requeues it on a later pass.

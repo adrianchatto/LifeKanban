@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # LifeKanban autonomous worker.
 #
-# Claims the next card assigned to Claude, runs the `claude` CLI to do it,
+# Claims the next card assigned to AI, runs the configured CLI to do it,
 # saves the result, and moves the card to Done — or to Needs OK if the task
 # needs an irreversible/external action that a human must approve.
 #
@@ -117,14 +117,14 @@ EOF
   rc=$?
   set -e
   if [ $rc -ne 0 ]; then
-    log "claude failed for $id (rc=$rc) — leaving it; the board will requeue it"
-    kb log "$id" "worker: claude run failed (rc=$rc); will retry" >/dev/null 2>&1 || true
+    log "AI worker failed for $id (rc=$rc) — leaving it; the board will requeue it"
+    kb log "$id" "worker: AI run failed (rc=$rc); will retry" >/dev/null 2>&1 || true
     return 0
   fi
 
   printf '%s\n' "$result" > "$RESULTS_DIR/$id.md"
 
-  # Safety net: if Claude couldn't actually act (still asking for file/edit
+  # Safety net: if the AI couldn't actually act (still asking for file/edit
   # permission or reporting it was blocked), don't pretend it's done — park it
   # in Needs OK for review instead of falsely marking it complete.
   if printf '%s' "$result" | grep -qiE "write permission|permission hasn't been granted|approve the (edit|file|permission|changes)|permission to (edit|write|make)"; then

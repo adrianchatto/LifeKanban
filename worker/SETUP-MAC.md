@@ -37,7 +37,7 @@ bash /Users/adrianchatto/Documents/Claude/Projects/Kanban/worker/worker.sh
 ```
 
 You should see `mode: local board.json`. If a card is waiting in **To Do**
-assigned to **Claude**, you'll then see `working <id>: <title>` … `<id> -> done`,
+assigned to **AI**, you'll then see `working <id>: <title>` … `<id> -> done`,
 and the card moves To Do → Doing → Done (or Needs OK) on the board.
 
 ### 2. Schedule it with launchd (every 15 minutes)
@@ -62,7 +62,7 @@ tail -f /Users/adrianchatto/Documents/Claude/Projects/Kanban/worker/worker.log
 
 ## Notes / known limits
 
-- The worker only ever **claims cards assigned to Claude**; your own (Ch@o) cards
+- The worker only ever **claims cards assigned to AI**; your own (Ch@o) cards
   are never touched.
 - Risky/irreversible steps (send, publish, delete, pay) are **not** performed.
   The worker prepares the draft, logs `NEEDS_OK: <reason>`, and moves the card to

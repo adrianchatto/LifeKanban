@@ -1,10 +1,10 @@
 # LifeKanban — User Guide
 
-> **Audience:** anyone using the LifeKanban board. **Maintained by:** Claude — this page is updated whenever the app changes. _Last updated: 8 June 2026._
+> **Audience:** anyone using the LifeKanban board. **Maintained by:** AI — this page is updated whenever the app changes. _Last updated: 10 June 2026._
 >
 > _This file is the source copy of the guide that is published to Notion. When features change, update this file and the Notion page together._
 
-LifeKanban is a personal Kanban board that runs on a Mac, with a built-in Claude worker that can carry out cards you assign to it. Each person has their own account, their own board, and supplies their own AI API key. This guide explains how to use it.
+LifeKanban is a personal Kanban board that runs on a Mac, with a built-in AI worker that can carry out cards you assign to it. Each person has their own account, their own board, and supplies their own AI API key. This guide explains how to use it.
 
 ## Signing in
 
@@ -14,14 +14,14 @@ The board sits behind a login. Open the board's web address and you'll see the s
 - If you were given a **temporary password**, you'll see a banner after signing in prompting you to set your own. Do that under **Settings** before anything else.
 - Sessions stay active for about 12 hours, then you'll be asked to sign in again. Use **Log out** (top-right account menu) to end a session immediately.
 
-There is no public sign-up. New accounts are created by an administrator (see **Administration**).
+Use **Sign up** on the login page to create an account. The first account becomes the admin; later signups are normal users. Admins can also create accounts manually (see **Administration**).
 
 ## The board
 
 The board has four columns: **To Do → Doing → Needs OK → Done**. Drag a card between columns, or use the buttons on each card.
 
-- **New card** — click **+ New card**. Give it a title, an optional description, a project, an assignee (you or Claude), a priority, and an optional due date. You can also drag in or paste an attachment (e.g. a screenshot).
-- **Assignee** — *Me* (you) or *Claude*. A card assigned to Claude and left in **To Do** is picked up automatically by the worker.
+- **New card** — click **+ New card**. Give it a title, an optional description, a project, an assignee (you or AI), a priority, and an optional due date. You can also drag in or paste an attachment (e.g. a screenshot).
+- **Assignee** — *Me* (you) or *AI*. A card assigned to AI and left in **To Do** is picked up automatically by the worker.
 - **Priority** — high, medium, or low.
 - **Filters** — filter by project and by owner, top-right.
 - **Calendar view** — switch from Board to Calendar to see cards with due dates and recurring cards laid out by day.
@@ -32,28 +32,28 @@ The board has four columns: **To Do → Doing → Needs OK → Done**. Drag a ca
 The chat assistant (bubble, bottom-right) turns a plain sentence into a card. Type something like *"Pay the parking fine by Friday"* and it drafts a card for you.
 
 - It writes a **concise heading** for the title and keeps the full request in the **description**, so the title stays short and readable.
-- It tries to detect a due date, recurrence, project, priority, and whether the task is for you or for Claude. If the project or owner is unclear, it asks before adding.
+- It tries to detect a due date, recurrence, project, priority, and whether the task is for you or for AI. If the project or owner is unclear, it asks before adding.
 - If you've set an **API key** (see Settings), the assistant uses the AI model to read messier phrasing. Without a key it falls back to built-in rules — both produce a short title.
 
-## How Claude cards work
+## How AI cards work
 
-Any card assigned to **Claude** and sitting in **To Do** is picked up automatically by a scheduled worker (roughly every 15 minutes):
+Any card assigned to **AI** and sitting in **To Do** is picked up automatically by a scheduled worker (roughly every 15 minutes):
 
-1. The card moves to **Doing** (you'll see "Claude is working…").
-2. Claude does the work and saves the result into your results area.
+1. The card moves to **Doing** (you'll see "AI is working…").
+2. The AI worker does the work and saves the result into your results area.
 3. The card moves to **Done** with a **↗ View result** link.
 
-If a task needs an irreversible step (send an email, post a message, publish, delete, pay), Claude does the safe preparation, then parks the card in **Needs OK** and waits. Press **Approve & run** on the card (or tell Claude to approve it) and it carries out the step on its next pass.
+If a task needs an irreversible step (send an email, post a message, publish, delete, pay), the AI worker does the safe preparation, then parks the card in **Needs OK** and waits. Press **Approve & run** on the card (or approve it in chat) and it carries out the step on its next pass.
 
 **Stuck cards recover automatically.** If a worker run is interrupted and leaves a card in **Doing**, the next run returns it to **To Do** and retries it. A card that repeatedly fails is parked in **Needs OK** for you to review rather than looping forever.
 
-You can also tell Claude **"process my board"** in chat to run it immediately instead of waiting for the schedule.
+You can also ask the worker **"process my board"** in chat to run it immediately instead of waiting for the schedule.
 
 ## Settings
 
 The **Settings** screen (account menu, top-right) is where you manage your own account:
 
-- **API key** — choose a provider (Anthropic or OpenAI), a model, and paste your key. It powers the chat assistant. Your key is stored **encrypted** on the server against your account and is only ever sent back to your own browser; it is never shared with other users or committed to source control.
+- **API key** — choose a provider (Anthropic or OpenAI), a model, and paste your key. It powers the chat assistant. Your key is stored **encrypted** on the server against your account and is used server-side through `/api/ai/parse`; it is never shared with other users or committed to source control.
 - **Change password** — update your password (minimum 8 characters).
 
 ## Administration (admins only)
@@ -70,7 +70,7 @@ The same actions are available from the terminal via `kanban.py` (`user-add`, `u
 ## API tokens (for automation / the remote worker)
 
 If the board runs behind a login (for example in Docker on another machine), an
-automated client such as the Claude worker can't use a browser session. Instead
+automated client such as the AI worker can't use a browser session. Instead
 it uses an **API token** that acts as a specific user:
 
 - An admin mints one on the host with `python3 kanban.py token-add <username> "label"` (printed once).
@@ -96,7 +96,7 @@ Keep tokens secret — anyone holding one can act as that user on their board.
 
 - **Can't sign in** — check the username/password; after several failed attempts there's a short lockout. Ask an admin to reset your password if needed.
 - **Chat assistant ignores my key** — confirm the key, provider, and model are all set under Settings.
-- **A Claude card looks stuck** — it will be retried automatically on the next worker pass; no action needed.
+- **An AI card looks stuck** — it will be retried automatically on the next worker pass; no action needed.
 
 ## Updating & deploying changes
 
@@ -126,6 +126,8 @@ Docker `/data` volume and are preserved across rebuilds.
 
 ## Changelog
 
-- **8 June 2026** — Added multi-user accounts: login/logout, admin-only user creation, per-user boards, per-user encrypted API keys, settings and admin screens. Chat assistant now always writes a concise heading as the card title. Stuck-in-Doing cards now auto-recover.
-- **8 June 2026** — Added API tokens for programmatic/remote access (bearer-token auth, exempt from CSRF) so the Claude worker can drive a Dockerised board over the network; `kanban.py` gained a remote (HTTP) mode and `token-add`/`token-list`/`token-del`. Docker image now ships the auth module and login/settings/admin pages, and bootstraps the first admin from env on first run.
-- **8 June 2026** — Added the autonomous worker (`worker/worker.sh`): a cron job that claims the next Claude card, runs it via the `claude` CLI, and moves it to Done (or Needs OK for irreversible actions). Renamed the in-app user-management menu item to "Manage users" to avoid clashing with the ⚙ Admin settings button.
+- **10 June 2026** — Restored authenticated Docker-ready server flow, added public signup, kept first-user admin bootstrap, and moved BYOAI chat parsing server-side through `/api/ai/parse`.
+- **10 June 2026** — Renamed the worker-facing assignee from Claude to AI. Old cards assigned to Claude are still picked up for compatibility and are normalized when claimed.
+- **8 June 2026** — Added multi-user accounts: login/logout, admin user creation, per-user boards, per-user encrypted API keys, settings and admin screens. Chat assistant now always writes a concise heading as the card title. Stuck-in-Doing cards now auto-recover.
+- **8 June 2026** — Added API tokens for programmatic/remote access (bearer-token auth, exempt from CSRF) so the AI worker can drive a Dockerised board over the network; `kanban.py` gained a remote (HTTP) mode and `token-add`/`token-list`/`token-del`. Docker image now ships the auth module and login/settings/admin pages, and bootstraps the first admin from env on first run.
+- **8 June 2026** — Added the autonomous worker (`worker/worker.sh`): a cron job that claims the next AI card, runs it via the configured CLI, and moves it to Done (or Needs OK for irreversible actions). Renamed the in-app user-management menu item to "Manage users" to avoid clashing with the ⚙ Admin settings button.
