@@ -24,6 +24,11 @@ That app starts a tiny local server and opens the board in your browser. To turn
 on background due-date alerts (so you're notified even when the board is shut),
 double-click **`Enable Notifications.command`** once.
 
+To let AI-assigned cards run automatically, double-click
+**`Enable AI Worker.command`** once. It installs a local scheduled worker that
+checks the board immediately and then every 15 minutes. Double-click
+**`Disable AI Worker.command`** to turn it off.
+
 > Note: this is a local web app shown in your browser, launched by a Dock icon —
 > not a single-window native app. That's the reliable, no-toolchain approach we
 > chose. If you'd rather have a true top-of-screen menu-bar app later, that's a
@@ -148,6 +153,10 @@ your explicit go-ahead — it won't take the irreversible step on its own.
 
 You can also ask the worker in chat: **"process my board"** to run it now
 instead of waiting for the schedule.
+
+On macOS, enable this automation by double-clicking **`Enable AI Worker.command`**.
+The worker defaults to Codex CLI when it is installed, and can be configured in
+`worker/worker.env`.
 
 ## Creating cards from chat
 

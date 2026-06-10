@@ -5,19 +5,29 @@ assigned to **AI**, runs the configured AI CLI to do it, saves the result, and
 moves the card to **Done** — or to **Needs OK** if the task needs an
 irreversible/external action (send, publish, delete, pay) that you must approve.
 
-It drives the board over the authenticated HTTP API, so it works against the
-remote/Dockerised board.
+It can run in local mode against this checkout's `board.json`, or in remote mode
+against the authenticated HTTP API for a Dockerised board.
 
 ## Requirements (on the machine that runs the worker)
 
-- The `claude` CLI (Claude Code), installed and logged in.
+- Codex CLI installed and logged in. On macOS the bundled app CLI is usually
+  `/Applications/Codex.app/Contents/Resources/codex`.
 - `python3` and a checkout of this repo (for `kanban.py` / `auth.py`).
-- Network access to the board's API.
+- Network access to the board's API only if you use remote/Docker mode.
 
-This is NOT the Docker host's job and NOT a Cowork scheduled task — it's a plain
-cron job on a machine that has the `claude` CLI.
+This is not a Cowork scheduled task. It is a local scheduled worker on a machine
+that has the AI CLI installed.
 
 ## Setup
+
+### Local board on this Mac
+
+Double-click **`Enable AI Worker.command`** in the repo. It installs a LaunchAgent
+that runs once immediately and then every 15 minutes.
+
+To turn it off, double-click **`Disable AI Worker.command`**.
+
+### Remote / Docker board
 
 1. Mint a token for the board owner (on the Docker host, inside the container):
 
@@ -34,20 +44,28 @@ cron job on a machine that has the `claude` CLI.
    #   KANBAN_API_TOKEN=lk_...
    ```
 
-3. Test it by hand:
+3. Double-click **`Enable AI Worker.command`** on the machine that will run the
+   worker.
 
-   ```bash
-   bash worker/worker.sh
-   ```
+## Test it by hand
 
-4. Schedule it. Run every 15 minutes via cron (`crontab -e`):
+```bash
+bash worker/worker.sh
+```
 
-   ```
-   */15 * * * * /bin/bash /path/to/repo/worker/worker.sh >> /tmp/kanban-worker.log 2>&1
-   ```
+The script self-locks (atomic mkdir lock, no `flock` needed), so overlapping
+runs are safe on both macOS and Linux.
 
-   The script self-locks (atomic mkdir lock, no `flock` needed), so overlapping
-   runs are safe on both macOS and Linux.
+## Provider configuration
+
+By default the worker auto-detects Codex first, then falls back to Claude CLI.
+Override with `worker/worker.env`:
+
+```bash
+KANBAN_AI_PROVIDER=codex
+KANBAN_AI_BIN=/Applications/Codex.app/Contents/Resources/codex
+KANBAN_AI_ARGS=
+```
 
 ## Notes
 
