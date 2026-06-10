@@ -563,6 +563,10 @@ async function pushBoard(){
     if(r.status===401) location.replace('/login.html');
   }catch(e){}
 }
+async function wakeAIWorker(){
+  try{ await fetch("/api/worker/run",{method:"POST",headers:{"X-Kanban-CSRF":(window.__csrf||"")}}); }
+  catch(e){}
+}
 
 function projectsList(){
   const set = new Set(board.projects||[]);
@@ -1048,8 +1052,10 @@ function save(){
   const project=$("#fProject").value.trim()||"General";
   const due=$("#fDue").value||null;
   const recur=readRecur();
+  let shouldWakeAI = false;
   if(editing){
     const c=board.cards.find(x=>x.id===editing);
+    const wasAI = isAIAssignee(c.assignee);
     c.title=title; c.description=desc; c.project=project; c.due=due; c.recur=recur;
     c.priority=priorityChoice;
     c.subtasks=editSubtasks.map(s=>({text:s.text, done:!!s.done}));
@@ -1058,22 +1064,25 @@ function save(){
       (c.log=c.log||[]).push(new Date().toISOString()+" assigned to "+assigneeChoice);
       c.assignee=assigneeChoice;
     }
+    shouldWakeAI = !wasAI && isAIAssignee(c.assignee) && c.status==="todo";
     c.updated=new Date().toISOString();
   }else{
     const n=(board.next_id||1);
     board.next_id=n+1;
-    board.cards.push({
+    const card = {
       id:"k-"+String(n).padStart(3,"0"),
       title, description:desc, project, assignee:assigneeChoice, priority:priorityChoice,
       status:"todo", due, recur, subtasks:editSubtasks.map(s=>({text:s.text, done:!!s.done})),
       attachments:editAttachments.map(a=>({...a})), skill:null, result_link:null,
       created:new Date().toISOString(), updated:new Date().toISOString(),
       log:["created"]
-    });
+    };
+    board.cards.push(card);
+    shouldWakeAI = isAIAssignee(card.assignee);
   }
   if(!(board.projects||[]).includes(project))(board.projects=board.projects||[]).push(project);
   if(recur && view!=="calendar"){ view="calendar"; try{localStorage.setItem("kanban_view",view);}catch(_){} setViewToggle(); }
-  closeScrim(); render(); pushBoard();
+  closeScrim(); render(); pushBoard().then(()=>{ if(shouldWakeAI) wakeAIWorker(); });
 }
 function approveCard(id){
   const c=board.cards.find(x=>x.id===id); if(!c) return;
@@ -1083,7 +1092,7 @@ function approveCard(id){
   c.assignee="AI";
   c.updated=new Date().toISOString();
   (c.log=c.log||[]).push(new Date().toISOString()+" approved by Ch@o — proceed with the action");
-  render(); pushBoard();
+  render(); pushBoard().then(wakeAIWorker);
 }
 function del(){
   if(!editing)return;
@@ -1570,7 +1579,9 @@ initSession().then(ok=>{
       view="calendar"; try{localStorage.setItem("kanban_view",view);}catch(e){} if(typeof setViewToggle==="function") setViewToggle();
     }
     if(typeof render==="function") render();
-    if(typeof pushBoard==="function") pushBoard();
+    if(typeof pushBoard==="function"){
+      pushBoard().then(()=>{ if(isAIAssignee(card.assignee) && typeof wakeAIWorker==="function") wakeAIWorker(); });
+    }
     return card;
   }
 

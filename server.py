@@ -15,6 +15,7 @@ No third-party dependencies. Runs on localhost only.
 import json
 import os
 import re
+import subprocess
 import sys
 import threading
 import time
@@ -73,6 +74,44 @@ MIME = {".md": "text/markdown; charset=utf-8", ".txt": "text/plain; charset=utf-
 # Static files served from the project root (for PWA install)
 STATIC = ("manifest.webmanifest", "icon-192.png", "icon-512.png",
           "icon-maskable-512.png", "favicon.ico")
+
+
+def wake_ai_worker():
+    """Ask the local AI worker to run now.
+
+    Desktop installs use launchd, so prefer kicking that job. If the app is
+    running without the LaunchAgent installed, start one detached worker pass.
+    The worker script has its own lock, so repeated nudges are harmless.
+    """
+    def run():
+        uid = str(os.getuid())
+        job = "gui/%s/com.chatto.kanban.worker" % uid
+        env = os.environ.copy()
+        env["PATH"] = ("/Applications/Codex.app/Contents/Resources:"
+                       "/Users/adrianchatto/.local/bin:/opt/homebrew/bin:"
+                       "/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin")
+        try:
+            subprocess.run(["/bin/launchctl", "kickstart", job],
+                           cwd=ROOT, env=env, timeout=10,
+                           stdout=subprocess.DEVNULL,
+                           stderr=subprocess.DEVNULL,
+                           check=True)
+            return
+        except Exception:
+            pass
+
+        worker = os.path.join(ROOT, "worker", "worker.sh")
+        if not os.path.exists(worker):
+            return
+        try:
+            log = open(os.path.join(ROOT, "worker", "worker.log"), "ab")
+            subprocess.Popen(["/bin/bash", worker], cwd=ROOT, env=env,
+                             stdin=subprocess.DEVNULL, stdout=log, stderr=log,
+                             start_new_session=True)
+        except Exception:
+            pass
+
+    threading.Thread(target=run, daemon=True).start()
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -472,6 +511,14 @@ class Handler(BaseHTTPRequestHandler):
                 self._json(502, {"error": "AI request failed: " + str(e)})
                 return
             self._json(200, {"ok": True, "card": parsed})
+            return
+
+        if path == "/api/worker/run":
+            s = self.require_user()
+            if not s or not self.check_csrf(s):
+                return
+            wake_ai_worker()
+            self._json(202, {"ok": True, "queued": True})
             return
 
         # ----- admin: create user ----- #
