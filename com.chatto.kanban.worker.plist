@@ -5,19 +5,19 @@
   <key>Label</key>
   <string>com.chatto.kanban.worker</string>
 
-  <!-- Autonomous worker: claims the next card assigned to Claude, runs the
-       `claude` CLI to do it, saves the result, and moves the card to Done (or
+  <!-- Autonomous worker: claims the next card assigned to AI, runs the
+       configured AI CLI to do it, saves the result, and moves the card to Done (or
        Needs OK if it needs approval). Runs in LOCAL mode (see worker/worker.env)
        — it edits this repo's board.json directly, the same file the local
        server at 127.0.0.1:8787 serves. -->
   <key>ProgramArguments</key>
   <array>
     <string>/bin/bash</string>
-    <string>/Users/adrianchatto/Documents/Claude/Projects/Kanban/worker/worker.sh</string>
+    <string>/Users/adrianchatto/GitHub/LifeKanban/worker/worker.sh</string>
   </array>
 
   <key>WorkingDirectory</key>
-  <string>/Users/adrianchatto/Documents/Claude/Projects/Kanban</string>
+  <string>/Users/adrianchatto/GitHub/LifeKanban</string>
 
   <!-- Run once at load, then every 15 minutes. worker.sh self-locks (atomic
        mkdir lock), so an overlapping fire is safe. Do NOT use KeepAlive here —
@@ -27,18 +27,18 @@
   <key>StartInterval</key>
   <integer>900</integer>
 
-  <!-- launchd starts jobs with a minimal PATH, so `claude`/`python3` may not be
-       found. Give it the usual install locations; if `claude` lives elsewhere,
-       set CLAUDE_BIN to its absolute path in worker/worker.env. -->
+  <!-- launchd starts jobs with a minimal PATH, so codex/python3 may not be
+       found. Give it the usual install locations; if Codex lives elsewhere,
+       set KANBAN_AI_BIN to its absolute path in worker/worker.env. -->
   <key>EnvironmentVariables</key>
   <dict>
     <key>PATH</key>
-    <string>/Users/adrianchatto/.local/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+    <string>/Applications/Codex.app/Contents/Resources:/Users/adrianchatto/.local/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
   </dict>
 
   <key>StandardOutPath</key>
-  <string>/Users/adrianchatto/Documents/Claude/Projects/Kanban/worker/worker.log</string>
+  <string>/Users/adrianchatto/GitHub/LifeKanban/worker/worker.log</string>
   <key>StandardErrorPath</key>
-  <string>/Users/adrianchatto/Documents/Claude/Projects/Kanban/worker/worker.log</string>
+  <string>/Users/adrianchatto/GitHub/LifeKanban/worker/worker.log</string>
 </dict>
 </plist>

@@ -102,6 +102,10 @@
   .card{background:var(--panel);border:1px solid var(--line);border-radius:11px;padding:12px 13px;
     box-shadow:var(--shadow);cursor:grab;position:relative}
   .card:active{cursor:grabbing}
+  .ticket-id{display:inline-flex;align-items:center;align-self:flex-start;color:var(--muted);
+    background:var(--chip);border:1px solid var(--line);border-radius:6px;padding:1px 6px;
+    font-size:10.5px;font-weight:700;line-height:1.4;text-transform:uppercase;letter-spacing:0}
+  .card .ticket-id{margin:0 0 6px}
   .card .ttl{font-weight:600;margin:0 0 6px;font-size:13.5px}
   .card .desc{color:var(--muted);font-size:12.5px;margin:0 0 9px;
     display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
@@ -152,13 +156,16 @@
   .modal{background:#fff;border-radius:16px;width:min(520px,92vw);box-shadow:0 20px 60px rgba(10,20,40,.3);
     padding:22px 24px;max-height:88vh;overflow:auto}
   .modal h3{margin:0 0 16px;font-size:16px}
+  .modal-title{display:flex;align-items:center;gap:8px;margin:0 0 16px}
+  .modal-title h3{margin:0}
+  .modal-title .ticket-id{font-size:11px}
   label{display:block;font-size:12px;font-weight:600;color:var(--muted);margin:12px 0 5px}
   input[type=text],textarea,.modal select{width:100%;border:1px solid var(--line);border-radius:9px;padding:9px 11px;background:var(--field);color:var(--ink)}
   textarea{min-height:84px;resize:vertical}
   .seg{display:inline-flex;border:1px solid var(--line);border-radius:9px;overflow:hidden}
   .seg button{border:0;background:#fff;padding:8px 16px;border-radius:0;font-weight:600;color:var(--muted)}
   .seg button.on[data-v="Ch@o"]{background:var(--me);color:#fff}
-  .seg button.on[data-v="Claude"]{background:var(--claude);color:#fff}
+  .seg button.on[data-v="AI"]{background:var(--claude);color:#fff}
   .seg.prio button.on[data-v="high"]{background:var(--ok);color:#fff}
   .seg.prio button.on[data-v="medium"]{background:var(--doing);color:#fff}
   .seg.prio button.on[data-v="low"]{background:#6b7280;color:#fff}
@@ -186,6 +193,7 @@
     border-radius:6px;padding:2px 7px;color:#fff;white-space:nowrap}
   .lv-st.todo{background:var(--todo)} .lv-st.doing{background:var(--doing)}
   .lv-st.needs_ok{background:var(--ok)} .lv-st.done{background:var(--done)}
+  .lv-id{flex:0 0 auto}
   .lv-ttl{flex:1 1 auto;font-size:13.5px;font-weight:600;color:var(--ink);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .lv-meta{flex:0 0 auto;display:flex;align-items:center;gap:6px}
   .lv-empty{color:var(--muted);padding:18px;text-align:center}
@@ -263,10 +271,20 @@
   footer{padding:6px 22px 22px;color:var(--muted);font-size:11.5px}
 </style>
 <script>
-/* Local no-auth board: no login, no users, no passwords. CSRF is not used.
-   This just keeps window.__csrf defined so the existing save code is happy. */
 window.__csrf = '';
-window.__me = { username: 'Ch@o', role: 'admin' };
+window.__me = null;
+window.__ai = {};
+async function initSession(){
+  const r = await fetch('/api/me',{cache:'no-store'});
+  if(r.status===401){ location.replace('/login.html'); return false; }
+  if(!r.ok) throw new Error('Could not load your account');
+  const d = await r.json();
+  window.__csrf = d.csrf || '';
+  window.__me = d.user || null;
+  window.__ai = {provider:d.ai_provider||'', model:d.ai_model||'',
+                 hasKey:!!(d.user&&d.user.has_api_key), last4:(d.user&&d.user.api_key_last4)||''};
+  return true;
+}
 </script>
 </head>
 <body>
@@ -276,7 +294,7 @@ window.__me = { username: 'Ch@o', role: 'admin' };
   <div class="spacer"></div>
   <select id="projFilter" title="Filter by project"><option value="">All projects</option></select>
   <select id="whoFilter" title="Filter by owner">
-    <option value="">Everyone</option><option value="Ch@o">Me</option><option value="Claude">Claude</option>
+    <option value="">Everyone</option><option value="Ch@o">Me</option><option value="AI">AI</option>
   </select>
   <select id="statusFilter" title="Filter by status" style="display:none">
     <option value="">All statuses</option>
@@ -292,7 +310,7 @@ window.__me = { username: 'Ch@o', role: 'admin' };
   </div>
   <button class="btn" id="refreshBtn" title="Refresh now">↻ Refresh</button>
   <button class="btn" id="projBtn" title="Add or remove projects">⋮ Projects</button>
-  <button class="btn" id="adminBtn" title="Alerts, backup, restore, theme and more">⚙ Admin</button>
+  <button class="btn" id="adminBtn" title="Settings, alerts, backup, restore, theme and more">⚙ Settings</button>
   <input type="file" id="restoreFile" accept="application/json,.json" style="display:none">
   <button class="btn primary" id="newBtn">+ New card</button>
 </header>
@@ -304,7 +322,21 @@ window.__me = { username: 'Ch@o', role: 'admin' };
 
 <div class="scrim" id="adminScrim">
   <div class="modal" style="width:min(440px,92vw)">
-    <h3>Admin</h3>
+    <h3>Settings</h3>
+    <div class="adminsec">
+      <div class="adminrow">
+        <div><strong id="accountName">Account</strong><span>Manage your login, AI key and access.</span></div>
+        <button class="btn" id="settingsBtn" title="Open account settings">Settings</button>
+      </div>
+      <div class="adminrow" id="usersRow">
+        <div><strong>Users</strong><span>Create accounts and reset passwords.</span></div>
+        <button class="btn" id="usersBtn" title="Open user administration">Users</button>
+      </div>
+      <div class="adminrow">
+        <div><strong>Sign out</strong><span>End this browser session.</span></div>
+        <button class="btn" id="logoutBtn" title="Sign out">Log out</button>
+      </div>
+    </div>
     <div class="adminsec">
       <div class="adminrow">
         <div><strong>Desktop alerts</strong><span>Notify me when cards are due or overdue.</span></div>
@@ -351,8 +383,8 @@ window.__me = { username: 'Ch@o', role: 'admin' };
     <h3>AI assistant</h3>
     <p style="font-size:12.5px;color:var(--muted);margin:0 0 12px">
       Choose a provider and paste an API key so the “Add by chat” assistant can use a
-      real model to read your requests. The key is stored only on this device (your
-      browser) and is never saved to the board or pushed to GitHub.</p>
+      real model to read your requests. The key is stored encrypted on the server
+      against your account, never in board.json.</p>
     <label>Provider</label>
     <div class="seg" id="aiProviderSeg">
       <button type="button" data-v="anthropic">Anthropic</button>
@@ -388,12 +420,15 @@ window.__me = { username: 'Ch@o', role: 'admin' };
 
 <div class="scrim" id="scrim">
   <div class="modal">
-    <h3 id="mTitle">New card</h3>
+    <div class="modal-title">
+      <h3 id="mTitle">New card</h3>
+      <span class="ticket-id" id="mTicketId" style="display:none"></span>
+    </div>
     <input type="hidden" id="fId">
     <label>Title</label>
     <input type="text" id="fTitle" placeholder="What needs doing?">
     <label>Description</label>
-    <textarea id="fDesc" placeholder="Detail. For Claude cards, be specific about the deliverable."></textarea>
+    <textarea id="fDesc" placeholder="Detail. For AI cards, be specific about the deliverable."></textarea>
     <div class="row" style="gap:24px">
       <div style="flex:1">
         <label>Project</label>
@@ -406,7 +441,7 @@ window.__me = { username: 'Ch@o', role: 'admin' };
         <label>Assignee</label>
         <div class="seg" id="fAssignee">
           <button type="button" data-v="Ch@o">Me</button>
-          <button type="button" data-v="Claude">Claude</button>
+          <button type="button" data-v="AI">AI</button>
         </div>
       </div>
     </div>
@@ -468,6 +503,8 @@ const COLUMNS = [
 ];
 let board = {cards:[], projects:[]};
 let editing = null, assigneeChoice = "Ch@o", priorityChoice = "medium", paused = false, dragId = null;
+function normAssignee(v){ return v==="Claude" ? "AI" : (v||"Ch@o"); }
+function isAIAssignee(v){ return normAssignee(v)==="AI"; }
 const PRIORITY_RANK = { high:0, medium:1, low:2, none:1 };
 const PRIORITY_LABEL = { high:"High", medium:"Medium", low:"Low" };
 // "none" is retired — anything not high/low is treated as medium.
@@ -511,6 +548,8 @@ const $ = s => document.querySelector(s);
 async function fetchBoard(){
   try{
     const r = await fetch("/api/board",{cache:"no-store"});
+    if(r.status===401){ location.replace('/login.html'); return; }
+    if(!r.ok) throw new Error("board fetch failed");
     board = await r.json();
     $("#livedot").classList.add("live");
     if(!paused) render();
@@ -518,9 +557,15 @@ async function fetchBoard(){
 }
 async function pushBoard(){
   board.updated = new Date().toISOString();
-  try{ await fetch("/api/board",{method:"POST",headers:{"Content-Type":"application/json",
+  try{ const r = await fetch("/api/board",{method:"POST",headers:{"Content-Type":"application/json",
         "X-Kanban-CSRF": (window.__csrf||"")},
-        body:JSON.stringify(board)}); }catch(e){}
+        body:JSON.stringify(board)});
+    if(r.status===401) location.replace('/login.html');
+  }catch(e){}
+}
+async function wakeAIWorker(){
+  try{ await fetch("/api/worker/run",{method:"POST",headers:{"X-Kanban-CSRF":(window.__csrf||"")}}); }
+  catch(e){}
 }
 
 function projectsList(){
@@ -546,7 +591,7 @@ function render(){
   $("#projFilter").value = pf;
 
   const cards = (board.cards||[]).filter(c=>
-    (!pf || c.project===pf) && (!wf || c.assignee===wf));
+    (!pf || c.project===pf) && (!wf || normAssignee(c.assignee)===wf));
 
   if(view==="calendar"){
     $("#board").style.display="none";
@@ -569,18 +614,19 @@ function render(){
   $("#statusFilter").style.display = view==="list" ? "" : "none";
 
   const total = (board.cards||[]).length;
-  const claude = (board.cards||[]).filter(c=>c.assignee==="Claude").length;
+  const ai = (board.cards||[]).filter(c=>isAIAssignee(c.assignee)).length;
   $("#foot").textContent =
-    `${total} cards · ${claude} assigned to Claude · last sync ${new Date().toLocaleTimeString()}`;
+    `${total} cards · ${ai} assigned to AI · last sync ${new Date().toLocaleTimeString()}`;
 }
 
 function cardHTML(c){
-  const who = c.assignee==="Claude"
-    ? `<span class="badge claude">✦ Claude</span>`
+  const idBadge = `<span class="ticket-id">${esc(c.id)}</span>`;
+  const who = isAIAssignee(c.assignee)
+    ? `<span class="badge claude">✦ AI</span>`
     : `<span class="badge me">● Me</span>`;
   let extra = "";
-  if(c.status==="doing" && c.assignee==="Claude")
-    extra = `<div class="working"><span class="spin"></span>Claude is working…</div>`;
+  if(c.status==="doing" && isAIAssignee(c.assignee))
+    extra = `<div class="working"><span class="spin"></span>AI is working…</div>`;
   if(c.result_link)
     extra += `<a class="reslink" href="/results/${encodeURIComponent(c.result_link.replace(/^results\//,""))}" target="_blank">↗ View result</a>`;
   if(c.status==="needs_ok")
@@ -592,6 +638,7 @@ function cardHTML(c){
   const doneBtn = c.status!=="done" ? `<button class="donebtn" data-done="${c.id}" title="Mark done">✓</button>` : "";
   return `<article class="card ${c.status==='done'?'is-done':''}${prioCls}" draggable="true" data-id="${c.id}">
     ${doneBtn}
+    ${idBadge}
     <p class="ttl">${esc(c.title)}</p>
     ${c.description?`<p class="desc">${esc(c.description)}</p>`:""}
     <div class="row">${prioBadge(c)}${who}${projChip(c.project)}${dueBadge(c)}${subProgress(c)}${attachBadge(c)}</div>
@@ -723,8 +770,9 @@ function renderList(cards){
       const okBtn = st==="needs_ok" ? `<button class="okbtn" data-ok="${c.id}" title="Approve & run">✓ OK</button>` : "";
       return `<div class="lv-row ${st==='done'?'is-done':''}" data-id="${c.id}">
         <span class="lv-st ${st}">${STATUS_NAME[st]||st}</span>
+        <span class="ticket-id lv-id">${esc(c.id)}</span>
         <span class="lv-ttl">${esc(c.title)}</span>
-        <span class="lv-meta">${prioBadge(c)}${c.assignee==='Claude'?'<span class="badge claude">✦ Claude</span>':''}${dueBadge(c)}${subProgress(c)}${attachBadge(c)}${okBtn}${doneBtn}</span>
+        <span class="lv-meta">${prioBadge(c)}${isAIAssignee(c.assignee)?'<span class="badge claude">✦ AI</span>':''}${dueBadge(c)}${subProgress(c)}${attachBadge(c)}${okBtn}${doneBtn}</span>
       </div>`;
     }).join("");
     return `<section class="lv-proj">
@@ -792,12 +840,12 @@ function renderCalendar(cards){
       if(c.status==="done") cls+=" done";
       else { const days=Math.round((startOfDay(iso+"T00:00:00")-today)/86400000);
         if(days<0) cls+=" over"; else if(days<=1) cls+=" soon"; }
-      if(c.assignee==="Claude") cls+=" claude";
-      return `<div class="${cls}" data-id="${c.id}" style="border-left-color:${projColor(c.project||'General')}" title="${esc(c.title)} · ${esc(c.project||'General')}">${esc(c.title)}</div>`;
+      if(isAIAssignee(c.assignee)) cls+=" claude";
+      return `<div class="${cls}" data-id="${c.id}" style="border-left-color:${projColor(c.project||'General')}" title="${esc(c.id)} · ${esc(c.title)} · ${esc(c.project||'General')}">${esc(c.id)} · ${esc(c.title)}</div>`;
     }).join("");
     const rchips = recurring.filter(c=>recurOccursOn(c,d)).map(c=>{
-      const cls = "calchip recur" + (c.assignee==="Claude"?" claude":"");
-      return `<div class="${cls}" data-id="${c.id}" style="border-left-color:${projColor(c.project||'General')}" title="${esc(c.title)} · ${esc(c.project||'General')} (repeats)">🔁 ${esc(c.title)}</div>`;
+      const cls = "calchip recur" + (isAIAssignee(c.assignee)?" claude":"");
+      return `<div class="${cls}" data-id="${c.id}" style="border-left-color:${projColor(c.project||'General')}" title="${esc(c.id)} · ${esc(c.title)} · ${esc(c.project||'General')} (repeats)">🔁 ${esc(c.id)} · ${esc(c.title)}</div>`;
     }).join("");
     cells += `<div class="calcell${other}${isToday}"><span class="caldate">${d.getDate()}</span>${chips}${rchips}</div>`;
   }
@@ -857,6 +905,7 @@ function wireDnD(){
 function openNew(){
   editing=null; assigneeChoice="Ch@o"; priorityChoice="medium";
   $("#mTitle").textContent="New card";
+  $("#mTicketId").style.display="none"; $("#mTicketId").textContent="";
   $("#fId").value=""; $("#fTitle").value=""; $("#fDesc").value="";
   populateProjectSelect($("#projFilter").value||"General");
   $("#fDue").value="";
@@ -871,8 +920,9 @@ function setPrioSeg(){
 }
 function openEdit(id){
   const c = board.cards.find(x=>x.id===id); if(!c)return;
-  editing=id; assigneeChoice=c.assignee; priorityChoice=normPrio(c.priority);
+  editing=id; assigneeChoice=normAssignee(c.assignee); priorityChoice=normPrio(c.priority);
   $("#mTitle").textContent="Edit card";
+  $("#mTicketId").style.display="inline-flex"; $("#mTicketId").textContent=c.id;
   $("#fId").value=c.id; $("#fTitle").value=c.title; $("#fDesc").value=c.description||"";
   populateProjectSelect(c.project||"General");
   $("#fDue").value=c.due||"";
@@ -1002,8 +1052,10 @@ function save(){
   const project=$("#fProject").value.trim()||"General";
   const due=$("#fDue").value||null;
   const recur=readRecur();
+  let shouldWakeAI = false;
   if(editing){
     const c=board.cards.find(x=>x.id===editing);
+    const wasAI = isAIAssignee(c.assignee);
     c.title=title; c.description=desc; c.project=project; c.due=due; c.recur=recur;
     c.priority=priorityChoice;
     c.subtasks=editSubtasks.map(s=>({text:s.text, done:!!s.done}));
@@ -1012,32 +1064,35 @@ function save(){
       (c.log=c.log||[]).push(new Date().toISOString()+" assigned to "+assigneeChoice);
       c.assignee=assigneeChoice;
     }
+    shouldWakeAI = !wasAI && isAIAssignee(c.assignee) && c.status==="todo";
     c.updated=new Date().toISOString();
   }else{
     const n=(board.next_id||1);
     board.next_id=n+1;
-    board.cards.push({
+    const card = {
       id:"k-"+String(n).padStart(3,"0"),
       title, description:desc, project, assignee:assigneeChoice, priority:priorityChoice,
       status:"todo", due, recur, subtasks:editSubtasks.map(s=>({text:s.text, done:!!s.done})),
       attachments:editAttachments.map(a=>({...a})), skill:null, result_link:null,
       created:new Date().toISOString(), updated:new Date().toISOString(),
       log:["created"]
-    });
+    };
+    board.cards.push(card);
+    shouldWakeAI = isAIAssignee(card.assignee);
   }
   if(!(board.projects||[]).includes(project))(board.projects=board.projects||[]).push(project);
   if(recur && view!=="calendar"){ view="calendar"; try{localStorage.setItem("kanban_view",view);}catch(_){} setViewToggle(); }
-  closeScrim(); render(); pushBoard();
+  closeScrim(); render(); pushBoard().then(()=>{ if(shouldWakeAI) wakeAIWorker(); });
 }
 function approveCard(id){
   const c=board.cards.find(x=>x.id===id); if(!c) return;
-  if(!confirm(`Approve "${c.title}" and let Claude carry out the action?`)) return;
+  if(!confirm(`Approve "${c.title}" and let AI carry out the action?`)) return;
   c.approved=true;
-  c.status="todo";              // back to To Do so the Claude worker reclaims it
-  c.assignee="Claude";
+  c.status="todo";              // back to To Do so the AI worker reclaims it
+  c.assignee="AI";
   c.updated=new Date().toISOString();
   (c.log=c.log||[]).push(new Date().toISOString()+" approved by Ch@o — proceed with the action");
-  render(); pushBoard();
+  render(); pushBoard().then(wakeAIWorker);
 }
 function del(){
   if(!editing)return;
@@ -1081,24 +1136,47 @@ $("#projClose").onclick=()=>$("#projScrim").classList.remove("open");
 $("#projScrim").addEventListener("click",e=>{ if(e.target===$("#projScrim")) $("#projScrim").classList.remove("open"); });
 function openProjects(){ renderProjectManager(); $("#projScrim").classList.add("open"); $("#projNew").focus(); }
 /* admin panel */
-$("#adminBtn").onclick=()=>{ refreshAiStatus(); $("#adminScrim").classList.add("open"); };
+$("#adminBtn").onclick=()=>{
+  refreshAiStatus();
+  const me=window.__me||{};
+  $("#accountName").textContent = me.username ? "Signed in as "+me.username : "Account";
+  $("#usersRow").style.display = me.role==="admin" ? "flex" : "none";
+  $("#adminScrim").classList.add("open");
+};
 $("#adminClose").onclick=()=>$("#adminScrim").classList.remove("open");
 $("#adminScrim").addEventListener("click",e=>{ if(e.target===$("#adminScrim")) $("#adminScrim").classList.remove("open"); });
+$("#settingsBtn").onclick=()=>{ location.href="/settings.html"; };
+$("#usersBtn").onclick=()=>{ location.href="/admin.html"; };
+$("#logoutBtn").onclick=()=>{
+  fetch('/api/logout',{method:'POST',headers:{"Content-Type":"application/json","X-Kanban-CSRF":(window.__csrf||"")}})
+    .finally(()=>location.replace('/login.html'));
+};
 
-/* AI assistant config — key stored only in this browser (localStorage), never in board.json */
-const AI_STORE="kanban_ai";
+/* AI assistant config — key is stored encrypted against the signed-in account. */
 const AI_MODELS={
   anthropic:["claude-haiku-4-5","claude-sonnet-4-6","claude-opus-4-6","claude-opus-4-8"],
   openai:["gpt-4o-mini","gpt-4o","gpt-4.1","gpt-4.1-mini","o4-mini"]
 };
 let aiProvider="anthropic";
-function aiLoadCfg(){ try{ return JSON.parse(localStorage.getItem(AI_STORE)||"{}"); }catch(e){ return {}; } }
-function aiSaveCfg(o){ try{ localStorage.setItem(AI_STORE, JSON.stringify(o)); }catch(e){} }
+function aiLoadCfg(){ return Object.assign({}, window.__ai||{}); }
+function aiSaveCfg(o){
+  return fetch('/api/account/apikey',{method:'POST',
+    headers:{"Content-Type":"application/json","X-Kanban-CSRF":(window.__csrf||"")},
+    body:JSON.stringify({provider:o.provider,model:o.model,api_key:o.key})})
+    .then(r=>r.json().then(j=>({ok:r.ok,j:j})))
+    .then(res=>{
+      if(!res.ok) throw new Error(res.j.error||'Could not save AI settings');
+      const u=res.j.user||{};
+      window.__ai={provider:u.ai_provider||o.provider,model:u.ai_model||o.model,
+        hasKey:!!u.has_api_key,last4:u.api_key_last4||''};
+      return window.__ai;
+    });
+}
 function refreshAiStatus(){
   const a=aiLoadCfg(); const el=$("#aiStatus"); if(!el) return;
-  if(a && a.key && a.provider && a.model){
+  if(a && a.hasKey && a.provider && a.model){
     const name=a.provider==="openai"?"OpenAI":"Anthropic";
-    el.textContent="On — "+name+" · "+a.model+" (key stored on this device only).";
+    el.textContent="On — "+name+" · "+a.model+(a.last4?" · ..."+a.last4:"")+".";
   } else {
     el.textContent="Use a real model to read your “Add by chat” requests.";
   }
@@ -1115,7 +1193,8 @@ function openAiCfg(){
   aiProvider=a.provider||"anthropic";
   aiSetProviderSeg(); aiFillModels(aiProvider);
   $("#aiModel").value=a.model||AI_MODELS[aiProvider][0];
-  $("#aiKey").value=a.key||"";
+  $("#aiKey").value="";
+  $("#aiKey").placeholder=a.hasKey?"Paste a new key to replace the saved one":"Paste your secret key";
   $("#aiMsg").textContent="";
   $("#aiScrim").classList.add("open");
   setTimeout(()=>$("#aiKey").focus(),60);
@@ -1129,20 +1208,26 @@ $("#aiBtn").onclick=openAiCfg;
 $("#aiCancel").onclick=()=>$("#aiScrim").classList.remove("open");
 $("#aiScrim").addEventListener("click",e=>{ if(e.target===$("#aiScrim")) $("#aiScrim").classList.remove("open"); });
 $("#aiClear").onclick=()=>{
-  if(!confirm("Remove the saved AI key and settings from this device?")) return;
-  try{ localStorage.removeItem(AI_STORE); }catch(e){}
-  $("#aiKey").value=""; $("#aiMsg").textContent="Cleared. The chat assistant will use the built-in parser.";
-  refreshAiStatus();
+  if(!confirm("Remove the saved AI key from your account?")) return;
+  fetch('/api/account/apikey',{method:'DELETE',headers:{"X-Kanban-CSRF":(window.__csrf||"")}})
+    .then(r=>{ if(!r.ok) throw new Error('Could not clear AI key');
+      window.__ai={provider:'',model:'',hasKey:false,last4:''};
+      $("#aiKey").value=""; $("#aiMsg").textContent="Cleared. The chat assistant will use the built-in parser.";
+      refreshAiStatus();
+    }).catch(e=>$("#aiMsg").textContent=e.message);
 };
 $("#aiSave").onclick=()=>{
   const model=$("#aiModel").value.trim();
   const key=$("#aiKey").value.trim();
   if(!model){ $("#aiMsg").textContent="Pick or type a model first."; return; }
   if(!key){ $("#aiMsg").textContent="Paste an API key first."; return; }
-  aiSaveCfg({ provider:aiProvider, model:model, key:key });
-  refreshAiStatus();
-  $("#aiMsg").textContent="Saved. The “Add by chat” assistant will now use "+(aiProvider==="openai"?"OpenAI":"Anthropic")+".";
-  setTimeout(()=>$("#aiScrim").classList.remove("open"),700);
+  aiSaveCfg({ provider:aiProvider, model:model, key:key })
+    .then(()=>{
+      refreshAiStatus();
+      $("#aiKey").value="";
+      $("#aiMsg").textContent="Saved. The “Add by chat” assistant will now use "+(aiProvider==="openai"?"OpenAI":"Anthropic")+".";
+      setTimeout(()=>$("#aiScrim").classList.remove("open"),700);
+    }).catch(e=>$("#aiMsg").textContent=e.message);
 };
 function renderProjectManager(){
   const counts={};
@@ -1319,10 +1404,13 @@ $("#refreshBtn").onclick=()=>{
 
 setViewToggle();
 updateAlertBtn();
-fetchBoard();
-setInterval(fetchBoard, 3000);
-setInterval(checkNotifications, 60000);
-setTimeout(checkNotifications, 2000);
+initSession().then(ok=>{
+  if(!ok) return;
+  fetchBoard();
+  setInterval(fetchBoard, 3000);
+  setInterval(checkNotifications, 60000);
+  setTimeout(checkNotifications, 2000);
+}).catch(()=>location.replace('/login.html'));
 </script>
 
 <!-- ===== Chat assistant: add cards by natural language (k-020) ===== -->
@@ -1352,9 +1440,9 @@ setTimeout(checkNotifications, 2000);
     else if(take(/\b(?:medium\s*priority|med\s*prio|p2)\b/i)){ out.priority="medium"; out._priorityGiven=true; }
     else if(take(/\b(?:low\s*priority|low\s*prio|whenever|someday|p3)\b/i)){ out.priority="low"; out._priorityGiven=true; }
 
-    // assignee — only assign to Claude when explicitly named
-    if(take(/\b(?:assign(?:ed)?\s+to\s+|have\s+|get\s+|ask\s+|for\s+|by\s+|tell\s+)?claude(?:\s+to)?\b/i)){
-      out.assignee = "Claude"; out._assigneeGiven=true; }
+    // assignee — only assign to AI when explicitly named
+    if(take(/\b(?:assign(?:ed)?\s+to\s+|have\s+|get\s+|ask\s+|for\s+|by\s+|tell\s+)?(?:ai|artificial intelligence|codex|claude)(?:\s+to)?\b/i)){
+      out.assignee = "AI"; out._assigneeGiven=true; }
     else if(take(/\b(?:for\s+me|assign(?:ed)?\s+to\s+me|my\s+task|mine|i'?ll\s+do\s+it)\b/i)){
       out.assignee = "Ch@o"; out._assigneeGiven=true; }
 
@@ -1491,7 +1579,9 @@ setTimeout(checkNotifications, 2000);
       view="calendar"; try{localStorage.setItem("kanban_view",view);}catch(e){} if(typeof setViewToggle==="function") setViewToggle();
     }
     if(typeof render==="function") render();
-    if(typeof pushBoard==="function") pushBoard();
+    if(typeof pushBoard==="function"){
+      pushBoard().then(()=>{ if(isAIAssignee(card.assignee) && typeof wakeAIWorker==="function") wakeAIWorker(); });
+    }
     return card;
   }
 
@@ -1538,7 +1628,7 @@ setTimeout(checkNotifications, 2000);
     const wrap=document.createElement("div"); wrap.className="kc-card";
     const chips=[];
     chips.push('<span class="kc-chip">'+kcEsc(d.project)+'</span>');
-    chips.push('<span class="kc-chip">'+(d.assignee==="Claude"?"✦ Claude":"● Me")+'</span>');
+    chips.push('<span class="kc-chip">'+(isAIAssignee(d.assignee)?"✦ AI":"● Me")+'</span>');
     if(d.priority && d.priority!=="none") chips.push('<span class="kc-chip">⚑ '+kcEsc(d.priority.charAt(0).toUpperCase()+d.priority.slice(1))+'</span>');
     if(d.due)   chips.push('<span class="kc-chip">⏰ '+kcEsc(kcDueText(d.due))+'</span>');
     if(d.recur) chips.push('<span class="kc-chip">🔁 '+kcEsc(kcRecurText(d.recur))+'</span>');
@@ -1557,7 +1647,7 @@ setTimeout(checkNotifications, 2000);
     const card=kcCommit(d); kcPending=null;
     kcAddMsg("bot","Added "+card.id+": “"+card.title+"” → "+card.project+
       (card.due?" · due "+kcDueText(card.due):"")+
-      (card.assignee==="Claude"?" · Claude will pick it up":"")+".");
+      (isAIAssignee(card.assignee)?" · AI will pick it up":"")+".");
   }
 
   function kcHelp(){
@@ -1566,11 +1656,11 @@ setTimeout(checkNotifications, 2000);
       "Examples:\n"+
       "• Pay parking tomorrow\n"+
       "• Review PR for NEO-015 by 12/06/2026\n"+
-      "• Have Claude draft the status report due Friday\n"+
+      "• Have AI draft the status report due Friday\n"+
       "• Submit timesheet every Friday\n"+
       "• Buy milk #Home\n\n"+
       "I read dates (today, tomorrow, Friday, 15 June, 12/06/2026, in 3 days), projects "+
-      "(a name or #tag), who it’s for (say “Claude” to assign me), and repeats (daily, "+
+      "(a name or #tag), who it’s for (say “AI” to assign the worker), and repeats (daily, "+
       "weekly, every Monday, monthly). You can also ask “what’s on my board” or “what’s due today”.\n\n"+
       "To set up projects, say “add project NEO-015” (or “create projects Home, Work and Admin”).");
   }
@@ -1613,9 +1703,9 @@ setTimeout(checkNotifications, 2000);
       kcAddMsg("bot", due.length? "Due today:\n"+due.map(c=>"• "+c.title+" ("+c.project+")").join("\n") : "Nothing due today.");
       return true;
     }
-    if(/claude/.test(t)){
-      const cc=cards.filter(c=>c.assignee==="Claude"&&c.status!=="done");
-      kcAddMsg("bot", cc.length? "Claude’s queue:\n"+cc.map(c=>"• "+c.title+" ["+c.status+"]").join("\n") : "Nothing assigned to Claude right now.");
+    if(/\b(ai|claude|codex)\b/.test(t)){
+      const cc=cards.filter(c=>isAIAssignee(c.assignee)&&c.status!=="done");
+      kcAddMsg("bot", cc.length? "AI queue:\n"+cc.map(c=>"• "+c.title+" ["+c.status+"]").join("\n") : "Nothing assigned to AI right now.");
       return true;
     }
     const by=s=>cards.filter(c=>c.status===s).length;
@@ -1626,68 +1716,32 @@ setTimeout(checkNotifications, 2000);
     return true;
   }
 
-  /* ---------- optional AI provider (config lives in Admin) ---------- */
-  // The key is stored only in this browser's localStorage and is NEVER written
-  // to board.json, so it is never committed to GitHub.
-  const AI_KEY="kanban_ai";
-  function kcAILoad(){ try{ return JSON.parse(localStorage.getItem(AI_KEY)||"{}"); }catch(e){ return {}; } }
-  function kcAIEnabled(){ const a=kcAILoad(); return !!(a && a.key && a.provider && a.model); }
+  /* ---------- optional AI provider (config lives in account settings) ---------- */
+  function kcAILoad(){ return Object.assign({}, window.__ai||{}); }
+  function kcAIEnabled(){ const a=kcAILoad(); return !!(a && a.hasKey && a.provider && a.model); }
 
   // Ask the configured model to turn a sentence into card fields. Returns a draft
   // (same shape as kcParse) or null. Project/assignee default to "not given" so the
   // challenge step still fires when the user didn't actually specify them.
   async function kcLLMParse(text){
-    const a=kcAILoad();
     const projs=(typeof projectsList==="function" ? projectsList() : (board.projects||["General"]));
-    const today=kcISO(kcToday());
-    const sys =
-      "You convert a short task request into a JSON object for a kanban board. "+
-      "Today is "+today+". Reply with ONLY a JSON object, no prose. Keys: "+
-      "title (a SHORT headline of 3-8 words that summarises the task — never the "+
-      "user's full sentence, no trailing full stop), "+
-      "description (string: the full request and any extra detail; if you shortened "+
-      "the title, put the original wording here so nothing is lost), "+
-      "project (if the user named a project, return it exactly — use one from "+JSON.stringify(projs)+" if it matches, or return the new name they specified if it's clearly a project name and not in that list; return null only if the user did not name a project at all), "+
-      "assignee (\"Claude\" if the user wants Claude to do it, \"Ch@o\" if the user said it's for them, else null), "+
-      "priority (\"high\"|\"medium\"|\"low\", default \"medium\"), "+
-      "due (YYYY-MM-DD or null), "+
-      "recur (null, or {\"freq\":\"daily|weekdays|weekly|monthly\",\"days\":[0-6 Mon=0],\"day\":1-31}).";
-    let jsonText="";
-    if(a.provider==="anthropic"){
-      const r=await fetch("https://api.anthropic.com/v1/messages",{
-        method:"POST",
-        headers:{ "content-type":"application/json", "x-api-key":a.key,
-          "anthropic-version":"2023-06-01", "anthropic-dangerous-direct-browser-access":"true" },
-        body:JSON.stringify({ model:a.model, max_tokens:400,
-          system:sys, messages:[{role:"user",content:text}] })
-      });
-      if(!r.ok) throw new Error("anthropic "+r.status);
-      const j=await r.json();
-      jsonText=(j.content&&j.content[0]&&j.content[0].text)||"";
-    } else { // openai
-      const r=await fetch("https://api.openai.com/v1/chat/completions",{
-        method:"POST",
-        headers:{ "content-type":"application/json", "authorization":"Bearer "+a.key },
-        body:JSON.stringify({ model:a.model, temperature:0,
-          response_format:{type:"json_object"},
-          messages:[{role:"system",content:sys},{role:"user",content:text}] })
-      });
-      if(!r.ok) throw new Error("openai "+r.status);
-      const j=await r.json();
-      jsonText=(j.choices&&j.choices[0]&&j.choices[0].message&&j.choices[0].message.content)||"";
-    }
-    let p; try{ p=JSON.parse(jsonText); }catch(e){ const m=jsonText.match(/\{[\s\S]*\}/); p=m?JSON.parse(m[0]):null; }
+    const r=await fetch('/api/ai/parse',{method:'POST',
+      headers:{"Content-Type":"application/json","X-Kanban-CSRF":(window.__csrf||"")},
+      body:JSON.stringify({text:text,projects:projs})});
+    const j=await r.json().catch(()=>({}));
+    if(!r.ok) throw new Error(j.error||("AI parse "+r.status));
+    const p=j.card;
     if(!p) return null;
     const out={
       title:(p.title||"").toString().trim(),
       description:(p.description||"").toString(),
       project:p.project||"General",
-      assignee:(p.assignee==="Claude"||p.assignee==="Ch@o")?p.assignee:"Ch@o",
+      assignee:(p.assignee==="AI"||p.assignee==="Claude"||p.assignee==="Ch@o")?normAssignee(p.assignee):"Ch@o",
       priority:(p.priority==="high"||p.priority==="low")?p.priority:"medium",
       due:(typeof p.due==="string" && /^\d{4}-\d{2}-\d{2}$/.test(p.due))?p.due:null,
       recur:(p.recur&&p.recur.freq)?p.recur:null,
       _projectGiven: !!(p.project && p.project!=="General"),
-      _assigneeGiven: (p.assignee==="Claude"||p.assignee==="Ch@o"),
+      _assigneeGiven: (p.assignee==="AI"||p.assignee==="Claude"||p.assignee==="Ch@o"),
       _priorityGiven: (p.priority==="high"||p.priority==="low"||p.priority==="medium")
     };
     return out;
@@ -1726,7 +1780,7 @@ setTimeout(checkNotifications, 2000);
     if(needAssignee){
       html+='<div class="kc-fld"><div class="kc-qlbl">Who’s it for?</div><div class="kc-opts">'+
         '<button class="kc-opt" data-k="assignee" data-v="Ch@o">● Me</button>'+
-        '<button class="kc-opt" data-k="assignee" data-v="Claude">✦ Claude</button></div></div>';
+        '<button class="kc-opt" data-k="assignee" data-v="AI">✦ AI</button></div></div>';
     }
     html+='<div class="kc-acts"><button class="kc-go" disabled>Add card</button>'+
           '<button class="kc-no">Cancel</button></div>';
@@ -2048,37 +2102,41 @@ setTimeout(checkNotifications, 2000);
   /* ---- build ---- */
   const style=document.createElement("style");
   style.textContent =
-  "#pmWidget{position:fixed;left:18px;bottom:18px;z-index:18;width:212px;background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:0 10px 30px rgba(20,30,60,.16);font:inherit;overflow:hidden}"+
-  "#pmWidget .pm-tabs{display:flex;border-bottom:1px solid var(--line)}"+
-  "#pmWidget .pm-tabs button{flex:1;border:0;background:transparent;padding:8px 4px;font-size:11px;font-weight:600;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent}"+
+  "body{padding-bottom:86px}"+
+  "#kcLauncher{bottom:92px}"+
+  "#kcPanel{bottom:92px;max-height:calc(100vh - 112px)}"+
+  "#pmWidget{position:fixed;left:0;right:0;bottom:0;z-index:18;width:100%;min-height:72px;background:var(--panel);border-top:1px solid var(--line);box-shadow:0 -8px 26px rgba(20,30,60,.14);font:inherit;display:flex;align-items:stretch;overflow:visible}"+
+  "#pmWidget .pm-tabs{display:flex;flex:0 0 260px;border-right:1px solid var(--line)}"+
+  "#pmWidget .pm-tabs button{flex:1;border:0;background:transparent;padding:0 10px;font-size:12px;font-weight:700;color:var(--muted);cursor:pointer;border-top:3px solid transparent}"+
   "#pmWidget .pm-tabs button.on{color:var(--ink)}"+
-  "#pmWidget[data-mode=focus] .pm-tabs button.on{border-bottom-color:var(--accent);color:var(--accent)}"+
-  "#pmWidget[data-mode=short] .pm-tabs button.on{border-bottom-color:var(--done);color:var(--done)}"+
-  "#pmWidget[data-mode=long]  .pm-tabs button.on{border-bottom-color:var(--claude);color:var(--claude)}"+
-  "#pmWidget .pm-body{padding:12px 14px 13px;text-align:center}"+
-  "#pmWidget .pm-label{font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin-bottom:2px}"+
-  "#pmWidget .pm-wheel{position:relative;display:flex;flex-direction:column;align-items:center;gap:0;margin:0 auto 4px;width:150px;border-radius:14px;outline:none;-webkit-user-select:none;user-select:none;touch-action:none}"+
-  "#pmWidget .pm-wheel:not(.running){cursor:ns-resize}"+
+  "#pmWidget[data-mode=focus] .pm-tabs button.on{border-top-color:var(--accent);color:var(--accent)}"+
+  "#pmWidget[data-mode=short] .pm-tabs button.on{border-top-color:var(--done);color:var(--done)}"+
+  "#pmWidget[data-mode=long]  .pm-tabs button.on{border-top-color:var(--claude);color:var(--claude)}"+
+  "#pmWidget .pm-body{flex:1;min-width:0;padding:12px 56px 12px 18px;text-align:left;display:flex;align-items:center;gap:16px}"+
+  "#pmWidget .pm-label{flex:0 0 auto;font-size:11px;text-transform:uppercase;letter-spacing:0;color:var(--muted);font-weight:700}"+
+  "#pmWidget .pm-wheel{position:relative;display:flex;align-items:center;gap:8px;margin:0;width:auto;border-radius:10px;outline:none;-webkit-user-select:none;user-select:none;touch-action:none}"+
+  "#pmWidget .pm-wheel:not(.running){cursor:ew-resize}"+
   "#pmWidget .pm-wheel:focus-visible{box-shadow:0 0 0 2px var(--accent)}"+
-  "#pmWidget .pm-step{border:0;background:transparent;color:var(--muted);font-size:15px;line-height:1;padding:3px 0;width:100%;cursor:pointer;border-radius:8px}"+
+  "#pmWidget .pm-step{border:1px solid var(--line);background:transparent;color:var(--muted);font-size:14px;line-height:1;padding:0;width:30px;height:30px;cursor:pointer;border-radius:8px}"+
   "#pmWidget .pm-step:hover{background:rgba(127,127,127,.12);color:var(--ink)}"+
   "#pmWidget .pm-wheel.running .pm-step{visibility:hidden}"+
-  "#pmWidget .pm-time{font-size:40px;font-weight:700;letter-spacing:-1px;font-variant-numeric:tabular-nums;line-height:1.05;margin:0}"+
+  "#pmWidget .pm-time{font-size:38px;font-weight:700;letter-spacing:0;font-variant-numeric:tabular-nums;line-height:1;margin:0;min-width:112px;text-align:center}"+
   "#pmWidget[data-mode=focus] .pm-time{color:var(--accent)}"+
   "#pmWidget[data-mode=short] .pm-time{color:var(--done)}"+
   "#pmWidget[data-mode=long]  .pm-time{color:var(--claude)}"+
-  "#pmWidget .pm-hint{font-size:10px;color:var(--muted);letter-spacing:.3px;margin-bottom:7px;min-height:12px}"+
-  "#pmWidget .pm-count{font-size:12px;color:var(--muted);min-height:16px;margin-bottom:9px}"+
-  "#pmWidget .pm-row{display:flex;gap:6px;justify-content:center}"+
-  "#pmWidget .pm-row button{border:1px solid var(--line);background:#fff;border-radius:8px;padding:7px 0;font-size:12px;font-weight:600;cursor:pointer;flex:1}"+
-  "#pmWidget .pm-row .pm-start{background:var(--accent);color:#fff;border-color:var(--accent);flex:1.4}"+
+  "#pmWidget .pm-hint{flex:0 1 150px;font-size:11px;color:var(--muted);letter-spacing:0;min-height:0;white-space:nowrap}"+
+  "#pmWidget .pm-count{flex:1 1 auto;min-width:120px;font-size:12px;color:var(--muted);min-height:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}"+
+  "#pmWidget .pm-row{display:flex;gap:7px;justify-content:flex-end;flex:0 0 auto}"+
+  "#pmWidget .pm-row button{border:1px solid var(--line);background:#fff;border-radius:8px;padding:7px 12px;font-size:12px;font-weight:600;cursor:pointer;min-width:64px}"+
+  "#pmWidget .pm-row .pm-start{background:var(--accent);color:#fff;border-color:var(--accent);min-width:78px}"+
   "#pmWidget .pm-row .pm-start.run{background:var(--doing);border-color:var(--doing)}"+
-  "#pmWidget .pm-gear{position:absolute;top:7px;right:9px;border:0;background:transparent;color:var(--muted);font-size:13px;cursor:pointer;z-index:2}"+
-  "#pmWidget .pm-settings{display:none;padding:12px 14px;border-top:1px solid var(--line);background:var(--bg)}"+
+  "#pmWidget .pm-gear{position:absolute;top:50%;right:16px;transform:translateY(-50%);border:0;background:transparent;color:var(--muted);font-size:15px;cursor:pointer;z-index:2}"+
+  "#pmWidget .pm-settings{display:none;position:absolute;right:14px;bottom:calc(100% + 8px);width:230px;padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:var(--panel);box-shadow:0 12px 34px rgba(20,30,60,.18)}"+
   "#pmWidget .pm-settings.open{display:block}"+
   "#pmWidget .pm-set-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:7px;font-size:12px}"+
   "#pmWidget .pm-set-row input{width:54px;border:1px solid var(--line);border-radius:7px;padding:4px 7px;font:inherit;text-align:right}"+
-  "#pmWidget .pm-save{width:100%;border:0;background:var(--accent);color:#fff;border-radius:8px;padding:7px;font-weight:600;cursor:pointer;margin-top:3px}";
+  "#pmWidget .pm-save{width:100%;border:0;background:var(--accent);color:#fff;border-radius:8px;padding:7px;font-weight:600;cursor:pointer;margin-top:3px}"+
+  "@media(max-width:820px){body{padding-bottom:136px}#kcLauncher{bottom:142px}#kcPanel{bottom:142px;max-height:calc(100vh - 162px)}#pmWidget{min-height:120px;flex-direction:column}#pmWidget .pm-tabs{flex:0 0 40px;border-right:0;border-bottom:1px solid var(--line)}#pmWidget .pm-body{padding:10px 48px 12px 12px;flex-wrap:wrap;gap:9px 12px}#pmWidget .pm-label{display:none}#pmWidget .pm-time{font-size:32px;min-width:96px}#pmWidget .pm-hint{flex-basis:auto}#pmWidget .pm-count{order:5;flex-basis:100%}#pmWidget .pm-row{flex:1 1 auto;justify-content:flex-start}#pmWidget .pm-row button{padding:7px 9px;min-width:58px}#pmWidget .pm-gear{top:60px}}";
   document.head.appendChild(style);
 
   const w=document.createElement("div"); w.id="pmWidget";

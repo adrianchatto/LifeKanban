@@ -20,12 +20,11 @@ services:
       KANBAN_HOST: "0.0.0.0"
       KANBAN_PORT: "8787"
       KANBAN_DATA: "/data"
-      # First-run admin bootstrap. Set these BEFORE the first `up` so an admin
-      # account is created automatically (change the password after signing in).
-      # Once users.json exists in the volume they're ignored, so you can blank
-      # them again afterwards. Manage further users in the in-app Admin panel.
-      KANBAN_ADMIN_USER: "Ch@o"
-      KANBAN_ADMIN_PASSWORD: "change-me-now-8+chars"
+      # Optional first-run admin bootstrap. You can leave these unset and use
+      # Sign up in the browser instead; the first signup becomes the admin.
+      # Once users.json exists in the volume these are ignored.
+      # KANBAN_ADMIN_USER: "Ch@o"
+      # KANBAN_ADMIN_PASSWORD: "set-a-real-password"
       # Served behind HTTPS (https://kanban.chattoweb.com), so mark session
       # cookies Secure. NOTE: with this on, logins only work over HTTPS — reach
       # the board via the domain, not http://<ip>:8787 directly. Set to "0" if
