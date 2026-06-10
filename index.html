@@ -1955,7 +1955,15 @@ initSession().then(ok=>{
 (function(){
   "use strict";
   const KEY="kanban_pomodoro";
-  const DEF={ focus:25, short:5, long:15, longEvery:4, autostart:true };
+  const DEF={
+    focus:25,
+    short:5,
+    long:15,
+    longEvery:4,
+    autostart:true,
+    spotifyFocus:true,
+    spotifyUrl:"https://open.spotify.com/search/focus%20music"
+  };
 
   function load(){
     let s={}; try{ s=JSON.parse(localStorage.getItem(KEY)||"{}"); }catch(e){}
@@ -1969,7 +1977,10 @@ initSession().then(ok=>{
       remaining:(typeof s.remaining==="number")?s.remaining:null,
       running:!!s.running,
       endsAt:s.endsAt||0,
-      count:+s.count||0
+      count:+s.count||0,
+      spotifyFocus:s.spotifyFocus!==undefined?!!s.spotifyFocus:DEF.spotifyFocus,
+      spotifyUrl:(typeof s.spotifyUrl==="string" && s.spotifyUrl.trim())?s.spotifyUrl.trim():DEF.spotifyUrl,
+      focusMusicStarted:!!s.focusMusicStarted
     };
   }
   let st=load();
@@ -2004,24 +2015,37 @@ initSession().then(ok=>{
   function notify(title, body){
     try{ if(window.Notification && Notification.permission==="granted") new Notification(title,{body:body, icon:"/icon-192.png"}); }catch(e){}
   }
+  function openFocusMusic(markStarted){
+    const url=(st.spotifyUrl||"").trim();
+    if(!/^https:\/\/open\.spotify\.com\/.+/i.test(url) && !/^spotify:.+/i.test(url)) return false;
+    let opened=null;
+    try{ opened=window.open(url, "_blank", "noopener"); }catch(e){}
+    if(markStarted) st.focusMusicStarted=true;
+    return !!opened;
+  }
+  function launchFocusMusic(userInitiated){
+    if(!userInitiated || st.mode!=="focus" || !st.spotifyFocus || st.focusMusicStarted) return;
+    openFocusMusic(true);
+  }
 
   /* ---- core ---- */
   function fmt(s){ s=Math.max(0,s|0); const m=(s/60)|0, ss=s%60; return (m<10?"0":"")+m+":"+(ss<10?"0":"")+ss; }
 
   function setMode(mode, autoStart){
-    st.mode=mode; st.remaining=dur(mode); st.endsAt=0; st.running=false;
-    if(autoStart) start(); else { save(); render(); }
+    st.mode=mode; st.remaining=dur(mode); st.endsAt=0; st.running=false; st.focusMusicStarted=false;
+    if(autoStart) start(false); else { save(); render(); }
   }
-  function start(){
+  function start(userInitiated){
     if(st.remaining<=0) st.remaining=dur(st.mode);
+    launchFocusMusic(!!userInitiated);
     st.running=true; st.endsAt=Date.now()+st.remaining*1000; save(); render();
   }
   function pause(){
     if(st.running && st.endsAt) st.remaining=Math.max(0,Math.round((st.endsAt-Date.now())/1000));
     st.running=false; st.endsAt=0; save(); render();
   }
-  function toggle(){ st.running?pause():start(); }
-  function reset(){ st.running=false; st.endsAt=0; st.remaining=dur(st.mode); save(); render(); }
+  function toggle(userInitiated){ st.running?pause():start(userInitiated); }
+  function reset(){ st.running=false; st.endsAt=0; st.remaining=dur(st.mode); st.focusMusicStarted=false; save(); render(); }
   function complete(){
     beep();
     let next;
@@ -2059,6 +2083,7 @@ initSession().then(ok=>{
     el.tabs.forEach(b=> b.classList.toggle("on", b.dataset.m===st.mode));
     el.start.textContent = st.running?"Pause":"Start";
     el.start.classList.toggle("run", st.running);
+    if(el.music) el.music.style.display = st.spotifyFocus ? "" : "none";
     el.count.textContent = st.count>0 ? ("🍅".repeat(Math.min(st.count,8)) + (st.count>8?(" ×"+st.count):"")) : "No pomodoros yet";
     if(el.wheel) el.wheel.classList.toggle("running", st.running);
     if(el.hint) el.hint.textContent = st.running ? "" : (curMinutes()+" min · spin to change");
@@ -2073,12 +2098,15 @@ initSession().then(ok=>{
 
   function openSettings(){
     el.sFocus.value=st.focus; el.sShort.value=st.short; el.sLong.value=st.long;
+    el.sSpotifyFocus.checked=!!st.spotifyFocus; el.sSpotifyUrl.value=st.spotifyUrl||DEF.spotifyUrl;
     el.settings.classList.add("open");
   }
   function saveSettings(){
     st.focus=Math.min(180,Math.max(1,+el.sFocus.value||DEF.focus));
     st.short=Math.min(180,Math.max(1,+el.sShort.value||DEF.short));
     st.long =Math.min(180,Math.max(1,+el.sLong.value||DEF.long));
+    st.spotifyFocus=!!el.sSpotifyFocus.checked;
+    st.spotifyUrl=(el.sSpotifyUrl.value||"").trim()||DEF.spotifyUrl;
     if(!st.running) st.remaining=dur(st.mode);
     el.settings.classList.remove("open"); save(); render();
   }
@@ -2130,11 +2158,14 @@ initSession().then(ok=>{
   "#pmWidget .pm-row button{border:1px solid var(--line);background:#fff;border-radius:8px;padding:7px 12px;font-size:12px;font-weight:600;cursor:pointer;min-width:64px}"+
   "#pmWidget .pm-row .pm-start{background:var(--accent);color:#fff;border-color:var(--accent);min-width:78px}"+
   "#pmWidget .pm-row .pm-start.run{background:var(--doing);border-color:var(--doing)}"+
+  "#pmWidget .pm-row .pm-music{min-width:54px}"+
   "#pmWidget .pm-gear{position:absolute;top:50%;right:16px;transform:translateY(-50%);border:0;background:transparent;color:var(--muted);font-size:15px;cursor:pointer;z-index:2}"+
   "#pmWidget .pm-settings{display:none;position:absolute;right:14px;bottom:calc(100% + 8px);width:230px;padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:var(--panel);box-shadow:0 12px 34px rgba(20,30,60,.18)}"+
   "#pmWidget .pm-settings.open{display:block}"+
   "#pmWidget .pm-set-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:7px;font-size:12px}"+
   "#pmWidget .pm-set-row input{width:54px;border:1px solid var(--line);border-radius:7px;padding:4px 7px;font:inherit;text-align:right}"+
+  "#pmWidget .pm-set-row input[type=checkbox]{width:auto}"+
+  "#pmWidget .pm-spotify-url{display:block;width:100%;box-sizing:border-box;border:1px solid var(--line);border-radius:7px;padding:6px 7px;font:inherit;font-size:12px;margin:0 0 8px;text-align:left}"+
   "#pmWidget .pm-save{width:100%;border:0;background:var(--accent);color:#fff;border-radius:8px;padding:7px;font-weight:600;cursor:pointer;margin-top:3px}"+
   "@media(max-width:820px){body{padding-bottom:136px}#kcLauncher{bottom:142px}#kcPanel{bottom:142px;max-height:calc(100vh - 162px)}#pmWidget{min-height:120px;flex-direction:column}#pmWidget .pm-tabs{flex:0 0 40px;border-right:0;border-bottom:1px solid var(--line)}#pmWidget .pm-body{padding:10px 48px 12px 12px;flex-wrap:wrap;gap:9px 12px}#pmWidget .pm-label{display:none}#pmWidget .pm-time{font-size:32px;min-width:96px}#pmWidget .pm-hint{flex-basis:auto}#pmWidget .pm-count{order:5;flex-basis:100%}#pmWidget .pm-row{flex:1 1 auto;justify-content:flex-start}#pmWidget .pm-row button{padding:7px 9px;min-width:58px}#pmWidget .pm-gear{top:60px}}";
   document.head.appendChild(style);
@@ -2158,6 +2189,7 @@ initSession().then(ok=>{
       '<div class="pm-count" id="pmCount"></div>'+
       '<div class="pm-row">'+
         '<button class="pm-start" id="pmStart" type="button">Start</button>'+
+        '<button class="pm-music" id="pmMusic" type="button" title="Open Spotify focus music">Music</button>'+
         '<button id="pmReset" type="button">Reset</button>'+
         '<button id="pmSkip" type="button">Skip</button>'+
       '</div>'+
@@ -2166,6 +2198,8 @@ initSession().then(ok=>{
       '<div class="pm-set-row"><span>Focus (min)</span><input id="pmSetFocus" type="number" min="1" max="180"></div>'+
       '<div class="pm-set-row"><span>Short break</span><input id="pmSetShort" type="number" min="1" max="180"></div>'+
       '<div class="pm-set-row"><span>Long break</span><input id="pmSetLong" type="number" min="1" max="180"></div>'+
+      '<div class="pm-set-row"><span>Open Spotify on focus start</span><input id="pmSetSpotifyFocus" type="checkbox"></div>'+
+      '<input class="pm-spotify-url" id="pmSetSpotifyUrl" type="url" inputmode="url" placeholder="Spotify focus URL">'+
       '<button class="pm-save" id="pmSave" type="button">Save</button>'+
     '</div>';
   document.body.appendChild(w);
@@ -2176,15 +2210,19 @@ initSession().then(ok=>{
   el.label=document.getElementById("pmLabel");
   el.count=document.getElementById("pmCount");
   el.start=document.getElementById("pmStart");
+  el.music=document.getElementById("pmMusic");
   el.wheel=document.getElementById("pmWheel");
   el.hint=document.getElementById("pmHint");
   el.settings=document.getElementById("pmSettings");
   el.sFocus=document.getElementById("pmSetFocus");
   el.sShort=document.getElementById("pmSetShort");
   el.sLong=document.getElementById("pmSetLong");
+  el.sSpotifyFocus=document.getElementById("pmSetSpotifyFocus");
+  el.sSpotifyUrl=document.getElementById("pmSetSpotifyUrl");
 
   el.tabs.forEach(b=> b.onclick=()=>{ if(b.dataset.m!==st.mode) setMode(b.dataset.m, false); });
-  el.start.onclick=()=>{ if(!st.running){ try{ if(window.Notification && Notification.permission==="default") Notification.requestPermission(); }catch(e){} } toggle(); };
+  el.start.onclick=()=>{ if(!st.running){ try{ if(window.Notification && Notification.permission==="default") Notification.requestPermission(); }catch(e){} } toggle(true); };
+  el.music.onclick=()=>{ openFocusMusic(false); };
   document.getElementById("pmReset").onclick=reset;
   document.getElementById("pmSkip").onclick=skip;
   document.getElementById("pmGear").onclick=()=>{ el.settings.classList.contains("open")?el.settings.classList.remove("open"):openSettings(); };
