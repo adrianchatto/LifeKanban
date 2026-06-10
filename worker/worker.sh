@@ -116,7 +116,7 @@ run_ai(){
   case "$AI_PROVIDER" in
     codex)
       set +e
-      "$AI_BIN" exec -C "$REPO_DIR" --sandbox workspace-write --ask-for-approval never \
+      "$AI_BIN" exec -C "$REPO_DIR" --skip-git-repo-check --sandbox workspace-write \
         -o "$final_file" $AI_ARGS "$prompt" >"$RESULTS_DIR/$id.out" 2>"$RESULTS_DIR/$id.err"
       rc=$?
       set -e
