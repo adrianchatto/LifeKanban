@@ -19,6 +19,7 @@
   .hint{color:var(--muted);font-size:12.5px;margin:0 0 14px}
   label{display:block;font-size:12.5px;color:var(--muted);margin:12px 0 6px;font-weight:600}
   input,select,textarea{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:9px;font-size:14.5px;background:#fff}
+  input[type=color]{height:42px;padding:4px}
   textarea{min-height:120px;resize:vertical;font:14.5px/1.45 -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif}
   input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 3px rgba(59,108,246,.15)}
   .row{display:flex;gap:12px}.row>div{flex:1}
@@ -81,6 +82,35 @@
   </div>
 
   <div class="card">
+    <h2>Appearance</h2>
+    <p class="hint">Choose the colour used by the board's top bar.</p>
+    <label for="topbar">Top bar colour</label>
+    <input id="topbar" type="color" value="#ffffff">
+    <div>
+      <button id="savePrefs" type="button">Save appearance</button>
+      <button id="resetTopbar" class="ghost" type="button">Reset</button>
+    </div>
+    <div class="msg" id="prefMsg"></div>
+  </div>
+
+  <div class="card">
+    <h2>Pushover</h2>
+    <p class="hint">Send due and overdue card alerts to Pushover while the board is running.</p>
+    <label for="poUser">User key</label>
+    <input id="poUser" type="password" placeholder="Paste your Pushover user key">
+    <label for="poToken">Application token</label>
+    <input id="poToken" type="password" placeholder="Paste your Pushover app token">
+    <label><input id="poEnabled" type="checkbox" style="width:auto;margin-right:7px"> Enable Pushover alerts</label>
+    <div class="keystate" id="poState">Pushover is not set.</div>
+    <div>
+      <button id="savePush" type="button">Save Pushover</button>
+      <button id="testPush" class="ghost" type="button">Send test</button>
+      <button id="clearPush" class="danger" type="button">Remove</button>
+    </div>
+    <div class="msg" id="pushMsg"></div>
+  </div>
+
+  <div class="card">
     <h2>Clean up text</h2>
     <p class="hint">Paste rough notes, dictated text or messy wording and clean it up using your saved AI key.</p>
     <label for="cleanIn">Text to clean</label>
@@ -113,6 +143,11 @@
       (u.ai_provider?(' · '+u.ai_provider):'')+(u.ai_model?(' · '+u.ai_model):'')+'.'; }
     if(u.ai_provider) document.getElementById('provider').value=u.ai_provider;
     if(u.ai_model) document.getElementById('model').value=u.ai_model;
+    document.getElementById('topbar').value=u.topbar_color||'#ffffff';
+    document.getElementById('poEnabled').checked=!!u.pushover_enabled;
+    document.getElementById('poState').textContent=u.has_pushover
+      ? 'Pushover details are saved'+(u.pushover_enabled?' and enabled.':'.')
+      : 'Pushover is not set.';
   });
 
   document.getElementById('saveKey').onclick=function(){
@@ -148,6 +183,51 @@
         show('pwMsg',true,'Password updated.');
         document.getElementById('old').value=document.getElementById('new1').value=document.getElementById('new2').value='';
       }).catch(function(e){ show('pwMsg',false,e.message); });
+  };
+  function savePrefs(body){
+    return fetch('/api/account/preferences',{method:'POST',headers:H(),body:JSON.stringify(body)})
+      .then(function(r){return r.json().then(function(j){return {ok:r.ok,j:j};});})
+      .then(function(res){ if(!res.ok) throw new Error(res.j.error||'Failed'); return res.j.user; });
+  }
+  document.getElementById('savePrefs').onclick=function(){
+    savePrefs({topbar_color:document.getElementById('topbar').value})
+      .then(function(){ show('prefMsg',true,'Saved.'); })
+      .catch(function(e){ show('prefMsg',false,e.message); });
+  };
+  document.getElementById('resetTopbar').onclick=function(){
+    document.getElementById('topbar').value='#ffffff';
+    savePrefs({topbar_color:''})
+      .then(function(){ show('prefMsg',true,'Reset.'); })
+      .catch(function(e){ show('prefMsg',false,e.message); });
+  };
+  document.getElementById('savePush').onclick=function(){
+    savePrefs({
+      pushover_enabled:document.getElementById('poEnabled').checked,
+      pushover_user:document.getElementById('poUser').value.trim(),
+      pushover_token:document.getElementById('poToken').value.trim()
+    }).then(function(u){
+      document.getElementById('poUser').value='';
+      document.getElementById('poToken').value='';
+      document.getElementById('poState').textContent=u.has_pushover
+        ? 'Pushover details are saved'+(u.pushover_enabled?' and enabled.':'.')
+        : 'Pushover is not set.';
+      show('pushMsg',true,'Saved.');
+    }).catch(function(e){ show('pushMsg',false,e.message); });
+  };
+  document.getElementById('clearPush').onclick=function(){
+    savePrefs({clear_pushover:true})
+      .then(function(){
+        document.getElementById('poEnabled').checked=false;
+        document.getElementById('poState').textContent='Pushover is not set.';
+        show('pushMsg',true,'Removed.');
+      }).catch(function(e){ show('pushMsg',false,e.message); });
+  };
+  document.getElementById('testPush').onclick=function(){
+    fetch('/api/pushover',{method:'POST',headers:H(),body:JSON.stringify({
+      title:'LifeKanban test', message:'Pushover is connected.'
+    })}).then(function(r){return r.json().then(function(j){return {ok:r.ok,j:j};});})
+      .then(function(res){ if(!res.ok) throw new Error(res.j.error||'Failed'); show('pushMsg',true,'Test sent.'); })
+      .catch(function(e){ show('pushMsg',false,e.message); });
   };
   document.getElementById('cleanBtn').onclick=function(){
     var text=document.getElementById('cleanIn').value.trim();

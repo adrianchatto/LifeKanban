@@ -22,6 +22,7 @@ import time
 import webbrowser
 from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from urllib import parse as urlparse
 from urllib import request as urlrequest
 from urllib import error as urlerror
 
@@ -485,6 +486,48 @@ class Handler(BaseHTTPRequestHandler):
             self._json(200, {"ok": True, "user": pub})
             return
 
+        if path == "/api/account/preferences":
+            s = self.require_user()
+            if not s or not self.check_csrf(s):
+                return
+            body = self._read_json() or {}
+            try:
+                pub = auth.set_preferences(
+                    s["username"],
+                    topbar_color=body.get("topbar_color"),
+                    pushover_enabled=body.get("pushover_enabled"),
+                    pushover_user=body.get("pushover_user"),
+                    pushover_token=body.get("pushover_token"),
+                    clear_pushover=bool(body.get("clear_pushover")),
+                )
+            except ValueError as e:
+                self._json(400, {"error": str(e)})
+                return
+            self._json(200, {"ok": True, "user": pub})
+            return
+
+        if path == "/api/pushover":
+            s = self.require_user()
+            if not s or not self.check_csrf(s):
+                return
+            body = self._read_json() or {}
+            title = (body.get("title") or "LifeKanban").strip()[:250]
+            message = (body.get("message") or "").strip()[:1024]
+            if not message:
+                self._json(400, {"error": "message required"})
+                return
+            creds = auth.get_pushover(s["username"])
+            if not creds:
+                self._json(400, {"error": "Pushover is not configured"})
+                return
+            try:
+                self._send_pushover(creds["token"], creds["user"], title, message)
+            except Exception as e:
+                self._json(502, {"error": "Pushover failed: " + str(e)})
+                return
+            self._json(200, {"ok": True})
+            return
+
         if path == "/api/ai/parse":
             s = self.require_user()
             if not s or not self.check_csrf(s):
@@ -700,6 +743,23 @@ class Handler(BaseHTTPRequestHandler):
         req = urlrequest.Request(url, data=data, method="POST", headers=headers)
         try:
             with urlrequest.urlopen(req, timeout=30) as r:
+                return json.loads(r.read().decode("utf-8"))
+        except urlerror.HTTPError as e:
+            detail = e.read().decode("utf-8", "replace")[:300]
+            raise RuntimeError("%s %s" % (e.code, detail))
+
+    def _send_pushover(self, app_token, user_key, title, message):
+        data = urlparse.urlencode({
+            "token": app_token,
+            "user": user_key,
+            "title": title,
+            "message": message,
+        }).encode("utf-8")
+        req = urlrequest.Request("https://api.pushover.net/1/messages.json",
+                                 data=data, method="POST",
+                                 headers={"Content-Type": "application/x-www-form-urlencoded"})
+        try:
+            with urlrequest.urlopen(req, timeout=15) as r:
                 return json.loads(r.read().decode("utf-8"))
         except urlerror.HTTPError as e:
             detail = e.read().decode("utf-8", "replace")[:300]

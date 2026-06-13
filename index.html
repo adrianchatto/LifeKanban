@@ -25,6 +25,7 @@
     --todo:#8a93a6; --doing:#e0a008; --done:#11a06b; --ok:#e0533b;
     --shadow:0 1px 3px rgba(20,30,60,.07),0 6px 18px rgba(20,30,60,.05);
     --field:#fbfcfe; --surface:#ffffff; --chip:#f1f3f9; --chipink:#3b4252;
+    --topbar:var(--panel);
   }
   :root[data-theme="dark"]{
     --bg:#0f131a; --panel:#1a212e; --ink:#e7eaf1; --muted:#98a2b6;
@@ -76,7 +77,7 @@
   body{margin:0;font:14px/1.5 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
     color:var(--ink);background:var(--bg)}
   header{display:flex;align-items:center;gap:16px;padding:14px 22px;
-    background:var(--panel);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:5}
+    background:var(--topbar);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:5}
   header h1{font-size:17px;margin:0;font-weight:700;letter-spacing:-.2px}
   header .dot{width:10px;height:10px;border-radius:50%;background:#cdd3e0;margin-right:-8px}
   header .dot.live{background:var(--done);box-shadow:0 0 0 3px rgba(17,160,107,.18)}
@@ -274,6 +275,12 @@
 window.__csrf = '';
 window.__me = null;
 window.__ai = {};
+window.__prefs = {};
+function applyAccountPrefs(){
+  const p=window.__prefs||{};
+  const color=(p.topbar_color||"").trim();
+  document.documentElement.style.setProperty("--topbar", color || "var(--panel)");
+}
 async function initSession(){
   const r = await fetch('/api/me',{cache:'no-store'});
   if(r.status===401){ location.replace('/login.html'); return false; }
@@ -283,6 +290,12 @@ async function initSession(){
   window.__me = d.user || null;
   window.__ai = {provider:d.ai_provider||'', model:d.ai_model||'',
                  hasKey:!!(d.user&&d.user.has_api_key), last4:(d.user&&d.user.api_key_last4)||''};
+  window.__prefs = {
+    topbar_color:(d.user&&d.user.topbar_color)||"",
+    pushover_enabled:!!(d.user&&d.user.pushover_enabled),
+    has_pushover:!!(d.user&&d.user.has_pushover)
+  };
+  applyAccountPrefs();
   return true;
 }
 </script>
@@ -700,8 +713,14 @@ function updateAlertBtn(){
   if(Notification.permission==="granted"){ b.textContent="🔔 Alerts on"; b.disabled=true; b.style.opacity=.6; }
   else if(Notification.permission==="denied"){ b.textContent="🔕 Alerts blocked"; b.disabled=true; b.style.opacity=.6; }
 }
+function sendPushover(title, message){
+  const p=window.__prefs||{};
+  if(!p.pushover_enabled || !p.has_pushover) return;
+  fetch('/api/pushover',{method:'POST',
+    headers:{"Content-Type":"application/json","X-Kanban-CSRF":(window.__csrf||"")},
+    body:JSON.stringify({title:title,message:message})}).catch(()=>{});
+}
 function checkNotifications(){
-  if(!("Notification" in window) || Notification.permission!=="granted") return;
   const today = startOfDay(new Date());
   const noted = notedSet();
   (board.cards||[]).forEach(c=>{
@@ -712,8 +731,11 @@ function checkNotifications(){
     if(days < 0){ key="over|"+c.id+"|"+todayISO(); body=c.title+" is "+(-days)+" day(s) overdue."; }
     else if(days <= 1){ key="soon|"+c.id+"|"+c.due; body=c.title+(days===0?" is due today.":" is due tomorrow."); }
     if(key && !noted.has(key)){
-      new Notification(days<0?"⚠ Overdue card":"📅 Due soon",
-        {body:body+"  ("+c.project+")", tag:c.id});
+      const title=days<0?"Overdue card":"Due soon";
+      const message=body+"  ("+(c.project||"General")+")";
+      if("Notification" in window && Notification.permission==="granted")
+        new Notification(days<0?"⚠ "+title:"📅 "+title, {body:message, tag:c.id});
+      sendPushover(title, message);
       noted.add(key);
     }
   });
