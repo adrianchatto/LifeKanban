@@ -513,6 +513,30 @@ class Handler(BaseHTTPRequestHandler):
             self._json(200, {"ok": True, "card": parsed})
             return
 
+        if path == "/api/ai/clean":
+            s = self.require_user()
+            if not s or not self.check_csrf(s):
+                return
+            body = self._read_json() or {}
+            text = (body.get("text") or "").strip()
+            if not text:
+                self._json(400, {"error": "text required"})
+                return
+            u = auth.find_user(s["username"])
+            provider = (u.get("ai_provider") or "").strip().lower()
+            model = (u.get("ai_model") or "").strip()
+            api_key = auth.get_api_key(s["username"])
+            if provider not in AI_PROVIDERS or not model or not api_key:
+                self._json(400, {"error": "AI provider, model and API key are not configured"})
+                return
+            try:
+                cleaned = self._ai_clean(provider, model, api_key, text)
+            except Exception as e:
+                self._json(502, {"error": "AI request failed: " + str(e)})
+                return
+            self._json(200, {"ok": True, "text": cleaned})
+            return
+
         if path == "/api/worker/run":
             s = self.require_user()
             if not s or not self.check_csrf(s):
@@ -638,6 +662,38 @@ class Handler(BaseHTTPRequestHandler):
                 raise ValueError("AI did not return JSON")
             parsed = json.loads(m.group(0))
         return self._normalise_ai_card(parsed)
+
+    def _ai_clean(self, provider, model, api_key, text):
+        sys_prompt = (
+            "Clean up rough, dictated, pasted, or messy text. Preserve the user's "
+            "meaning and important details. Fix spelling, punctuation, grammar, "
+            "line breaks, and obvious wording issues. Return only the cleaned text, "
+            "with no preamble, no notes, and no Markdown fence."
+        )
+        if provider == "anthropic":
+            payload = {"model": model, "max_tokens": 1200, "system": sys_prompt,
+                       "messages": [{"role": "user", "content": text}]}
+            headers = {"Content-Type": "application/json", "x-api-key": api_key,
+                       "anthropic-version": "2023-06-01"}
+            raw = self._http_json("https://api.anthropic.com/v1/messages",
+                                  headers, payload)
+            content = raw.get("content") or []
+            answer = "\n".join(p.get("text", "") for p in content
+                               if isinstance(p, dict) and p.get("text"))
+        else:
+            payload = {"model": model, "temperature": 0.2,
+                       "messages": [{"role": "system", "content": sys_prompt},
+                                    {"role": "user", "content": text}]}
+            headers = {"Content-Type": "application/json",
+                       "Authorization": "Bearer " + api_key}
+            raw = self._http_json("https://api.openai.com/v1/chat/completions",
+                                  headers, payload)
+            choices = raw.get("choices") or []
+            answer = choices[0].get("message", {}).get("content", "") if choices else ""
+        answer = (answer or "").strip()
+        if not answer:
+            raise ValueError("AI returned no text")
+        return answer
 
     def _http_json(self, url, headers, payload):
         data = json.dumps(payload).encode("utf-8")

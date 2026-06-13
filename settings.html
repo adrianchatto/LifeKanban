@@ -18,8 +18,9 @@
   h2{font-size:15.5px;margin:0 0 4px}
   .hint{color:var(--muted);font-size:12.5px;margin:0 0 14px}
   label{display:block;font-size:12.5px;color:var(--muted);margin:12px 0 6px;font-weight:600}
-  input,select{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:9px;font-size:14.5px;background:#fff}
-  input:focus,select:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 3px rgba(59,108,246,.15)}
+  input,select,textarea{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:9px;font-size:14.5px;background:#fff}
+  textarea{min-height:120px;resize:vertical;font:14.5px/1.45 -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif}
+  input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 3px rgba(59,108,246,.15)}
   .row{display:flex;gap:12px}.row>div{flex:1}
   button{margin-top:16px;padding:10px 16px;background:var(--blue);color:#fff;border:0;border-radius:9px;
          font-size:14px;font-weight:600;cursor:pointer}
@@ -30,6 +31,7 @@
   .msg.bad{display:block;color:#c0392b;background:#fdecea;border:1px solid #f5c6c0}
   .keystate{font-size:13px;color:var(--muted);margin-bottom:6px}
   code{background:#eef1f7;padding:1px 6px;border-radius:5px}
+  .tools{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
 </style>
 </head>
 <body>
@@ -76,6 +78,20 @@
     <input id="new2" type="password" autocomplete="new-password">
     <button id="savePw">Update password</button>
     <div class="msg" id="pwMsg"></div>
+  </div>
+
+  <div class="card">
+    <h2>Clean up text</h2>
+    <p class="hint">Paste rough notes, dictated text or messy wording and clean it up using your saved AI key.</p>
+    <label for="cleanIn">Text to clean</label>
+    <textarea id="cleanIn" placeholder="Paste text here..."></textarea>
+    <div class="tools">
+      <button id="cleanBtn" type="button">Clean up text</button>
+      <button id="copyClean" class="ghost" type="button">Copy result</button>
+    </div>
+    <label for="cleanOut">Cleaned result</label>
+    <textarea id="cleanOut" readonly placeholder="The cleaned version will appear here."></textarea>
+    <div class="msg" id="cleanMsg"></div>
   </div>
 </div>
 <script>
@@ -132,6 +148,26 @@
         show('pwMsg',true,'Password updated.');
         document.getElementById('old').value=document.getElementById('new1').value=document.getElementById('new2').value='';
       }).catch(function(e){ show('pwMsg',false,e.message); });
+  };
+  document.getElementById('cleanBtn').onclick=function(){
+    var text=document.getElementById('cleanIn').value.trim();
+    if(!text){ show('cleanMsg',false,'Paste some text first.'); return; }
+    document.getElementById('cleanBtn').disabled=true;
+    show('cleanMsg',true,'Cleaning...');
+    fetch('/api/ai/clean',{method:'POST',headers:H(),body:JSON.stringify({text:text})})
+      .then(function(r){return r.json().then(function(j){return {ok:r.ok,j:j};});})
+      .then(function(res){ if(!res.ok) throw new Error(res.j.error||'Failed');
+        document.getElementById('cleanOut').value=res.j.text||'';
+        show('cleanMsg',true,'Cleaned.');
+      }).catch(function(e){ show('cleanMsg',false,e.message); })
+      .finally(function(){ document.getElementById('cleanBtn').disabled=false; });
+  };
+  document.getElementById('copyClean').onclick=function(){
+    var text=document.getElementById('cleanOut').value;
+    if(!text){ show('cleanMsg',false,'Nothing to copy yet.'); return; }
+    navigator.clipboard.writeText(text)
+      .then(function(){ show('cleanMsg',true,'Copied.'); })
+      .catch(function(){ document.getElementById('cleanOut').select(); show('cleanMsg',true,'Selected.'); });
   };
 </script>
 </body>
