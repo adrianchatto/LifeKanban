@@ -248,6 +248,15 @@
   .attchip .x{border:0;background:none;color:var(--muted);cursor:pointer;font-size:16px;line-height:1;flex:none}
   .att-badge{font-size:11px;color:var(--muted);background:#f1f3f9;border-radius:6px;padding:2px 7px}
   .att-uploading{opacity:.6;font-size:12px;color:var(--muted)}
+  .comment-badge{font-size:11px;color:var(--muted);background:#f1f3f9;border-radius:6px;padding:2px 7px}
+  .comments{display:flex;flex-direction:column;gap:8px;margin-top:4px}
+  .comment{border:1px solid var(--line);border-radius:10px;background:var(--surface);padding:8px 10px}
+  .comment-meta{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:11px;font-weight:600;margin-bottom:4px}
+  .comment-meta span:first-child{color:var(--ink)}
+  .comment-body{white-space:pre-wrap;font-size:13px}
+  .comment-compose{display:flex;gap:8px;margin-top:8px}
+  .comment-compose textarea{min-height:58px;flex:1}
+  .comment-compose .btn{align-self:flex-start}
   /* admin panel */
   .adminsec{border:1px solid var(--line);border-radius:11px;padding:4px 14px;margin-top:12px;background:var(--field)}
   .adminrow{display:flex;align-items:center;gap:12px;padding:11px 0}
@@ -497,6 +506,12 @@ async function initSession(){
       <input type="file" id="fAttachInput" multiple style="display:none">
     </div>
     <div id="fAttachments" class="attlist"></div>
+    <label>Comments</label>
+    <div id="fComments" class="comments"></div>
+    <div class="comment-compose">
+      <textarea id="fCommentInput" placeholder="Add a comment…"></textarea>
+      <button type="button" class="btn" id="fCommentAdd">Add</button>
+    </div>
     <div class="log" id="mLog" style="display:none"></div>
     <div class="actions">
       <button class="btn danger" id="delBtn" style="display:none">Delete</button>
@@ -525,6 +540,7 @@ function normPrio(p){ p=(p||"").toString().toLowerCase(); return (p==="high"||p=
 let recurDays = new Set();   // weekly selection, Mon=0..Sun=6
 let editSubtasks = [];        // [{text, done}] while editing a card
 let editAttachments = [];     // [{name,url,orig,type,size}] while editing a card
+let editComments = [];        // [{author,text,created}] while editing a card
 let collapsedCols = (()=>{
   try{ const raw=localStorage.getItem("kanban_collapsed"); if(raw){ const o=JSON.parse(raw); if(o&&typeof o==="object") return o; } }catch(e){}
   let showDone=false; try{ showDone=localStorage.getItem("kanban_showdone")==="1"; }catch(e){}
@@ -654,7 +670,7 @@ function cardHTML(c){
     ${idBadge}
     <p class="ttl">${esc(c.title)}</p>
     ${c.description?`<p class="desc">${esc(c.description)}</p>`:""}
-    <div class="row">${prioBadge(c)}${who}${projChip(c.project)}${dueBadge(c)}${subProgress(c)}${attachBadge(c)}</div>
+    <div class="row">${prioBadge(c)}${who}${projChip(c.project)}${dueBadge(c)}${subProgress(c)}${attachBadge(c)}${commentBadge(c)}</div>
     ${extra}
   </article>`;
 }
@@ -667,6 +683,11 @@ function attachBadge(c){
   const n = (c.attachments||[]).length;
   if(!n) return "";
   return `<span class="att-badge" title="${n} attachment${n>1?'s':''}">📎 ${n}</span>`;
+}
+function commentBadge(c){
+  const n = (c.comments||[]).length;
+  if(!n) return "";
+  return `<span class="comment-badge" title="${n} comment${n>1?'s':''}">💬 ${n}</span>`;
 }
 
 /* ---- due dates ---- */
@@ -934,6 +955,7 @@ function openNew(){
   $("#delBtn").style.display="none"; $("#mLog").style.display="none";
   editSubtasks=[]; renderSubtasks();
   editAttachments=[]; renderAttachments();
+  editComments=[]; renderComments();
   setSeg(); setPrioSeg(); setRecurControls(null); refreshDatalist(); openScrim();
 }
 function setPrioSeg(){
@@ -951,6 +973,9 @@ function openEdit(id){
   $("#delBtn").style.display="inline-block";
   editSubtasks=(c.subtasks||[]).map(s=>({text:s.text, done:!!s.done})); renderSubtasks();
   editAttachments=(c.attachments||[]).map(a=>({...a})); renderAttachments();
+  editComments=(c.comments||[]).map(cm=>({
+    author:cm.author||"Ch@o", text:cm.text||"", created:cm.created||cm.timestamp||""
+  })); renderComments();
   setSeg(); setPrioSeg(); setRecurControls(c); refreshDatalist();
   const log = c.log||[];
   $("#mLog").style.display = log.length?"block":"none";
@@ -1014,6 +1039,36 @@ function addSubtask(){
   const v=$("#fSubInput").value.trim(); if(!v) return;
   editSubtasks.push({text:v, done:false});
   $("#fSubInput").value=""; renderSubtasks(); $("#fSubInput").focus();
+}
+function fmtCommentTime(iso){
+  if(!iso) return "";
+  const d=new Date(iso);
+  if(isNaN(d.getTime())) return iso;
+  return d.toLocaleString(undefined,{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"});
+}
+function renderComments(){
+  const wrap=$("#fComments"); if(!wrap) return;
+  if(!editComments.length){
+    wrap.innerHTML = `<div class="empty" style="padding:8px 0;text-align:left">No comments yet.</div>`;
+    return;
+  }
+  wrap.innerHTML = editComments.map((cm,i)=>`
+    <div class="comment">
+      <div class="comment-meta">
+        <span>${esc(cm.author||"Ch@o")}</span>
+        <time>${esc(fmtCommentTime(cm.created))}</time>
+        <button type="button" class="x" data-cx="${i}" title="Remove" style="margin-left:auto;border:0;background:none;color:var(--muted);cursor:pointer;font-size:16px;line-height:1">×</button>
+      </div>
+      <div class="comment-body">${esc(cm.text||"")}</div>
+    </div>`).join("");
+  wrap.querySelectorAll(".x").forEach(b=>
+    b.onclick=()=>{ editComments.splice(+b.dataset.cx,1); renderComments(); });
+}
+function addComment(){
+  const v=$("#fCommentInput").value.trim(); if(!v) return;
+  const me=(window.__me&&window.__me.username)||"Ch@o";
+  editComments.push({author:me, text:v, created:new Date().toISOString()});
+  $("#fCommentInput").value=""; renderComments(); $("#fCommentInput").focus();
 }
 /* ---- attachments ---- */
 function fmtSize(n){
@@ -1082,6 +1137,7 @@ function save(){
     c.priority=priorityChoice;
     c.subtasks=editSubtasks.map(s=>({text:s.text, done:!!s.done}));
     c.attachments=editAttachments.map(a=>({...a}));
+    c.comments=editComments.map(cm=>({...cm}));
     if(c.assignee!==assigneeChoice){
       (c.log=c.log||[]).push(new Date().toISOString()+" assigned to "+assigneeChoice);
       c.assignee=assigneeChoice;
@@ -1096,6 +1152,7 @@ function save(){
       title, description:desc, project, assignee:assigneeChoice, priority:priorityChoice,
       status:"todo", due, recur, subtasks:editSubtasks.map(s=>({text:s.text, done:!!s.done})),
       attachments:editAttachments.map(a=>({...a})), skill:null, result_link:null,
+      comments:editComments.map(cm=>({...cm})),
       created:new Date().toISOString(), updated:new Date().toISOString(),
       log:["created"]
     };
@@ -1282,6 +1339,10 @@ function removeProject(p){
 $("#fRepeat").onchange=syncRepeatUI;
 $("#fSubAdd").onclick=addSubtask;
 $("#fSubInput").addEventListener("keydown",e=>{ if(e.key==="Enter"){e.preventDefault();addSubtask();} });
+$("#fCommentAdd").onclick=addComment;
+$("#fCommentInput").addEventListener("keydown",e=>{
+  if((e.metaKey||e.ctrlKey) && e.key==="Enter"){ e.preventDefault(); addComment(); }
+});
 /* attachments: choose-file, drag-drop, paste-screenshot */
 $("#fAttachBtn").onclick=()=>$("#fAttachInput").click();
 $("#fAttachInput").onchange=e=>{ uploadFiles(e.target.files); e.target.value=""; };
@@ -1616,7 +1677,10 @@ initSession().then(ok=>{
       populateProjectSelect(d.project||"General");
       $("#fDue").value=d.due||"";
       $("#delBtn").style.display="none"; $("#mLog").style.display="none";
-      editSubtasks=[]; renderSubtasks(); setSeg(); if(typeof setPrioSeg==="function") setPrioSeg();
+      editSubtasks=[]; renderSubtasks();
+      editAttachments=[]; renderAttachments();
+      editComments=[]; renderComments();
+      setSeg(); if(typeof setPrioSeg==="function") setPrioSeg();
       recurDays = new Set();
       if(d.recur){ $("#fRepeat").value=d.recur.freq;
         if(d.recur.freq==="weekly" && d.recur.days) d.recur.days.forEach(x=>recurDays.add(+x));
