@@ -140,6 +140,46 @@ run_ai(){
   esac
 }
 
+notify_ai_done(){
+  local id="$1" title="$2" project="$3"
+  python3 - "$id" "$title" "$project" <<'PY' || true
+import json
+import sys
+from urllib import parse as urlparse
+from urllib import request as urlrequest
+
+import auth
+
+card_id, title, project = sys.argv[1:4]
+message = "%s is done%s." % (title, (" (" + project + ")" if project else ""))
+payload_title = "LifeKanban " + card_id
+
+try:
+    users = auth._load_raw().get("users", [])
+except Exception:
+    users = []
+
+for user in users:
+    try:
+        creds = auth.get_pushover(user.get("username"))
+        if not creds:
+            continue
+        data = urlparse.urlencode({
+            "token": creds["token"],
+            "user": creds["user"],
+            "title": payload_title,
+            "message": message,
+        }).encode("utf-8")
+        req = urlrequest.Request("https://api.pushover.net/1/messages.json",
+                                 data=data, method="POST",
+                                 headers={"Content-Type": "application/x-www-form-urlencoded"})
+        with urlrequest.urlopen(req, timeout=15) as resp:
+            resp.read()
+    except Exception:
+        pass
+PY
+}
+
 # Single-instance guard so overlapping cron runs don't double-process a card.
 # Uses an atomic mkdir lock (portable across macOS and Linux — no `flock`
 # needed). A lock left by a crashed run older than an hour is treated as stale.
@@ -230,6 +270,7 @@ EOF
   else
     kb log "$id" "worker completed; result file on worker host: $result_file" >/dev/null
     kb move "$id" done >/dev/null
+    notify_ai_done "$id" "$title" "$project"
     log "$id -> done"
   fi
   return 0
