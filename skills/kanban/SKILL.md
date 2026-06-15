@@ -90,7 +90,8 @@ see `.gitignore` — so screenshots stay on Ch@o's machine.)
 - **assignee**: default `Ch@o` (his own to-dos). Use `AI` only when he wants
   *you* to do the task — the background worker then picks it up.
 - **project**: `General` for personal errands; otherwise the project he names
-  (e.g. `NEO-015`). Valid statuses: `todo`, `doing`, `done`, `needs_ok`.
+  (e.g. `NEO-015`). Valid statuses: `todo`, `doing`, `waiting`, `needs_ok`,
+  `done`.
 - **due**: only if he gives one. "midnight tonight"/"by end of today" → today's
   date (date granularity). Get today's date from the system, don't guess.
 - **recur** (recurring tasks): only when he asks for something repeating. Pass
@@ -109,7 +110,7 @@ see `.gitignore` — so screenshots stay on Ch@o's machine.)
 
 ```
 python3 kanban.py list [--assignee AI] [--status todo]
-python3 kanban.py move <id> <todo|doing|done|needs_ok>
+python3 kanban.py move <id> <todo|doing|waiting|needs_ok|done>
 python3 kanban.py assign <id> <Ch@o|AI>
 python3 kanban.py set-due <id> <YYYY-MM-DD|clear>
 python3 kanban.py set-result <id> <results/<id>.md>

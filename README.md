@@ -29,6 +29,23 @@ To let AI-assigned cards run automatically, double-click
 checks the board immediately and then every 15 minutes. Double-click
 **`Disable AI Worker.command`** to turn it off.
 
+To pull near-term calendar commitments into the board, double-click
+**`Enable Calendar Sync.command`** once. It installs a local scheduled importer
+that runs immediately and then hourly, reads macOS Calendar events starting in
+the next two days, and creates To Do cards for events that are not already on
+the board. Imported cards are assigned to `Ch@o`, use project `General`, and
+carry a `Calendar:` title plus the event start/end details in the description.
+The importer stores a Calendar source key on each card, so repeated runs do not
+create duplicates. Use **`Disable Calendar Sync.command`** to turn it off.
+
+First run may trigger macOS privacy approval for Calendar access. To preview
+what would be imported before enabling the schedule:
+
+```bash
+cd /Users/adrianchatto/GitHub/LifeKanban
+python3 sync_calendar.py --dry-run --days 2
+```
+
 > Note: this is a local web app shown in your browser, launched by a Dock icon —
 > not a single-window native app. That's the reliable, no-toolchain approach we
 > chose. If you'd rather have a true top-of-screen menu-bar app later, that's a
@@ -52,8 +69,9 @@ To keep it handy: drag `Kanban Board.app` to your Dock (or Applications).
 
 ## Using it
 
-- **Columns:** To Do → Doing → Needs OK → Done. Drag cards between them.
+- **Columns:** To Do → Doing → Waiting for Others → Needs OK → Done. Drag cards between them.
 - **New card:** "+ New card". Set a title, description, project, and assignee.
+- **History:** open a card, type a note in "History update", and save to append a timestamped entry to that card's scrollable history.
 - **Assignee:** *Me* (you) or *AI*.
 - **Filters:** by project and by owner, top-right.
 
@@ -147,6 +165,16 @@ automatically by a scheduled worker (about every 15 minutes):
 2. The AI worker does the work and saves the result into `results/`.
 3. Card moves to **Done** with a **↗ View result** link.
 
+If an admin has configured Pushover, AI-assigned cards send a push alert when
+they newly move into **Done**. Cards assigned to you do not send completion
+pushes.
+
+Feature-request cards created from the Feature Requests page include their
+GitHub issue link. When one of those cards newly moves into **Done**,
+LifeKanban closes the linked issue with GitHub CLI and records the outcome in
+the card log. If GitHub is unavailable or unauthenticated, the card still
+finishes and the log shows the close failure.
+
 If a card needs something irreversible (send an email, post a message, publish,
 delete), the AI worker does the prep, then parks the card in **Needs OK** and waits for
 your explicit go-ahead — it won't take the irreversible step on its own.
@@ -173,6 +201,7 @@ it can capture it as a card on this board, assigned to you or to AI.
 | `server.py` | Local web server for the board |
 | `index.html` | The board UI |
 | `kanban.py` | CLI used by the board and the worker |
+| `sync_calendar.py` | Imports macOS Calendar events due in the next two days into the board |
 | `results/` | Deliverables the AI worker produces |
 | `skills/` | Reusable action skills (`kanban` + your own) |
 

@@ -11,6 +11,8 @@
       var t=localStorage.getItem("kanban_theme");
       if(!t){ t=(window.matchMedia && matchMedia("(prefers-color-scheme: dark)").matches)?"dark":"light"; }
       document.documentElement.setAttribute("data-theme", t);
+      var bar=localStorage.getItem("kanban_topbar_color");
+      if(bar){ document.documentElement.style.setProperty("--topbar", bar); }
     }catch(e){}
   })();
 </script>
@@ -18,27 +20,29 @@
 <meta name="theme-color" content="#3b6cf6">
 <link rel="icon" href="/icon-192.png">
 <link rel="apple-touch-icon" href="/icon-192.png">
+<link rel="stylesheet" href="/theme.css">
 <style>
   :root{
-    --bg:#eef1f7; --panel:#ffffff; --ink:#1b2030; --muted:#737b8c;
-    --line:#e3e7f0; --accent:#3b6cf6; --claude:#7a5cff; --me:#11a06b;
-    --todo:#8a93a6; --doing:#e0a008; --done:#11a06b; --ok:#e0533b;
-    --shadow:0 1px 3px rgba(20,30,60,.07),0 6px 18px rgba(20,30,60,.05);
-    --field:#fbfcfe; --surface:#ffffff; --chip:#f1f3f9; --chipink:#3b4252;
-    --topbar:var(--panel);
+    --bg:var(--lk-bg,#f5f5f7); --panel:var(--lk-panel,#ffffff); --ink:var(--lk-ink,#1d1d1f); --muted:var(--lk-muted,#6e7480);
+    --line:var(--lk-line,#d9dee8); --accent:var(--lk-accent,#007aff); --claude:var(--lk-ai,#7a5cff); --me:var(--lk-me,#11a06b);
+    --todo:var(--lk-todo,#8a93a6); --doing:var(--lk-doing,#e0a008); --waiting:var(--lk-waiting,#3b8ca8); --done:var(--lk-done,#11a06b); --ok:var(--lk-danger,#e0533b);
+    --shadow:var(--lk-shadow,0 1px 2px rgba(20,30,60,.05),0 10px 28px rgba(20,30,60,.06));
+    --field:var(--lk-field,#fbfcfe); --surface:var(--lk-surface,#ffffff); --chip:var(--lk-chip,#eef1f6); --chipink:var(--lk-chip-ink,#3b4252);
+    --topbar:var(--lk-topbar,#3b6cf6);
   }
   :root[data-theme="dark"]{
-    --bg:#0f131a; --panel:#1a212e; --ink:#e7eaf1; --muted:#98a2b6;
-    --line:#2a3344; --accent:#5b82f8; --claude:#9a7cff; --me:#27b884;
-    --todo:#8a93a6; --doing:#e6ad1e; --done:#27b884; --ok:#f06a52;
-    --shadow:0 1px 3px rgba(0,0,0,.45),0 6px 18px rgba(0,0,0,.35);
-    --field:#222b3b; --surface:#222b3b; --chip:#2a3344; --chipink:#c6cedd;
+    --bg:var(--lk-dark-bg,#0f131a); --panel:var(--lk-dark-panel,#1a212e); --ink:var(--lk-dark-ink,#e7eaf1); --muted:var(--lk-dark-muted,#98a2b6);
+    --line:var(--lk-dark-line,#2a3344); --accent:var(--lk-dark-accent,#5b82f8); --claude:var(--lk-dark-ai,#9a7cff); --me:var(--lk-dark-me,#27b884);
+    --todo:var(--lk-dark-todo,#8a93a6); --doing:var(--lk-dark-doing,#e6ad1e); --waiting:var(--lk-dark-waiting,#4ca7c7); --done:var(--lk-dark-done,#27b884); --ok:var(--lk-dark-danger,#f06a52);
+    --shadow:var(--lk-dark-shadow,0 1px 3px rgba(0,0,0,.45),0 6px 18px rgba(0,0,0,.35));
+    --field:var(--lk-dark-field,#222b3b); --surface:var(--lk-dark-surface,#222b3b); --chip:var(--lk-dark-chip,#2a3344); --chipink:var(--lk-dark-chip-ink,#c6cedd);
   }
   /* dark-mode overrides for surfaces that hardcode light colours */
   :root[data-theme="dark"] select,
-  :root[data-theme="dark"] .btn{background:var(--surface)}
+  :root[data-theme="dark"] .btn,
+  :root[data-theme="dark"] a.btn{background:var(--surface);color:var(--ink)}
   :root[data-theme="dark"] .btn.primary{background:var(--accent);color:#fff}
-  :root[data-theme="dark"] .seg button{background:var(--surface)}
+  :root[data-theme="dark"] .seg button{background:transparent}
   :root[data-theme="dark"] .col{background:rgba(255,255,255,.035)}
   :root[data-theme="dark"] .col h2 .pill{background:var(--surface)}
   :root[data-theme="dark"] .proj{background:var(--chip);color:var(--chipink)}
@@ -72,22 +76,42 @@
   :root[data-theme="dark"] .due.met{color:var(--me);background:rgba(39,184,132,.16)}
   :root[data-theme="dark"] .att-badge,
   :root[data-theme="dark"] .subprog{background:var(--chip);color:var(--chipink)}
-  :root[data-theme="dark"] .btn:hover{filter:brightness(1.18)}
+  :root[data-theme="dark"] .btn:hover,
+  :root[data-theme="dark"] a.btn:hover{background:var(--chip);filter:none}
   *{box-sizing:border-box}
   body{margin:0;font:14px/1.5 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
     color:var(--ink);background:var(--bg)}
-  header{display:flex;align-items:center;gap:16px;padding:14px 22px;
-    background:var(--topbar);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:5}
-  header h1{font-size:17px;margin:0;font-weight:700;letter-spacing:-.2px}
+  header{display:flex;align-items:center;gap:10px;padding:12px 18px;
+    background:rgba(255,255,255,.82);backdrop-filter:saturate(180%) blur(18px);
+    -webkit-backdrop-filter:saturate(180%) blur(18px);border-bottom:1px solid rgba(217,222,232,.82);
+    position:sticky;top:0;z-index:5}
+  :root[data-theme="dark"] header{background:rgba(26,33,46,.82);border-bottom-color:var(--line)}
+  header h1{font-size:17px;margin:0;font-weight:700;letter-spacing:0}
   header .dot{width:10px;height:10px;border-radius:50%;background:#cdd3e0;margin-right:-8px}
   header .dot.live{background:var(--done);box-shadow:0 0 0 3px rgba(17,160,107,.18)}
   .spacer{flex:1}
   select,button,input,textarea{font:inherit;color:inherit}
-  select,.btn{border:1px solid var(--line);background:#fff;border-radius:9px;padding:7px 12px;cursor:pointer}
-  .btn.primary{background:var(--accent);color:#fff;border-color:var(--accent);font-weight:600}
-  .btn:hover{filter:brightness(.99)}
-  .board{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;padding:18px 22px;align-items:start}
-  .col{background:rgba(255,255,255,.55);border:1px solid var(--line);border-radius:14px;min-height:120px;
+  select,.btn,a.btn{appearance:none;border:1px solid var(--line);background:var(--surface);color:var(--ink);
+    border-radius:10px;min-height:34px;padding:7px 12px;cursor:pointer;display:inline-flex;
+    align-items:center;justify-content:center;gap:6px;text-decoration:none;font-weight:600;font-size:13px;
+    line-height:1;white-space:nowrap;box-shadow:0 1px 1px rgba(20,30,60,.04)}
+  a.btn:visited{color:var(--ink)}
+  select{font-weight:500;padding-right:28px}
+  .btn.primary{background:var(--accent);color:#fff;border-color:var(--accent);font-weight:700}
+  .btn:hover,a.btn:hover{background:var(--chip);filter:none}
+  .btn.primary:hover{filter:brightness(1.03);background:var(--accent)}
+  .action-menu{position:relative;display:inline-flex}
+  .menu-pop{position:absolute;right:0;top:calc(100% + 8px);width:230px;background:var(--panel);
+    border:1px solid var(--line);border-radius:14px;box-shadow:0 18px 50px rgba(20,30,60,.18);
+    padding:6px;display:none;z-index:30}
+  .action-menu.open .menu-pop{display:block}
+  .menu-item{width:100%;border:0;background:transparent;color:var(--ink);border-radius:10px;padding:10px 11px;
+    display:flex;align-items:center;gap:10px;text-align:left;text-decoration:none;cursor:pointer;font:inherit;font-weight:600}
+  .menu-item:hover{background:var(--chip)}
+  .menu-item .mi{width:18px;display:inline-flex;justify-content:center;color:var(--muted);font-weight:700}
+  .menu-item:visited{color:var(--ink)}
+  .board{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;padding:18px;align-items:start}
+  .col{background:rgba(255,255,255,.72);border:1px solid var(--line);border-radius:14px;min-height:120px;
     display:flex;flex-direction:column}
   .col h2{font-size:12px;text-transform:uppercase;letter-spacing:.6px;margin:0;padding:13px 15px;
     display:flex;align-items:center;gap:8px;color:var(--muted)}
@@ -96,11 +120,12 @@
   .tag{width:9px;height:9px;border-radius:50%}
   .col[data-status=todo] .tag{background:var(--todo)}
   .col[data-status=doing] .tag{background:var(--doing)}
+  .col[data-status=waiting] .tag{background:var(--waiting)}
   .col[data-status=done] .tag{background:var(--done)}
   .col[data-status=needs_ok] .tag{background:var(--ok)}
   .cards{flex:1;padding:6px 10px 12px;display:flex;flex-direction:column;gap:10px;min-height:60px}
   .cards.drag-over{background:rgba(59,108,246,.07);border-radius:10px}
-  .card{background:var(--panel);border:1px solid var(--line);border-radius:11px;padding:12px 13px;
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 13px;
     box-shadow:var(--shadow);cursor:grab;position:relative}
   .card:active{cursor:grabbing}
   .ticket-id{display:inline-flex;align-items:center;align-self:flex-start;color:var(--muted);
@@ -119,7 +144,9 @@
   .okbtn{margin-top:8px;background:var(--me);color:#fff;border:0;border-radius:8px;padding:6px 12px;
     font-size:12px;font-weight:700;cursor:pointer}
   .okbtn:hover{filter:brightness(1.05)}
-  .projrow input[type=color]{width:30px;height:26px;padding:0;border:1px solid var(--line);border-radius:6px;background:#fff;cursor:pointer}
+  .projrow input[type=color]{width:18px;height:18px;padding:0;border:1px solid var(--line);border-radius:50%;background:transparent;cursor:pointer;overflow:hidden;flex:none}
+  .projrow input[type=color]::-webkit-color-swatch-wrapper{padding:0}
+  .projrow input[type=color]::-webkit-color-swatch{border:0;border-radius:50%}
   .due{font-size:11px;font-weight:600;border-radius:6px;padding:2px 7px;display:inline-flex;align-items:center;gap:4px}
   .due.future{color:var(--muted);background:#f1f3f9}
   .due.soon{color:#9a6b00;background:rgba(224,160,8,.15)}
@@ -163,8 +190,8 @@
   label{display:block;font-size:12px;font-weight:600;color:var(--muted);margin:12px 0 5px}
   input[type=text],textarea,.modal select{width:100%;border:1px solid var(--line);border-radius:9px;padding:9px 11px;background:var(--field);color:var(--ink)}
   textarea{min-height:84px;resize:vertical}
-  .seg{display:inline-flex;border:1px solid var(--line);border-radius:9px;overflow:hidden}
-  .seg button{border:0;background:#fff;padding:8px 16px;border-radius:0;font-weight:600;color:var(--muted)}
+  .seg{display:inline-flex;border:1px solid var(--line);border-radius:11px;overflow:hidden;background:var(--chip);padding:2px;gap:2px}
+  .seg button{border:0;background:transparent;padding:8px 16px;border-radius:8px;font-weight:600;color:var(--muted);cursor:pointer}
   .seg button.on[data-v="Ch@o"]{background:var(--me);color:#fff}
   .seg button.on[data-v="AI"]{background:var(--claude);color:#fff}
   .seg.prio button.on[data-v="high"]{background:var(--ok);color:#fff}
@@ -177,7 +204,7 @@
   .card.prio-high{border-left:3px solid var(--ok)}
   .card.prio-medium{border-left:3px solid var(--doing)}
   .card.prio-low{border-left:3px solid #b7becb}
-  .viewseg button.on{background:var(--accent);color:#fff}
+  .viewseg button.on{background:var(--surface);color:var(--accent);box-shadow:0 1px 2px rgba(20,30,60,.08)}
   #refreshBtn.spin-now{pointer-events:none}
   #refreshBtn.spin-now span{display:inline-block;animation:s .6s linear infinite}
   /* list view — grouped by project */
@@ -193,6 +220,7 @@
   .lv-st{flex:0 0 auto;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;
     border-radius:6px;padding:2px 7px;color:#fff;white-space:nowrap}
   .lv-st.todo{background:var(--todo)} .lv-st.doing{background:var(--doing)}
+  .lv-st.waiting{background:var(--waiting)}
   .lv-st.needs_ok{background:var(--ok)} .lv-st.done{background:var(--done)}
   .lv-id{flex:0 0 auto}
   .lv-ttl{flex:1 1 auto;font-size:13.5px;font-weight:600;color:var(--ink);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -257,6 +285,11 @@
   .comment-compose{display:flex;gap:8px;margin-top:8px}
   .comment-compose textarea{min-height:58px;flex:1}
   .comment-compose .btn{align-self:flex-start}
+  .qm-grid{display:grid;grid-template-columns:1fr;gap:10px}
+  .qm-grid textarea{min-height:150px}
+  .qm-output{background:var(--field)}
+  .qm-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .qm-row .hint{font-size:12px;color:var(--muted)}
   /* admin panel */
   .adminsec{border:1px solid var(--line);border-radius:11px;padding:4px 14px;margin-top:12px;background:var(--field)}
   .adminrow{display:flex;align-items:center;gap:12px;padding:11px 0}
@@ -264,19 +297,36 @@
   .adminrow > div{flex:1;display:flex;flex-direction:column;gap:2px}
   .adminrow strong{font-size:13px;font-weight:600}
   .adminrow span{font-size:11.5px;color:var(--muted)}
+  .topbar-picker{display:flex;align-items:center;gap:7px;flex-wrap:wrap;justify-content:flex-end;max-width:190px}
+  .swatch{width:24px;height:24px;border-radius:50%;border:1px solid rgba(0,0,0,.14);padding:0;cursor:pointer;box-shadow:0 1px 2px rgba(20,30,60,.12);margin:0}
+  .swatch.on{outline:2px solid var(--ink);outline-offset:2px}
+  #topbarCustom{width:30px;height:28px;padding:0;border-radius:8px;background:var(--surface);cursor:pointer}
+  #topbarCustom::-webkit-color-swatch-wrapper{padding:2px}
+  #topbarCustom::-webkit-color-swatch{border:0;border-radius:6px}
   .adminrow .btn{flex:none;white-space:nowrap}
   .ghbtn{display:inline-flex;align-items:center;gap:6px;text-decoration:none;color:var(--ink)}
   .ghbtn:visited{color:var(--ink)}
   /* projects manager */
   .projrow{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--line)}
-  .projrow span{flex:1}
+  .projname{flex:1;min-width:0;display:flex;align-items:center;gap:7px}
+  .projcount{font-size:11px;font-weight:600;color:var(--muted);background:var(--chip);border:1px solid var(--line);border-radius:999px;padding:1px 6px;line-height:1.3;flex:none}
   .projrow .x{border:0;background:none;color:var(--ok);cursor:pointer;font-size:16px}
   .projrow .x:disabled{color:var(--line);cursor:default}
   .modal .actions{display:flex;gap:10px;margin-top:20px;align-items:center}
   .modal .actions .spacer{flex:1}
   .danger{color:var(--ok);background:#fff;border:1px solid var(--line)}
+  .history-note{min-height:68px}
+  .history-list{margin-top:8px;border:1px solid var(--line);border-radius:10px;background:var(--field);
+    max-height:180px;overflow-y:auto;overscroll-behavior:contain}
+  .hist-row{display:grid;grid-template-columns:minmax(118px,34%) 1fr;gap:10px;padding:8px 10px;
+    border-top:1px solid var(--line);font-size:12px}
+  .hist-row:first-child{border-top:0}
+  .hist-time{color:var(--muted);font-size:11px;line-height:1.35}
+  .hist-text{white-space:pre-wrap;overflow-wrap:anywhere;color:var(--ink);line-height:1.35}
+  .hist-empty{color:var(--muted);font-size:12px;text-align:center;padding:14px}
+  .hist-badge{font-size:11px;font-weight:600;color:var(--muted);background:var(--chip);
+    border:1px solid var(--line);border-radius:6px;padding:2px 7px;display:inline-flex;align-items:center;gap:4px}
   .log{margin-top:14px;border-top:1px solid var(--line);padding-top:12px;font-size:11.5px;color:var(--muted)}
-  .log div{padding:2px 0}
   .empty{color:var(--muted);font-size:12px;text-align:center;padding:16px 0;opacity:.7}
   footer{padding:6px 22px 22px;color:var(--muted);font-size:11.5px}
 </style>
@@ -322,6 +372,7 @@ async function initSession(){
     <option value="">All statuses</option>
     <option value="todo">To Do</option>
     <option value="doing">Doing</option>
+    <option value="waiting">Waiting for Others</option>
     <option value="needs_ok">Needs OK</option>
     <option value="done">Done</option>
   </select>
@@ -331,8 +382,16 @@ async function initSession(){
     <button type="button" data-v="calendar">Calendar</button>
   </div>
   <button class="btn" id="refreshBtn" title="Refresh now">↻ Refresh</button>
-  <button class="btn" id="projBtn" title="Add or remove projects">⋮ Projects</button>
-  <button class="btn" id="adminBtn" title="Settings, alerts, backup, restore, theme and more">⚙ Settings</button>
+  <div class="action-menu" id="toolsMenu">
+    <button class="btn" id="toolsBtn" type="button" aria-haspopup="menu" aria-expanded="false" title="Open tools">Tools ▾</button>
+    <div class="menu-pop" role="menu" aria-label="Tools">
+      <button class="menu-item" id="menuQuickMsg" type="button" role="menuitem"><span class="mi">✎</span>Quick message</button>
+      <a class="menu-item" href="/features.html" role="menuitem"><span class="mi">◎</span>Feature Requests</a>
+      <a class="menu-item" href="/admin.html#cron" role="menuitem"><span class="mi">⏱</span>Cron jobs</a>
+      <button class="menu-item" id="menuProjects" type="button" role="menuitem"><span class="mi">⋮</span>Projects</button>
+      <button class="menu-item" id="menuSettings" type="button" role="menuitem"><span class="mi">⚙</span>Settings</button>
+    </div>
+  </div>
   <input type="file" id="restoreFile" accept="application/json,.json" style="display:none">
   <button class="btn primary" id="newBtn">+ New card</button>
 </header>
@@ -354,6 +413,10 @@ async function initSession(){
         <div><strong>Users</strong><span>Create accounts and reset passwords.</span></div>
         <button class="btn" id="usersBtn" title="Open user administration">Users</button>
       </div>
+      <div class="adminrow" id="cronRow">
+        <div><strong>Cron jobs</strong><span>See scheduled jobs on this machine and their next run time.</span></div>
+        <button class="btn" id="cronBtn" title="Open cron job lister">Cron</button>
+      </div>
       <div class="adminrow">
         <div><strong>Sign out</strong><span>End this browser session.</span></div>
         <button class="btn" id="logoutBtn" title="Sign out">Log out</button>
@@ -368,11 +431,26 @@ async function initSession(){
         <div><strong>Appearance</strong><span>Switch between light and dark.</span></div>
         <button class="btn" id="themeBtn" title="Toggle light / dark mode">🌙 Dark</button>
       </div>
+      <div class="adminrow">
+        <div><strong>Top bar colour</strong><span>Changes the browser/app title bar colour.</span></div>
+        <div class="topbar-picker" id="topbarPicker" title="Choose top bar colour">
+          <button class="swatch" type="button" data-c="#3b6cf6" style="background:#3b6cf6" aria-label="Blue"></button>
+          <button class="swatch" type="button" data-c="#6b7280" style="background:#6b7280" aria-label="Graphite"></button>
+          <button class="swatch" type="button" data-c="#0f9f6e" style="background:#0f9f6e" aria-label="Green"></button>
+          <button class="swatch" type="button" data-c="#7c3aed" style="background:#7c3aed" aria-label="Purple"></button>
+          <button class="swatch" type="button" data-c="#d94841" style="background:#d94841" aria-label="Red"></button>
+          <input type="color" id="topbarCustom" value="#3b6cf6" aria-label="Custom top bar colour">
+        </div>
+      </div>
     </div>
     <div class="adminsec">
       <div class="adminrow">
         <div><strong>AI assistant</strong><span id="aiStatus">Use a real model to read your “Add by chat” requests.</span></div>
         <button class="btn" id="aiBtn" title="Choose provider, model and API key">✦ Configure</button>
+      </div>
+      <div class="adminrow">
+        <div><strong>Quick message</strong><span>Polish pasted text into a senior PM tone.</span></div>
+        <button class="btn" id="quickMsgBtn2" title="Open quick message rewrite">Open</button>
       </div>
     </div>
     <div class="adminsec">
@@ -386,6 +464,10 @@ async function initSession(){
       </div>
     </div>
     <div class="adminsec">
+      <div class="adminrow">
+        <div><strong>Feature requests</strong><span>Capture feature ideas, create GitHub issues, and hand work to AI.</span></div>
+        <a class="btn" href="/features.html" title="Open Feature Requests">Feature Requests</a>
+      </div>
       <div class="adminrow">
         <div><strong>Source on GitHub</strong><span>View this project's repository.</span></div>
         <a class="btn ghbtn" id="ghLink" href="https://github.com/adrianchatto/LifeKanban" target="_blank" rel="noopener"
@@ -423,6 +505,31 @@ async function initSession(){
       <div class="spacer"></div>
       <button class="btn" id="aiCancel">Cancel</button>
       <button class="btn primary" id="aiSave">Save</button>
+    </div>
+  </div>
+</div>
+
+<div class="scrim" id="quickMsgScrim">
+  <div class="modal" style="width:min(720px,94vw)">
+    <h3>Quick message</h3>
+    <div class="qm-grid">
+      <div>
+        <label>Paste text</label>
+        <textarea id="qmInput" placeholder="Paste the rough wording you want cleaned up."></textarea>
+      </div>
+      <div class="qm-row">
+        <button class="btn primary" id="qmRewrite">Rewrite</button>
+        <span class="hint" id="qmMsg">Checks spelling and grammar, then rewrites in a senior PM tone.</span>
+      </div>
+      <div>
+        <label>Copy-ready result</label>
+        <textarea id="qmOutput" class="qm-output" readonly placeholder="Your polished version will appear here."></textarea>
+      </div>
+    </div>
+    <div class="actions">
+      <button class="btn" id="qmCopy">Copy result</button>
+      <div class="spacer"></div>
+      <button class="btn" id="qmClose">Close</button>
     </div>
   </div>
 </div>
@@ -512,7 +619,12 @@ async function initSession(){
       <textarea id="fCommentInput" placeholder="Add a comment…"></textarea>
       <button type="button" class="btn" id="fCommentAdd">Add</button>
     </div>
-    <div class="log" id="mLog" style="display:none"></div>
+    <label>History update <span style="font-weight:400">(optional)</span></label>
+    <textarea id="fHistoryNote" class="history-note" placeholder="Add a dated update for this card…"></textarea>
+    <div class="log" id="mLog">
+      <strong>History</strong>
+      <div class="history-list" id="mHistoryList"></div>
+    </div>
     <div class="actions">
       <button class="btn danger" id="delBtn" style="display:none">Delete</button>
       <div class="spacer"></div>
@@ -526,6 +638,7 @@ async function initSession(){
 const COLUMNS = [
   {status:"todo",     name:"To Do"},
   {status:"doing",    name:"Doing"},
+  {status:"waiting",  name:"Waiting for Others"},
   {status:"needs_ok", name:"Needs OK"},
   {status:"done",     name:"Done"},
 ];
@@ -544,7 +657,7 @@ let editComments = [];        // [{author,text,created}] while editing a card
 let collapsedCols = (()=>{
   try{ const raw=localStorage.getItem("kanban_collapsed"); if(raw){ const o=JSON.parse(raw); if(o&&typeof o==="object") return o; } }catch(e){}
   let showDone=false; try{ showDone=localStorage.getItem("kanban_showdone")==="1"; }catch(e){}
-  return { todo:false, doing:false, needs_ok:false, done:!showDone };
+  return { todo:false, doing:false, waiting:false, needs_ok:false, done:!showDone };
 })();
 function saveCollapsed(){ try{ localStorage.setItem("kanban_collapsed", JSON.stringify(collapsedCols)); }catch(e){} }
 let _bellCtx=null;
@@ -619,7 +732,8 @@ function render(){
   $("#projFilter").innerHTML = opts.join("");
   $("#projFilter").value = pf;
 
-  const cards = (board.cards||[]).filter(c=>
+  const regularCards = (board.cards||[]).filter(c=>c.kind!=="feature_request");
+  const cards = regularCards.filter(c=>
     (!pf || c.project===pf) && (!wf || normAssignee(c.assignee)===wf));
 
   if(view==="calendar"){
@@ -642,8 +756,8 @@ function render(){
   // status filter only makes sense on the list view
   $("#statusFilter").style.display = view==="list" ? "" : "none";
 
-  const total = (board.cards||[]).length;
-  const ai = (board.cards||[]).filter(c=>isAIAssignee(c.assignee)).length;
+  const total = regularCards.length;
+  const ai = regularCards.filter(c=>isAIAssignee(c.assignee)).length;
   $("#foot").textContent =
     `${total} cards · ${ai} assigned to AI · last sync ${new Date().toLocaleTimeString()}`;
 }
@@ -670,7 +784,7 @@ function cardHTML(c){
     ${idBadge}
     <p class="ttl">${esc(c.title)}</p>
     ${c.description?`<p class="desc">${esc(c.description)}</p>`:""}
-    <div class="row">${prioBadge(c)}${who}${projChip(c.project)}${dueBadge(c)}${subProgress(c)}${attachBadge(c)}${commentBadge(c)}</div>
+    <div class="row">${prioBadge(c)}${who}${projChip(c.project)}${dueBadge(c)}${subProgress(c)}${attachBadge(c)}${commentBadge(c)}${historyBadge(c)}</div>
     ${extra}
   </article>`;
 }
@@ -688,6 +802,11 @@ function commentBadge(c){
   const n = (c.comments||[]).length;
   if(!n) return "";
   return `<span class="comment-badge" title="${n} comment${n>1?'s':''}">💬 ${n}</span>`;
+}
+function historyBadge(c){
+  const n = (c.log||[]).length;
+  if(!n) return "";
+  return `<span class="hist-badge" title="${n} history ${n===1?'entry':'entries'}">◷ ${n}</span>`;
 }
 
 /* ---- due dates ---- */
@@ -793,8 +912,8 @@ function renderBoard(cards){
     h.onclick=()=>{ const s=h.dataset.status; collapsedCols[s]=!collapsedCols[s]; saveCollapsed(); render(); });
 }
 
-const STATUS_NAME = { todo:"To Do", doing:"Doing", needs_ok:"Needs OK", done:"Done" };
-const STATUS_ORDER = { todo:0, doing:1, needs_ok:2, done:3 };
+const STATUS_NAME = { todo:"To Do", doing:"Doing", waiting:"Waiting for Others", needs_ok:"Needs OK", done:"Done" };
+const STATUS_ORDER = { todo:0, doing:1, waiting:2, needs_ok:3, done:4 };
 function renderList(cards){
   // cards are already filtered by project + assignee. Group by project, categorised.
   const items = cards.filter(c=>!c.recur);
@@ -950,9 +1069,10 @@ function openNew(){
   $("#mTitle").textContent="New card";
   $("#mTicketId").style.display="none"; $("#mTicketId").textContent="";
   $("#fId").value=""; $("#fTitle").value=""; $("#fDesc").value="";
+  $("#fHistoryNote").value="";
   populateProjectSelect($("#projFilter").value||"General");
   $("#fDue").value="";
-  $("#delBtn").style.display="none"; $("#mLog").style.display="none";
+  $("#delBtn").style.display="none"; renderHistory([]);
   editSubtasks=[]; renderSubtasks();
   editAttachments=[]; renderAttachments();
   editComments=[]; renderComments();
@@ -970,6 +1090,7 @@ function openEdit(id){
   $("#fId").value=c.id; $("#fTitle").value=c.title; $("#fDesc").value=c.description||"";
   populateProjectSelect(c.project||"General");
   $("#fDue").value=c.due||"";
+  $("#fHistoryNote").value="";
   $("#delBtn").style.display="inline-block";
   editSubtasks=(c.subtasks||[]).map(s=>({text:s.text, done:!!s.done})); renderSubtasks();
   editAttachments=(c.attachments||[]).map(a=>({...a})); renderAttachments();
@@ -977,10 +1098,29 @@ function openEdit(id){
     author:cm.author||"Ch@o", text:cm.text||"", created:cm.created||cm.timestamp||""
   })); renderComments();
   setSeg(); setPrioSeg(); setRecurControls(c); refreshDatalist();
-  const log = c.log||[];
-  $("#mLog").style.display = log.length?"block":"none";
-  $("#mLog").innerHTML = "<strong>Activity</strong>"+log.slice(-8).map(l=>`<div>${esc(l)}</div>`).join("");
+  renderHistory(c.log||[]);
   openScrim();
+}
+function splitHistoryEntry(entry){
+  const text = String(entry||"");
+  const m = text.match(/^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z?)\s+(.*)$/);
+  if(!m) return {time:"", text};
+  const d = new Date(m[1]);
+  const time = isNaN(d) ? m[1] : d.toLocaleString(undefined, {
+    year:"numeric", month:"short", day:"numeric", hour:"2-digit", minute:"2-digit"
+  });
+  return {time, text:m[2]};
+}
+function renderHistory(log){
+  const list = $("#mHistoryList");
+  const entries = (log||[]).map(splitHistoryEntry);
+  list.innerHTML = entries.length
+    ? entries.map(e=>`<div class="hist-row"><div class="hist-time">${esc(e.time||"No timestamp")}</div><div class="hist-text">${esc(e.text)}</div></div>`).join("")
+    : `<div class="hist-empty">No history yet.</div>`;
+  requestAnimationFrame(()=>{ list.scrollTop = list.scrollHeight; });
+}
+function historyEntry(text){
+  return new Date().toISOString()+" note: "+text;
 }
 function populateProjectSelect(sel){
   const list = projectsList();
@@ -1129,6 +1269,7 @@ function save(){
   const project=$("#fProject").value.trim()||"General";
   const due=$("#fDue").value||null;
   const recur=readRecur();
+  const historyNote=$("#fHistoryNote").value.trim();
   let shouldWakeAI = false;
   if(editing){
     const c=board.cards.find(x=>x.id===editing);
@@ -1142,6 +1283,7 @@ function save(){
       (c.log=c.log||[]).push(new Date().toISOString()+" assigned to "+assigneeChoice);
       c.assignee=assigneeChoice;
     }
+    if(historyNote) (c.log=c.log||[]).push(historyEntry(historyNote));
     shouldWakeAI = !wasAI && isAIAssignee(c.assignee) && c.status==="todo";
     c.updated=new Date().toISOString();
   }else{
@@ -1156,6 +1298,7 @@ function save(){
       created:new Date().toISOString(), updated:new Date().toISOString(),
       log:["created"]
     };
+    if(historyNote) card.log.push(historyEntry(historyNote));
     board.cards.push(card);
     shouldWakeAI = isAIAssignee(card.assignee);
   }
@@ -1201,7 +1344,20 @@ $("#fAddProj").onclick=()=>{
   }
   populateProjectSelect(name);
 };
-$("#projBtn").onclick=openProjects;
+function closeToolsMenu(){
+  const m=$("#toolsMenu");
+  if(!m) return;
+  m.classList.remove("open");
+  $("#toolsBtn").setAttribute("aria-expanded","false");
+}
+function toggleToolsMenu(){
+  const m=$("#toolsMenu");
+  const open=!m.classList.contains("open");
+  m.classList.toggle("open", open);
+  $("#toolsBtn").setAttribute("aria-expanded", open?"true":"false");
+}
+$("#toolsBtn").onclick=e=>{ e.stopPropagation(); toggleToolsMenu(); };
+$("#menuProjects").onclick=()=>{ closeToolsMenu(); openProjects(); };
 $("#projAdd").onclick=()=>{
   const name=$("#projNew").value.trim(); if(!name) return;
   if(!(board.projects||[]).includes(name)){
@@ -1215,17 +1371,20 @@ $("#projClose").onclick=()=>$("#projScrim").classList.remove("open");
 $("#projScrim").addEventListener("click",e=>{ if(e.target===$("#projScrim")) $("#projScrim").classList.remove("open"); });
 function openProjects(){ renderProjectManager(); $("#projScrim").classList.add("open"); $("#projNew").focus(); }
 /* admin panel */
-$("#adminBtn").onclick=()=>{
+function openAdminPanel(){
   refreshAiStatus();
   const me=window.__me||{};
   $("#accountName").textContent = me.username ? "Signed in as "+me.username : "Account";
   $("#usersRow").style.display = me.role==="admin" ? "flex" : "none";
+  $("#cronRow").style.display = me.role==="admin" ? "flex" : "none";
   $("#adminScrim").classList.add("open");
-};
+}
+$("#menuSettings").onclick=()=>{ closeToolsMenu(); openAdminPanel(); };
 $("#adminClose").onclick=()=>$("#adminScrim").classList.remove("open");
 $("#adminScrim").addEventListener("click",e=>{ if(e.target===$("#adminScrim")) $("#adminScrim").classList.remove("open"); });
 $("#settingsBtn").onclick=()=>{ location.href="/settings.html"; };
 $("#usersBtn").onclick=()=>{ location.href="/admin.html"; };
+$("#cronBtn").onclick=()=>{ location.href="/admin.html#cron"; };
 $("#logoutBtn").onclick=()=>{
   fetch('/api/logout',{method:'POST',headers:{"Content-Type":"application/json","X-Kanban-CSRF":(window.__csrf||"")}})
     .finally(()=>location.replace('/login.html'));
@@ -1308,16 +1467,81 @@ $("#aiSave").onclick=()=>{
       setTimeout(()=>$("#aiScrim").classList.remove("open"),700);
     }).catch(e=>$("#aiMsg").textContent=e.message);
 };
+
+function openQuickMessage(){
+  $("#quickMsgScrim").classList.add("open");
+  $("#qmMsg").textContent="Checks spelling and grammar, then rewrites in a senior PM tone.";
+  setTimeout(()=>$("#qmInput").focus(),60);
+}
+function closeQuickMessage(){ $("#quickMsgScrim").classList.remove("open"); }
+function setQuickBusy(on){
+  $("#qmRewrite").disabled=!!on;
+  $("#qmRewrite").textContent=on?"Rewriting...":"Rewrite";
+}
+async function rewriteQuickMessage(){
+  const text=$("#qmInput").value.trim();
+  if(!text){ $("#qmMsg").textContent="Paste some text first."; $("#qmInput").focus(); return; }
+  const a=aiLoadCfg();
+  if(!(a && a.hasKey && a.provider && a.model)){
+    $("#qmMsg").textContent="Configure an AI provider in Settings first.";
+    return;
+  }
+  setQuickBusy(true);
+  $("#qmMsg").textContent="Rewriting...";
+  try{
+    const r=await fetch('/api/ai/rewrite-message',{method:'POST',
+      headers:{"Content-Type":"application/json","X-Kanban-CSRF":(window.__csrf||"")},
+      body:JSON.stringify({text})});
+    const j=await r.json().catch(()=>({}));
+    if(!r.ok) throw new Error(j.error||"Could not rewrite message");
+    $("#qmOutput").value=j.text||"";
+    $("#qmMsg").textContent="Ready to copy.";
+    $("#qmOutput").focus();
+    $("#qmOutput").select();
+  }catch(e){
+    $("#qmMsg").textContent=e.message;
+  }finally{
+    setQuickBusy(false);
+  }
+}
+async function copyQuickMessage(){
+  const text=$("#qmOutput").value;
+  if(!text){ $("#qmMsg").textContent="Rewrite a message first."; return; }
+  try{
+    if(navigator.clipboard && window.isSecureContext){
+      await navigator.clipboard.writeText(text);
+    }else{
+      $("#qmOutput").focus();
+      $("#qmOutput").select();
+      document.execCommand("copy");
+    }
+    $("#qmMsg").textContent="Copied.";
+  }catch(e){
+    $("#qmOutput").focus();
+    $("#qmOutput").select();
+    $("#qmMsg").textContent="Select the result and copy it manually.";
+  }
+}
+$("#menuQuickMsg").onclick=()=>{ closeToolsMenu(); openQuickMessage(); };
+$("#quickMsgBtn2").onclick=openQuickMessage;
+document.addEventListener("click",e=>{ if(!$("#toolsMenu").contains(e.target)) closeToolsMenu(); });
+$("#qmClose").onclick=closeQuickMessage;
+$("#qmRewrite").onclick=rewriteQuickMessage;
+$("#qmCopy").onclick=copyQuickMessage;
+$("#quickMsgScrim").addEventListener("click",e=>{ if(e.target===$("#quickMsgScrim")) closeQuickMessage(); });
+$("#qmInput").addEventListener("keydown",e=>{
+  if((e.metaKey||e.ctrlKey) && e.key==="Enter"){ e.preventDefault(); rewriteQuickMessage(); }
+});
 function renderProjectManager(){
   const counts={};
   (board.cards||[]).forEach(c=>{ counts[c.project]=(counts[c.project]||0)+1; });
   $("#projList2").innerHTML = projectsList().map(p=>{
     const n=counts[p]||0;
     const locked = p==="General";
+    const color = projColor(p);
     return `<div class="projrow">
-      <span class="pdot" style="background:${projColor(p)}"></span>
-      <span>${esc(p)} <span class="proj">${n}</span></span>
-      <input type="color" value="${projColor(p)}" data-pc="${esc(p)}" title="Project colour">
+      <span class="projname">${esc(p)} <span class="projcount">${n}</span></span>
+      <input type="color" value="${color}" data-pc="${esc(p)}" title="Project colour">
       <button class="x" data-p="${esc(p)}" ${locked?"disabled title=\"General cannot be removed\"":""}>×</button></div>`;
   }).join("");
   $("#projList2").querySelectorAll("input[type=color]").forEach(inp=>
@@ -1386,9 +1610,9 @@ $("#alertBtn").onclick=()=>{
     if(p==="granted"){ new Notification("Kanban alerts on",{body:"You'll be notified about due and overdue cards."}); checkNotifications(); }
   });
 };
-document.addEventListener("keydown",e=>{if(e.key==="Escape"){closeScrim();
+document.addEventListener("keydown",e=>{if(e.key==="Escape"){closeScrim(); closeToolsMenu();
   $("#adminScrim").classList.remove("open"); $("#projScrim").classList.remove("open");
-  $("#aiScrim").classList.remove("open");}});
+  $("#aiScrim").classList.remove("open"); $("#quickMsgScrim").classList.remove("open");}});
 
 // Quick-add shortcut: Ctrl+Space (or Cmd+Space is left to Spotlight on macOS)
 // opens the New card modal from anywhere on the board. Ignored while typing in a
@@ -1409,11 +1633,23 @@ document.addEventListener("keydown",e=>{
 });
 
 function currentTheme(){ return document.documentElement.getAttribute("data-theme")==="dark" ? "dark" : "light"; }
+function currentTopbarColor(){
+  try{ return localStorage.getItem("kanban_topbar_color") || getComputedStyle(document.documentElement).getPropertyValue("--topbar").trim() || "#3b6cf6"; }catch(e){ return "#3b6cf6"; }
+}
+function applyTopbarColor(color, persist){
+  const c = /^#[0-9a-f]{6}$/i.test(color||"") ? color : "#3b6cf6";
+  document.documentElement.style.setProperty("--topbar", c);
+  if(persist){ try{ localStorage.setItem("kanban_topbar_color", c); }catch(e){} }
+  const tc=document.querySelector('meta[name="theme-color"]');
+  if(tc) tc.setAttribute("content", c);
+  const custom=$("#topbarCustom"); if(custom) custom.value=c;
+  document.querySelectorAll("#topbarPicker .swatch").forEach(b=>b.classList.toggle("on", b.dataset.c.toLowerCase()===c.toLowerCase()));
+}
 function updateThemeBtn(){
   const dark = currentTheme()==="dark";
   $("#themeBtn").innerHTML = dark ? "☀ Light" : "🌙 Dark";
   $("#themeBtn").title = dark ? "Switch to light mode" : "Switch to dark mode";
-  const tc=document.querySelector('meta[name="theme-color"]'); if(tc) tc.setAttribute("content", dark ? "#1a212e" : "#3b6cf6");
+  applyTopbarColor(currentTopbarColor(), false);
 }
 $("#themeBtn").onclick=()=>{
   const next = currentTheme()==="dark" ? "light" : "dark";
@@ -1422,6 +1658,8 @@ $("#themeBtn").onclick=()=>{
   updateThemeBtn();
 };
 updateThemeBtn();
+document.querySelectorAll("#topbarPicker .swatch").forEach(b=>b.onclick=()=>applyTopbarColor(b.dataset.c, true));
+$("#topbarCustom").oninput=e=>applyTopbarColor(e.target.value, true);
 
 /* ---- backup / restore ---- */
 function backupBoard(){
@@ -1481,8 +1719,9 @@ document.querySelectorAll("#viewToggle button").forEach(b=>
     setViewToggle(); render(); });
 $("#refreshBtn").onclick=()=>{
   const b=$("#refreshBtn"); b.classList.add("spin-now"); b.innerHTML='<span>↻</span> Refresh';
-  fetchBoard();
-  setTimeout(()=>{ b.classList.remove("spin-now"); b.textContent="↻ Refresh"; }, 650);
+  const u = new URL(window.location.href);
+  u.searchParams.set("_refresh", Date.now().toString(36));
+  setTimeout(()=>location.replace(u.toString()), 120);
 };
 
 setViewToggle();
@@ -1796,7 +2035,7 @@ initSession().then(ok=>{
     }
     const by=s=>cards.filter(c=>c.status===s).length;
     const todo=cards.filter(c=>c.status==="todo");
-    kcAddMsg("bot","Board: "+by("todo")+" to-do · "+by("doing")+" doing · "+by("needs_ok")+" needs OK · "+by("done")+" done."+
+    kcAddMsg("bot","Board: "+by("todo")+" to-do · "+by("doing")+" doing · "+by("waiting")+" waiting · "+by("needs_ok")+" needs OK · "+by("done")+" done."+
       (todo.length? "\n\nTo-do:\n"+todo.slice(0,8).map(c=>"• "+c.title+" ("+c.project+")").join("\n")+
         (todo.length>8?"\n…and "+(todo.length-8)+" more":"") : ""));
     return true;

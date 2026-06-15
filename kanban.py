@@ -11,7 +11,7 @@ Usage:
   python3 kanban.py add "Title" [--desc "..."] [--project General]
                               [--assignee Ch@o|AI] [--status todo]
                               [--priority high|medium|low]
-  python3 kanban.py move <id> <todo|doing|done|needs_ok>
+  python3 kanban.py move <id> <todo|doing|waiting|needs_ok|done>
   python3 kanban.py assign <id> <Ch@o|AI>
   python3 kanban.py set-result <id> <relative/path/to/result.md>
   python3 kanban.py set-due <id> <YYYY-MM-DD|clear>
@@ -38,10 +38,14 @@ All commands print JSON to stdout so they are easy to parse.
 """
 import json
 import os
+import re
+import subprocess
 import sys
 import time
 import tempfile
 from datetime import datetime, timezone
+from urllib import request as urlrequest
+from urllib import parse as urlparse
 
 import auth  # accounts, sessions, secret storage (shared with the web server)
 
@@ -51,10 +55,160 @@ ROOT = os.path.dirname(os.path.abspath(__file__))
 DATA = os.environ.get("KANBAN_DATA", ROOT)
 BOARD = os.path.join(DATA, "board.json")
 LOCK = os.path.join(DATA, ".board.lock")
-VALID_STATUS = ("todo", "doing", "done", "needs_ok")
+VALID_STATUS = ("todo", "doing", "waiting", "needs_ok", "done")
 VALID_ASSIGNEE = ("Ch@o", "AI")
 AI_ASSIGNEES = ("AI", "Claude")  # "Claude" is a legacy value kept for old cards.
 VALID_PRIORITY = ("high", "medium", "low")
+APP_SETTINGS = os.path.join(DATA, "app_settings.json")
+GH_BINS = ("/opt/homebrew/bin/gh", "gh")
+
+
+def _load_app_settings():
+    if not os.path.exists(APP_SETTINGS):
+        return {}
+    try:
+        with open(APP_SETTINGS, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        return data if isinstance(data, dict) else {}
+    except Exception:
+        return {}
+
+
+def notify_done(card):
+    settings = _load_app_settings()
+    po = settings.get("pushover") or {}
+    if not po.get("enabled"):
+        return
+    try:
+        user_key = auth.decrypt_secret(po.get("user_key"))
+        app_token = auth.decrypt_secret(po.get("app_token"))
+    except Exception:
+        return
+    if not user_key or not app_token:
+        return
+    title = completion_title(card)
+    msg = completion_message(card)
+    payload = {
+        "token": app_token,
+        "user": user_key,
+        "title": title[:250],
+        "message": msg,
+        "url": "http://127.0.0.1:8787/",
+        "url_title": "Open LifeKanban",
+    }
+    data = urlparse.urlencode(payload).encode("utf-8")
+    req = urlrequest.Request("https://api.pushover.net/1/messages.json", data=data, method="POST",
+                             headers={"Content-Type": "application/x-www-form-urlencoded"})
+    try:
+        urlrequest.urlopen(req, timeout=12).close()
+    except Exception:
+        pass
+
+
+def github_issue_url(card):
+    issue_pattern = r"(?:https?://)?github\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+/issues/\d+"
+    issue_url = str(card.get("github_issue_url") or "").strip()
+    match = re.search(issue_pattern, issue_url)
+    if match:
+        url = match.group(0)
+        return url if url.startswith(("http://", "https://")) else "https://" + url
+
+    desc = str(card.get("description") or "")
+    match = re.search(issue_pattern, desc)
+    if match:
+        url = match.group(0)
+        return url if url.startswith(("http://", "https://")) else "https://" + url
+
+    repo = str(card.get("github_repo") or "").strip()
+    number = str(card.get("github_issue_number") or "").strip()
+    if re.match(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$", repo) and number.isdigit():
+        return "https://github.com/%s/issues/%s" % (repo, number)
+    return None
+
+
+def _one_line(value):
+    return re.sub(r"\s+", " ", str(value or "")).strip()
+
+
+def completion_title(card):
+    title = _one_line(card.get("title"))
+    prefix = "LifeKanban done: " + str(card.get("id", "card"))
+    if title:
+        return (prefix + " - " + title)[:250]
+    return prefix[:250]
+
+
+def completion_message(card):
+    lines = [
+        "Card: " + str(card.get("id", "unknown")),
+        "Title: " + (_one_line(card.get("title")) or "Card completed"),
+    ]
+    project = _one_line(card.get("project"))
+    if project:
+        lines.append("Project: " + project)
+    priority = _one_line(card.get("priority"))
+    if priority:
+        lines.append("Priority: " + priority)
+    due = _one_line(card.get("due"))
+    if due:
+        lines.append("Due: " + due)
+    description = str(card.get("description") or "").strip()
+    if description:
+        lines.extend(["", "Description:", description])
+    result = _one_line(card.get("result"))
+    if result:
+        lines.extend(["", "Result: " + result])
+    issue_url = github_issue_url(card)
+    if issue_url:
+        lines.extend(["", "GitHub issue: " + issue_url])
+    return "\n".join(lines)[:1024]
+
+
+def github_issue_ref(card):
+    """Return (repo, issue_number) for a GitHub-linked feature card."""
+    issue_url = str(card.get("github_issue_url") or "")
+    if not issue_url:
+        issue_url = str(card.get("description") or "")
+    match = re.search(r"github\.com/([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)/issues/(\d+)",
+                      issue_url)
+    if match:
+        return match.group(1), match.group(2)
+
+    repo = str(card.get("github_repo") or "").strip()
+    number = str(card.get("github_issue_number") or "").strip()
+    if re.match(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$", repo) and number.isdigit():
+        return repo, number
+    return None, None
+
+
+def close_github_issue(card):
+    repo, number = github_issue_ref(card)
+    if not repo or not number or card.get("github_issue_closed_at"):
+        return False
+
+    message = "Completed by LifeKanban card %s." % card.get("id", "unknown")
+    last_error = ""
+    for gh in GH_BINS:
+        cmd = [gh, "issue", "close", number, "--repo", repo,
+               "--reason", "completed", "--comment", message]
+        try:
+            proc = subprocess.run(cmd, cwd=ROOT, text=True, capture_output=True, timeout=30)
+        except FileNotFoundError:
+            continue
+        except Exception as e:
+            last_error = str(e)
+            continue
+        if proc.returncode == 0:
+            card["github_issue_closed_at"] = now()
+            card.setdefault("log", []).append(
+                "%s closed GitHub issue %s#%s" % (now(), repo, number))
+            return True
+        last_error = (proc.stderr or proc.stdout or "gh issue close failed").strip()
+
+    card.setdefault("log", []).append(
+        "%s could not close GitHub issue %s#%s: %s" %
+        (now(), repo, number, last_error[:300] or "gh not available"))
+    return False
 
 # Self-healing for orphaned cards. A worker run claims a card (todo -> doing)
 # then does the work in the same pass. If that run crashes, times out, or errors
@@ -322,13 +476,17 @@ def cmd_move(args):
         c = find(data, cid)
         if not c:
             die("no such card: " + cid)
+        old_status = c.get("status")
         c["status"] = status
         c["updated"] = now()
         c["log"].append("%s moved to %s" % (now(), status))
-        if status == "done":
+        if status == "done" and old_status != "done":
             # Successful completion clears the recovery counter so a card that
             # was rescued once isn't penalised if it's ever reworked later.
             c.pop("requeue_count", None)
+            close_github_issue(c)
+            if not _remote() and is_ai_assignee(c.get("assignee")):
+                notify_done(c)
         save(data)
     print(json.dumps(c, indent=2, ensure_ascii=False))
 

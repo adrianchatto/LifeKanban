@@ -4,8 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Admin · LifeKanban</title>
+<link rel="stylesheet" href="/theme.css">
 <style>
-  :root{ --blue:#3b6cf6; --ink:#1d2330; --muted:#6b7385; --line:#e4e7ef; --bg:#f7f8fb; }
+  :root{ --blue:var(--lk-accent,#3b6cf6); --ink:var(--lk-page-ink,#1d2330); --muted:var(--lk-page-muted,#6b7385); --line:var(--lk-page-line,#e4e7ef); --bg:var(--lk-page-bg,#f7f8fb); }
   *{box-sizing:border-box}
   body{font:15px/1.5 -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:var(--ink);
        background:var(--bg);margin:0;padding:30px 18px}
@@ -32,6 +33,16 @@
   .msg.ok{display:block;color:#1e7d4f;background:#e7f6ee;border:1px solid #b9e3cc}
   .msg.bad{display:block;color:#c0392b;background:#fdecea;border:1px solid #f5c6c0}
   .mono{font-family:ui-monospace,Menlo,monospace;font-size:12.5px;color:var(--muted)}
+  .cron-actions{display:flex;align-items:center;gap:10px;justify-content:space-between;margin-bottom:8px}
+  .cron-table td{vertical-align:top}
+  .cron-command{font-family:ui-monospace,Menlo,monospace;font-size:12.5px;white-space:pre-wrap;overflow-wrap:anywhere;color:#30384a}
+  .cron-source{display:block;margin-top:2px}
+  .cron-errors{margin-top:10px}
+  @media (max-width:720px){
+    .cron-table thead{display:none}
+    .cron-table tr{display:block;border-bottom:1px solid var(--line);padding:8px 0}
+    .cron-table td{display:block;border-bottom:0;padding:4px 0}
+  }
 </style>
 </head>
 <body>
@@ -59,6 +70,36 @@
       <tbody id="rows"><tr><td colspan="5" class="mono">Loading…</td></tr></tbody></table>
     <div class="msg" id="uMsg"></div>
   </div>
+
+  <div class="card">
+    <h2>Pushover notifications</h2>
+    <p class="mono">Send a push when cards or feature requests are moved to Done. Keys are encrypted locally and never committed to GitHub.</p>
+    <div class="row">
+      <div><label for="poUser">User key</label><input id="poUser" autocomplete="off" placeholder="leave blank to keep existing"></div>
+      <div><label for="poToken">App token</label><input id="poToken" autocomplete="off" placeholder="leave blank to keep existing"></div>
+      <div style="max-width:150px"><label for="poEnabled">Enabled</label><select id="poEnabled"><option value="1">Enabled</option><option value="0">Disabled</option></select></div>
+    </div>
+    <div class="mono" id="poState" style="margin-top:9px">Loading…</div>
+    <div style="margin-top:14px"><button id="poSave">Save</button>
+      <button id="poTest" class="ghost" type="button">Save and send test</button>
+      <button id="poClear" class="danger" type="button">Clear</button></div>
+    <div class="msg" id="poMsg"></div>
+  </div>
+
+  <div class="card" id="cron">
+    <div class="cron-actions">
+      <div>
+        <h2 style="margin-bottom:2px">Cron jobs</h2>
+        <p class="mono" style="margin:0">Read-only view of the current user crontab and standard system cron files.</p>
+      </div>
+      <button id="cronRefresh" class="ghost" type="button">Refresh</button>
+    </div>
+    <table class="cron-table">
+      <thead><tr><th>Schedule</th><th>Next run</th><th>User / source</th><th>Command</th></tr></thead>
+      <tbody id="cronRows"><tr><td colspan="4" class="mono">Loading…</td></tr></tbody>
+    </table>
+    <div class="msg bad cron-errors" id="cronErrors"></div>
+  </div>
 </div>
 <script>
   var csrf='', me=null;
@@ -73,7 +114,7 @@
     if(!d) return;
     csrf=d.csrf||''; me=d.user;
     if(me.role!=='admin'){ document.body.innerHTML='<div class="wrap"><div class="card">Admins only. <a href="/">Back to board</a>.</div></div>'; return; }
-    load();
+    load(); loadIntegrations(); loadCron();
   });
 
   function load(){
@@ -131,6 +172,71 @@
       .then(function(r){return r.json().then(function(j){return {ok:r.ok,j:j};});})
       .then(function(res){ if(!res.ok) throw new Error(res.j.error||'Failed');
         show('uMsg',true,'Deleted '+username+'.'); load(); }).catch(function(e){ show('uMsg',false,e.message); });
+  };
+
+  function renderPushover(po){
+    po=po||{};
+    document.getElementById('poEnabled').value=po.enabled?'1':'0';
+    var bits=[];
+    bits.push(po.enabled?'Enabled':'Disabled');
+    bits.push('user key: '+(po.has_user_key?('…'+(po.user_key_last4||'????')):'not set'));
+    bits.push('app token: '+(po.has_app_token?('…'+(po.app_token_last4||'????')):'not set'));
+    document.getElementById('poState').textContent=bits.join(' · ');
+  }
+  function loadIntegrations(){
+    fetch('/api/admin/integrations',{cache:'no-store'}).then(function(r){return r.json();}).then(function(d){
+      renderPushover(d.pushover||{});
+    }).catch(function(e){ document.getElementById('poState').textContent='Could not load Pushover settings.'; });
+  }
+  function loadCron(){
+    document.getElementById('cronRows').innerHTML='<tr><td colspan="4" class="mono">Loading…</td></tr>';
+    document.getElementById('cronErrors').className='msg bad cron-errors';
+    document.getElementById('cronErrors').textContent='';
+    fetch('/api/admin/cron',{cache:'no-store'}).then(function(r){return r.json().then(function(j){return {ok:r.ok,j:j};});})
+      .then(function(res){
+        if(!res.ok) throw new Error(res.j.error||'Could not load cron jobs');
+        var rows=(res.j.entries||[]).map(function(c){
+          return '<tr>'+
+            '<td><strong>'+esc(c.description||c.schedule||'')+'</strong><span class="mono cron-source">'+esc(c.schedule||'')+'</span></td>'+
+            '<td class="mono">'+esc(c.next_run||'Startup / manual')+'</td>'+
+            '<td><span>'+esc(c.user||'current user')+'</span><span class="mono cron-source">'+esc(c.source||'')+(c.line?(':'+c.line):'')+'</span></td>'+
+            '<td class="cron-command">'+esc(c.command||'')+'</td>'+
+            '</tr>';
+        }).join('');
+        document.getElementById('cronRows').innerHTML=rows||'<tr><td colspan="4" class="mono">No cron jobs found for the current user or standard system cron locations.</td></tr>';
+        var errs=res.j.errors||[];
+        if(errs.length){
+          document.getElementById('cronErrors').className='msg bad cron-errors';
+          document.getElementById('cronErrors').textContent='Some cron sources could not be read: '+errs.join(' · ');
+        }
+      }).catch(function(e){
+        document.getElementById('cronRows').innerHTML='<tr><td colspan="4" class="mono">Could not load cron jobs.</td></tr>';
+        document.getElementById('cronErrors').className='msg bad cron-errors';
+        document.getElementById('cronErrors').textContent=e.message;
+      });
+  }
+  document.getElementById('cronRefresh').onclick=loadCron;
+  function savePushover(test){
+    var body={ enabled:document.getElementById('poEnabled').value==='1',
+               user_key:document.getElementById('poUser').value.trim(),
+               app_token:document.getElementById('poToken').value.trim(),
+               test:!!test };
+    fetch('/api/admin/pushover',{method:'POST',headers:H(),body:JSON.stringify(body)})
+      .then(function(r){return r.json().then(function(j){return {ok:r.ok,j:j};});})
+      .then(function(res){ if(!res.ok) throw new Error(res.j.error||'Failed');
+        document.getElementById('poUser').value=''; document.getElementById('poToken').value='';
+        renderPushover(res.j.pushover||{}); show('poMsg',true,test?'Saved and sent a test notification.':'Saved Pushover settings.');
+      }).catch(function(e){ show('poMsg',false,e.message); });
+  }
+  document.getElementById('poSave').onclick=function(){ savePushover(false); };
+  document.getElementById('poTest').onclick=function(){ savePushover(true); };
+  document.getElementById('poClear').onclick=function(){
+    if(!confirm('Clear Pushover API details?')) return;
+    fetch('/api/admin/pushover',{method:'POST',headers:H(),body:JSON.stringify({clear:true})})
+      .then(function(r){return r.json().then(function(j){return {ok:r.ok,j:j};});})
+      .then(function(res){ if(!res.ok) throw new Error(res.j.error||'Failed');
+        renderPushover(res.j.pushover||{}); show('poMsg',true,'Cleared Pushover settings.');
+      }).catch(function(e){ show('poMsg',false,e.message); });
   };
 </script>
 </body>
