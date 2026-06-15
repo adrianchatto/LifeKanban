@@ -29,6 +29,7 @@ from urllib import error as urlerror
 from urllib import parse as urlparse
 
 import auth
+import storage
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
 # Data (board.json + results) can live outside the app dir so it can be mounted
@@ -98,28 +99,18 @@ CRON_MACROS = {
 }
 
 
+def _empty_board():
+    return {"version": 1, "projects": ["General"], "next_id": 1, "cards": []}
+
+
 def _load_app_settings():
-    if not os.path.exists(APP_SETTINGS):
-        return {"version": 1}
-    try:
-        with open(APP_SETTINGS, "r", encoding="utf-8") as f:
-            data = json.load(f)
-        return data if isinstance(data, dict) else {"version": 1}
-    except Exception:
-        return {"version": 1}
+    data = storage.load_json(APP_SETTINGS, {"version": 1})
+    return data if isinstance(data, dict) else {"version": 1}
 
 
 def _save_app_settings(data):
-    os.makedirs(DATA, exist_ok=True)
     data["version"] = data.get("version", 1)
-    fd, tmp = tempfile.mkstemp(dir=DATA, prefix=".app-settings.", suffix=".tmp")
-    with os.fdopen(fd, "w", encoding="utf-8") as f:
-        json.dump(data, f, indent=2, ensure_ascii=False)
-    os.replace(tmp, APP_SETTINGS)
-    try:
-        os.chmod(APP_SETTINGS, 0o600)
-    except OSError:
-        pass
+    storage.save_json(APP_SETTINGS, data, private=True)
 
 
 def _pushover_public(settings=None):
@@ -750,13 +741,8 @@ class Handler(BaseHTTPRequestHandler):
             if not s:
                 return
             u = auth.find_user(s["username"])
-            try:
-                with open(auth.board_path(u), "rb") as f:
-                    self._send(200, f.read(), "application/json")
-            except FileNotFoundError:
-                self._send(200, json.dumps(
-                    {"version": 1, "projects": ["General"], "next_id": 1,
-                     "cards": []}), "application/json")
+            board = storage.load_json(auth.board_path(u), _empty_board())
+            self._send(200, json.dumps(board, ensure_ascii=False), "application/json")
             return
         if path.startswith("/results/"):
             s = self.require_user()
@@ -904,20 +890,10 @@ class Handler(BaseHTTPRequestHandler):
                 return
             u = auth.find_user(s["username"])
             bp = auth.board_path(u)
-            old = {"cards": []}
-            if os.path.exists(bp):
-                try:
-                    with open(bp, "r", encoding="utf-8") as f:
-                        old = json.load(f)
-                except Exception:
-                    old = {"cards": []}
+            old = storage.load_json(bp, {"cards": []})
             done_cards = _ai_done_notifications(old, body)
             close_newly_done_github_issues(old, body)
-            os.makedirs(os.path.dirname(bp), exist_ok=True)
-            tmp = bp + ".tmp"
-            with open(tmp, "w", encoding="utf-8") as f:
-                json.dump(body, f, indent=2, ensure_ascii=False)
-            os.replace(tmp, bp)
+            storage.save_json(bp, body)
             notify_ai_done(done_cards)
             self._json(200, {"ok": True})
             return

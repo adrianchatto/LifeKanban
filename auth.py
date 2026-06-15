@@ -32,6 +32,8 @@ import json
 import os
 import secrets
 import tempfile
+
+import storage
 import time
 from datetime import datetime, timezone
 
@@ -164,21 +166,11 @@ def verify_password(pw, stored):
 # User store.
 # --------------------------------------------------------------------------- #
 def _load_raw():
-    if not os.path.exists(USERS):
-        return {"version": 1, "next_id": 1, "users": []}
-    with open(USERS, "r", encoding="utf-8") as f:
-        return json.load(f)
+    return storage.load_json(USERS, {"version": 1, "next_id": 1, "users": []})
 
 
 def _save_raw(data):
-    fd, tmp = tempfile.mkstemp(dir=DATA, prefix=".users.", suffix=".tmp")
-    with os.fdopen(fd, "w", encoding="utf-8") as f:
-        json.dump(data, f, indent=2, ensure_ascii=False)
-    os.replace(tmp, USERS)
-    try:
-        os.chmod(USERS, 0o600)
-    except OSError:
-        pass
+    storage.save_json(USERS, data, private=True)
 
 
 def _public(u):

@@ -48,7 +48,31 @@ flowchart LR
     BYOAI --> AI[Anthropic/OpenAI API]
 ```
 
-The app is deliberately simple: Python standard-library HTTP server, static HTML/CSS/JS, JSON files for state, and a shell/Python worker. There is no database server.
+The app is deliberately simple: Python standard-library HTTP server, static HTML/CSS/JS, JSON files for state, and a shell/Python worker. Supabase support now exists as an optional storage backend, but the live VM remains in file mode until `KANBAN_STORAGE=supabase` and Supabase credentials are added.
+
+## Supabase Storage Option
+
+LifeKanban can store its existing JSON documents in Supabase without changing the browser API. This is the first database migration step and is intentionally conservative: `users.json`, `app_settings.json`, `board.json`, and `boards/*.json` map into rows in `public.lifekanban_documents`. Results and attachments remain filesystem-backed for now.
+
+Required private environment on the server when cutting over:
+
+```bash
+KANBAN_STORAGE=supabase
+KANBAN_SUPABASE_URL=https://<project-ref>.supabase.co
+KANBAN_SUPABASE_SERVICE_ROLE_KEY=<service-role-key>
+KANBAN_SUPABASE_TABLE=lifekanban_documents
+```
+
+Bootstrap order:
+
+1. Run `supabase/schema.sql` in the Supabase SQL editor.
+2. Keep the server stopped or in maintenance while migrating.
+3. Run `scripts/migrate-json-to-supabase.py` on the VM with `KANBAN_DATA=/opt/lifekanban/data` and the Supabase env vars above.
+4. Add the env vars to `lifekanban-server.service` and any local worker/API process that needs direct local mode.
+5. Restart `lifekanban-server.service` and verify login, `/api/board`, card save, and worker claim/move.
+6. Keep `/opt/lifekanban/data` as rollback until Supabase has been stable for a few days.
+
+Do not expose the service-role key to browser JavaScript or commit it to Git.
 
 ## Live VM Details
 

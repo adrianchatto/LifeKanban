@@ -48,6 +48,7 @@ from urllib import request as urlrequest
 from urllib import parse as urlparse
 
 import auth  # accounts, sessions, secret storage (shared with the web server)
+import storage
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
 # Data dir can be relocated (e.g. a mounted Docker volume) via KANBAN_DATA.
@@ -64,14 +65,8 @@ GH_BINS = ("/opt/homebrew/bin/gh", "gh")
 
 
 def _load_app_settings():
-    if not os.path.exists(APP_SETTINGS):
-        return {}
-    try:
-        with open(APP_SETTINGS, "r", encoding="utf-8") as f:
-            data = json.load(f)
-        return data if isinstance(data, dict) else {}
-    except Exception:
-        return {}
+    data = storage.load_json(APP_SETTINGS, {})
+    return data if isinstance(data, dict) else {}
 
 
 def notify_done(card):
@@ -384,14 +379,15 @@ def _api(method, body=None):
         die("could not reach API at %s: %s" % (url, e))
 
 
+def empty_board():
+    return {"version": 1, "updated": now(), "projects": ["General"],
+            "next_id": 1, "cards": []}
+
+
 def load():
     if _remote():
         return _api("GET")
-    if not os.path.exists(BOARD):
-        return {"version": 1, "updated": now(), "projects": ["General"],
-                "next_id": 1, "cards": []}
-    with open(BOARD, "r", encoding="utf-8") as f:
-        return json.load(f)
+    return storage.load_json(BOARD, empty_board())
 
 
 def save(data):
@@ -399,10 +395,7 @@ def save(data):
     if _remote():
         _api("POST", data)
         return
-    fd, tmp = tempfile.mkstemp(dir=DATA, prefix=".board.", suffix=".tmp")
-    with os.fdopen(fd, "w", encoding="utf-8") as f:
-        json.dump(data, f, indent=2, ensure_ascii=False)
-    os.replace(tmp, BOARD)
+    storage.save_json(BOARD, data)
 
 
 def find(data, cid):

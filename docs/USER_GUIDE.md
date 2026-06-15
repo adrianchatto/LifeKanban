@@ -162,6 +162,7 @@ Docker `/data` volume and are preserved across rebuilds.
 
 ## Changelog
 
+- **15 June 2026** — Added an optional Supabase storage backend for LifeKanban JSON documents, plus SQL bootstrap and migration tooling. Live cutover still requires Supabase project URL/service-role credentials.
 - **15 June 2026** — Added a protected mobile-first Pomodoro page at `/pomodoro.html`, linked it under Tools, redirected mobile board visits there with a full-board escape hatch, and hardened the worker so BYOAI text results do not falsely mark implementation cards Done. Added a Mac-side autoship path for Codex implementation cards: commit, push, and deploy via `scripts/deploy-to-lifekanban-ai.sh`.
 - **12 June 2026** — Added macOS Calendar sync: an hourly importer creates deduplicated To Do cards for Calendar events starting in the next two days.
 - **12 June 2026** — Added per-card history updates: type a note in the card editor, save it with a timestamp, and review the scrollable history on that ticket.
