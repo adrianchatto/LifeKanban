@@ -131,7 +131,7 @@ KANBAN_WORKER_MAX=3
 
 `worker/byoai_worker.py` is now committed to the repo. It is generic and contains no secrets. It reads the saved encrypted BYOAI credentials from LifeKanban's user store at runtime.
 
-The worker should prefer Codex when available in Mac/local mode, but the VM currently uses the custom BYOAI helper because that matches the app's saved provider/model/API-key settings. The BYOAI helper is text-only: it can write summaries, drafts, and plans, but it cannot edit repository files. `worker/worker.sh` now guards against false completion by parking implementation-looking cards in Needs OK when the active provider is `custom` and the result is not already `NEEDS_OK:`.
+The worker should prefer Codex when available in Mac/local mode, but the VM currently uses the custom BYOAI helper because that matches the app's saved provider/model/API-key settings. The BYOAI helper is text-only: it can write summaries, drafts, and plans, but it cannot edit repository files. `worker/worker.sh` now guards against false completion by parking implementation-looking cards in Needs OK when the active provider is `custom` and the result is not already `NEEDS_OK:`. The Mac LaunchAgent can be configured as the code-capable worker by setting `KANBAN_API_URL`, `KANBAN_API_TOKEN`, `KANBAN_WORKER_AUTOSHIP=1`, and `KANBAN_WORKER_DEPLOY_CMD=/Users/adrianchatto/GitHub/LifeKanban/scripts/deploy-to-lifekanban-ai.sh` in `worker/worker.env`; that path lets Codex edit the Mac checkout, commit, push, and deploy to the VM.
 
 ## Cloudflare Tunnel Details
 

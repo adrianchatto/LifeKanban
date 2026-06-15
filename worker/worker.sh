@@ -47,6 +47,8 @@ RESULTS_DIR="${KANBAN_WORKER_RESULTS:-}"
 SET_RESULT_LINK="${KANBAN_WORKER_SET_RESULT:-}"
 MAX_CARDS="${KANBAN_WORKER_MAX:-3}"
 LOCK_DIR="${KANBAN_WORKER_LOCK:-${TMPDIR:-/tmp}/kanban-worker.lock.d}"
+AUTOSHIP="${KANBAN_WORKER_AUTOSHIP:-0}"
+DEPLOY_CMD="${KANBAN_WORKER_DEPLOY_CMD:-}"
 
 detect_ai(){
   case "$AI_PROVIDER" in
@@ -110,6 +112,34 @@ jget(){ python3 -c 'import sys,json
 try: d=json.load(sys.stdin)
 except Exception: d={}
 print(d.get(sys.argv[1],"") if isinstance(d,dict) else "")' "$1"; }
+
+is_implementation_card(){
+  printf '%s
+%s
+%s
+' "$1" "$2" "$3" | grep -qiE "(add|build|code|css|deploy|feature|fix|github|html|implement|javascript|page|python|repo|server|ui|worker)"
+}
+
+autoship_changes(){
+  local id="$1" title="$2" branch msg status
+  [ "$AUTOSHIP" = "1" ] || return 0
+  git -C "$REPO_DIR" rev-parse --is-inside-work-tree >/dev/null 2>&1 || return 11
+  status="$(git -C "$REPO_DIR" status --porcelain --untracked-files=normal \
+    -- . ':!board.json' ':!users.json' ':!app_settings.json' ':!worker/worker.env' ':!worker/worker.log' ':!results' ':!worker-results' ':!attachments' 2>/dev/null || true)"
+  [ -n "$status" ] || return 12
+  git -C "$REPO_DIR" add -A -- . ':!board.json' ':!users.json' ':!app_settings.json' ':!worker/worker.env' ':!worker/worker.log' ':!results' ':!worker-results' ':!attachments'
+  if git -C "$REPO_DIR" diff --cached --quiet; then
+    return 12
+  fi
+  msg="Implement $id: $(printf '%s' "$title" | tr '\n' ' ' | cut -c1-72)"
+  git -C "$REPO_DIR" commit -m "$msg"
+  branch="$(git -C "$REPO_DIR" branch --show-current)"
+  [ -n "$branch" ] || return 13
+  git -C "$REPO_DIR" push origin "$branch"
+  if [ -n "$DEPLOY_CMD" ]; then
+    "$DEPLOY_CMD"
+  fi
+}
 
 run_ai(){
   local id="$1" prompt="$2" out_file="$RESULTS_DIR/$id.md" final_file="$RESULTS_DIR/$id.final.txt" rc
@@ -201,7 +231,7 @@ if [ -n "${KANBAN_API_URL:-}" ]; then log "mode: remote API ($KANBAN_API_URL)"; 
 log "AI provider: $AI_PROVIDER ($AI_BIN)"
 
 process_one(){
-  local card id title desc project prompt result rc reason result_file
+  local card id title desc project prompt result rc reason result_file implementation autoship_rc
   card="$(kb claim-next 2>&1)" || { log "claim-next failed: $card"; return 1; }
   # claim-next prints "null" (nothing to do) or {"claimed":null,...} (only
   # recovered stale cards) or a card object with an "id".
@@ -211,6 +241,8 @@ process_one(){
   title="$(printf '%s' "$card" | jget title)"
   desc="$(printf '%s' "$card" | jget description)"
   project="$(printf '%s' "$card" | jget project)"
+  implementation=0
+  if is_implementation_card "$title" "$project" "$desc"; then implementation=1; fi
   log "working $id: $title"
 
   prompt="$(cat <<EOF
@@ -255,7 +287,7 @@ EOF
     kb set-result "$id" "$id.md" >/dev/null 2>&1 || true
   fi
 
-  if [ "$AI_PROVIDER" = "custom" ] && printf '%s\n%s\n%s\n' "$title" "$project" "$desc" | grep -qiE "(add|build|code|css|deploy|feature|fix|github|html|implement|javascript|page|python|repo|server|ui|worker)"; then
+  if [ "$AI_PROVIDER" = "custom" ] && [ "$implementation" = "1" ]; then
     if ! printf '%s' "$result" | head -n1 | grep -qiE '^NEEDS_OK:'; then
       kb log "$id" "custom BYOAI worker produced a write-up for an implementation card; parked for code-capable execution | result: $result_file" >/dev/null
       kb move "$id" needs_ok >/dev/null
@@ -272,6 +304,18 @@ EOF
     kb move "$id" needs_ok >/dev/null
     log "$id -> needs_ok (worker was blocked, not actually done)"
     return 0
+  fi
+
+  if [ "$implementation" = "1" ] && [ "$AI_PROVIDER" = "codex" ] && [ "$AUTOSHIP" = "1" ]; then
+    autoship_rc=0
+    autoship_changes "$id" "$title" || autoship_rc=$?
+    if [ "$autoship_rc" -ne 0 ]; then
+      kb log "$id" "worker could not autoship implementation changes (rc=$autoship_rc); parked for review | result: $result_file" >/dev/null
+      kb move "$id" needs_ok >/dev/null
+      log "$id -> needs_ok (autoship failed or no code diff, rc=$autoship_rc)"
+      return 0
+    fi
+    kb log "$id" "worker autoshipped implementation: committed, pushed, and deployed" >/dev/null 2>&1 || true
   fi
 
   if printf '%s' "$result" | head -n1 | grep -qiE '^NEEDS_OK:'; then
