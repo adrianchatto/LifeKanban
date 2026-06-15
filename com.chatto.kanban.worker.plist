@@ -7,9 +7,9 @@
 
   <!-- Autonomous worker: claims the next card assigned to AI, runs the
        configured AI CLI to do it, saves the result, and moves the card to Done (or
-       Needs OK if it needs approval). Runs in LOCAL mode (see worker/worker.env)
-       — it edits this repo's board.json directly, the same file the local
-       server at 127.0.0.1:8787 serves. -->
+       Needs OK if it needs approval). Runtime mode is controlled by
+       worker/worker.env; on the Mac mini it targets the VM board API and
+       autoships Codex implementation work back to the VM. -->
   <key>ProgramArguments</key>
   <array>
     <string>/bin/bash</string>
@@ -19,13 +19,13 @@
   <key>WorkingDirectory</key>
   <string>/Users/adrianchatto/GitHub/LifeKanban</string>
 
-  <!-- Run once at load, then every 15 minutes. worker.sh self-locks (atomic
+  <!-- Run once at load, then every minute. worker.sh self-locks (atomic
        mkdir lock), so an overlapping fire is safe. Do NOT use KeepAlive here —
        this is a periodic job, not a daemon; it should exit between runs. -->
   <key>RunAtLoad</key>
   <true/>
   <key>StartInterval</key>
-  <integer>900</integer>
+  <integer>60</integer>
 
   <!-- launchd starts jobs with a minimal PATH, so codex/python3 may not be
        found. Give it the usual install locations; if Codex lives elsewhere,

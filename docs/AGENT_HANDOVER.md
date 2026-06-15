@@ -92,7 +92,7 @@ Expected state:
 | Unit | Expected state | Meaning |
 | --- | --- | --- |
 | `lifekanban-server.service` | `active` | Web/API server is running. |
-| `lifekanban-worker.timer` | `active` | Worker schedule is armed. |
+| `lifekanban-worker.timer` | `active` | VM backup timer is armed but runtime `KANBAN_WORKER_MAX=0`; Mac LaunchAgent is the active executor. |
 | `lifekanban-worker.service` | Often `inactive (dead)` | Normal for a one-shot worker after a successful run. Check exit status/log lines, not only active state. |
 
 Server service shape:
@@ -126,12 +126,12 @@ KANBAN_AI_PROVIDER=custom
 KANBAN_AI_BIN=/opt/lifekanban/app/worker/byoai_worker.py
 KANBAN_WORKER_RESULTS=/opt/lifekanban/data/results
 KANBAN_WORKER_SET_RESULT=1
-KANBAN_WORKER_MAX=3
+KANBAN_WORKER_MAX=0
 ```
 
 `worker/byoai_worker.py` is now committed to the repo. It is generic and contains no secrets. It reads the saved encrypted BYOAI credentials from LifeKanban's user store at runtime.
 
-The worker should prefer Codex when available in Mac/local mode, but the VM currently uses the custom BYOAI helper because that matches the app's saved provider/model/API-key settings. The BYOAI helper is text-only: it can write summaries, drafts, and plans, but it cannot edit repository files. `worker/worker.sh` now guards against false completion by parking implementation-looking cards in Needs OK when the active provider is `custom` and the result is not already `NEEDS_OK:`. The Mac LaunchAgent can be configured as the code-capable worker by setting `KANBAN_API_URL`, `KANBAN_API_TOKEN`, `KANBAN_WORKER_AUTOSHIP=1`, and `KANBAN_WORKER_DEPLOY_CMD=/Users/adrianchatto/GitHub/LifeKanban/scripts/deploy-to-lifekanban-ai.sh` in `worker/worker.env`; that path lets Codex edit the Mac checkout, commit, push, and deploy to the VM.
+The worker should prefer Codex when available in Mac/local mode, but the VM currently uses the custom BYOAI helper because that matches the app's saved provider/model/API-key settings. The BYOAI helper is text-only: it can write summaries, drafts, and plans, but it cannot edit repository files. `worker/worker.sh` now guards against false completion by parking implementation-looking cards in Needs OK when the active provider is `custom` and the result is not already `NEEDS_OK:`. The Mac LaunchAgent is the code-capable executor. Its ignored local `worker/worker.env` points at the VM board API with `KANBAN_WORKER_AUTOSHIP=1` and `KANBAN_WORKER_DEPLOY_CMD=/Users/adrianchatto/GitHub/LifeKanban/scripts/deploy-to-lifekanban-ai.sh`; that path lets Codex edit the Mac checkout, commit, push, and deploy to the VM. The VM's own BYOAI worker is intentionally left installed but set to `KANBAN_WORKER_MAX=0` so the text-only runner does not claim implementation cards before the Mac worker sees them.
 
 ## Cloudflare Tunnel Details
 
