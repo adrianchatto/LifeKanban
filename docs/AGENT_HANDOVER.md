@@ -131,7 +131,7 @@ KANBAN_WORKER_MAX=3
 
 `worker/byoai_worker.py` is now committed to the repo. It is generic and contains no secrets. It reads the saved encrypted BYOAI credentials from LifeKanban's user store at runtime.
 
-The worker should prefer Codex when available in Mac/local mode, but the VM currently uses the custom BYOAI helper because that matches the app's saved provider/model/API-key settings.
+The worker should prefer Codex when available in Mac/local mode, but the VM currently uses the custom BYOAI helper because that matches the app's saved provider/model/API-key settings. The BYOAI helper is text-only: it can write summaries, drafts, and plans, but it cannot edit repository files. `worker/worker.sh` now guards against false completion by parking implementation-looking cards in Needs OK when the active provider is `custom` and the result is not already `NEEDS_OK:`.
 
 ## Cloudflare Tunnel Details
 
@@ -370,13 +370,14 @@ Mac-only Calendar sync:
 
 ### Pomodoro
 
-The main board contains Pomodoro functionality near the bottom of `index.html`.
+The main board contains Pomodoro functionality near the bottom of `index.html`, and `/pomodoro.html` is a protected mobile-first Pomodoro page that shares the same `kanban_pomodoro` localStorage state. The main board redirects mobile/coarse-pointer browsers to `/pomodoro.html` unless the user chooses the full board with `/?desktop=1`.
 
 Known behaviour:
 
 - Focus/break timer UI.
+- Mobile-first standalone Pomodoro page under Tools -> Pomodoro.
 - A previous card added Spotify focus music behaviour when a Focus session starts.
-- Keep Pomodoro logic in the main UI unless it grows enough to justify extraction.
+- Keep the shared storage key stable so the desktop widget and mobile page stay in sync.
 
 ### Top Bar Colour
 

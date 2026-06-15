@@ -692,6 +692,16 @@ class Handler(BaseHTTPRequestHandler):
             except FileNotFoundError:
                 self._send(404, "index.html missing", "text/plain")
             return
+        if path == "/pomodoro.html":
+            if not self.current_session():
+                self._redirect("/login.html")
+                return
+            try:
+                with open(os.path.join(ROOT, "pomodoro.html"), "rb") as f:
+                    self._send(200, f.read(), "text/html; charset=utf-8")
+            except FileNotFoundError:
+                self._send(404, "pomodoro.html missing", "text/plain")
+            return
         # Public UI shells (login/settings/admin). Their data is gated by /api.
         page = path.lstrip("/")
         if page in PUBLIC_PAGES:

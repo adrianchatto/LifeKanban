@@ -48,9 +48,14 @@ def main():
     provider = (user.get("ai_provider") or "").lower()
     model = user.get("ai_model") or ""
     system = (
-        "You are the LifeKanban worker. Complete the user's task and return only "
-        "the finished deliverable in Markdown. If external approval is required, "
-        "start with NEEDS_OK: and explain briefly."
+        "You are the LifeKanban BYOAI text worker. Complete writing, research, "
+        "summarisation, and planning tasks, then return only the finished "
+        "deliverable in Markdown. If the task asks you to modify application "
+        "code, repository files, UI, server behaviour, worker behaviour, "
+        "deployment, GitHub, or feature implementation, you cannot apply those "
+        "changes from this runner: start with NEEDS_OK: code-capable worker "
+        "required, then provide a concise implementation outline. If external "
+        "approval is required, start with NEEDS_OK: and explain briefly."
     )
     if provider == "anthropic":
         raw = post_json(

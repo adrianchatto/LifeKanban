@@ -358,6 +358,24 @@ async function initSession(){
   return true;
 }
 </script>
+<script>
+(function(){
+  try{
+    var params = new URLSearchParams(location.search);
+    if(params.get("desktop") === "1"){
+      sessionStorage.setItem("kanban_desktop_board", "1");
+      return;
+    }
+    var isMobile = window.matchMedia && (
+      window.matchMedia("(max-width: 760px)").matches ||
+      window.matchMedia("(pointer: coarse)").matches
+    );
+    if(isMobile && !sessionStorage.getItem("kanban_desktop_board")){
+      location.replace("/pomodoro.html");
+    }
+  }catch(e){}
+})();
+</script>
 </head>
 <body>
 <header>
@@ -387,6 +405,7 @@ async function initSession(){
     <div class="menu-pop" role="menu" aria-label="Tools">
       <button class="menu-item" id="menuQuickMsg" type="button" role="menuitem"><span class="mi">✎</span>Quick message</button>
       <a class="menu-item" href="/features.html" role="menuitem"><span class="mi">◎</span>Feature Requests</a>
+      <a class="menu-item" href="/pomodoro.html" role="menuitem"><span class="mi">◷</span>Pomodoro</a>
       <a class="menu-item" href="/admin.html#cron" role="menuitem"><span class="mi">⏱</span>Cron jobs</a>
       <button class="menu-item" id="menuProjects" type="button" role="menuitem"><span class="mi">⋮</span>Projects</button>
       <button class="menu-item" id="menuSettings" type="button" role="menuitem"><span class="mi">⚙</span>Settings</button>

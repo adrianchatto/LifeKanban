@@ -138,8 +138,7 @@ Keep tokens secret — anyone holding one can act as that user on their board.
 ## Updating & deploying changes
 
 App changes — new features and bug fixes — only appear after the code is pushed
-to GitHub and the server is rebuilt. (The worker does not edit the app; it only
-produces written deliverables.)
+to GitHub and the server is rebuilt. The VM's BYOAI worker is text-only; implementation-style cards are now parked in Needs OK unless a code-capable worker applies the files.
 
 1. **Push from the Mac:**
 
@@ -163,6 +162,7 @@ Docker `/data` volume and are preserved across rebuilds.
 
 ## Changelog
 
+- **15 June 2026** — Added a protected mobile-first Pomodoro page at `/pomodoro.html`, linked it under Tools, redirected mobile board visits there with a full-board escape hatch, and hardened the worker so BYOAI text results do not falsely mark implementation cards Done.
 - **12 June 2026** — Added macOS Calendar sync: an hourly importer creates deduplicated To Do cards for Calendar events starting in the next two days.
 - **12 June 2026** — Added per-card history updates: type a note in the card editor, save it with a timestamp, and review the scrollable history on that ticket.
 - **10 June 2026** — Feature-request cards now close their linked GitHub issue when they newly move to Done, and record the close result in the card log.

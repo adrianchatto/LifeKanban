@@ -227,9 +227,12 @@ Rules:
   prepared draft/content, and make the VERY FIRST LINE of your reply exactly:
   NEEDS_OK: <one-line reason it needs approval>
 - Otherwise, just output the completed result.
+- For code/app/repository feature work, apply the required edits directly in the
+  local repo, run relevant checks, and summarize the changed files. Do not return
+  standalone code blocks unless you also applied them.
 - Do not ask the human for routine permission. If a safe local file edit is
-  needed to complete the card, make it. If an external or irreversible action is
-  needed, stop with NEEDS_OK as above.
+  needed to complete the card, make it. If your worker mode cannot edit files or
+  an external or irreversible action is needed, stop with NEEDS_OK as above.
 EOF
 )"
 
@@ -250,6 +253,15 @@ EOF
   result="$(cat "$result_file")"
   if [ "$SET_RESULT_LINK" = "1" ]; then
     kb set-result "$id" "$id.md" >/dev/null 2>&1 || true
+  fi
+
+  if [ "$AI_PROVIDER" = "custom" ] && printf '%s\n%s\n%s\n' "$title" "$project" "$desc" | grep -qiE "(add|build|code|css|deploy|feature|fix|github|html|implement|javascript|page|python|repo|server|ui|worker)"; then
+    if ! printf '%s' "$result" | head -n1 | grep -qiE '^NEEDS_OK:'; then
+      kb log "$id" "custom BYOAI worker produced a write-up for an implementation card; parked for code-capable execution | result: $result_file" >/dev/null
+      kb move "$id" needs_ok >/dev/null
+      log "$id -> needs_ok (implementation requires Codex/code-capable worker)"
+      return 0
+    fi
   fi
 
   # Safety net: if the AI couldn't actually act (still asking for file/edit
