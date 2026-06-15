@@ -145,6 +145,11 @@ have network access to the board's host. (Result *files* produced remotely
 aren't yet uploaded to the container — cards and their fields sync, but a
 `↗ View result` link needs the file to live in the board's results area.)
 
+
+## Agent handover / maintainer notes
+
+Future Codex or Claude Code agents should start with [`docs/AGENT_HANDOVER.md`](docs/AGENT_HANDOVER.md). It documents the live VM, Cloudflare tunnel, service layout, worker setup, runtime data rules, feature inventory, and safe deployment/verification steps.
+
 ## User guide
 
 There's a user guide for the app, published in Notion and linked in-app for
