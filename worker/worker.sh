@@ -117,7 +117,7 @@ is_implementation_card(){
   printf '%s
 %s
 %s
-' "$1" "$2" "$3" | grep -qiE "(add|build|code|css|deploy|feature|fix|github|html|implement|javascript|page|python|repo|server|ui|worker)"
+' "$1" "$2" "$3" | grep -qiE "(add|apply|build|code|colour|color|css|deploy|feature|fix|focus|github|html|implement|javascript|page|pomodoro|python|repo|server|theme|ui|worker)"
 }
 
 autoship_changes(){
