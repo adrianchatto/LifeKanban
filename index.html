@@ -166,6 +166,13 @@
   .reslink{font-size:12px;color:var(--accent);text-decoration:none;font-weight:600;display:inline-flex;gap:4px;margin-top:8px}
   .resnote{font-size:12px;color:var(--muted);background:var(--chip);border:1px solid var(--line);border-radius:10px;padding:7px 9px;margin-top:8px;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
   .reslink:hover{text-decoration:underline}
+  .subpreview{margin:9px 0 0;padding:8px 9px;background:var(--chip);border:1px solid var(--line);border-radius:10px;display:grid;gap:5px}
+  .subpreview-item{display:grid;grid-template-columns:14px 1fr;align-items:start;gap:7px;font-size:12px;line-height:1.35;color:var(--ink)}
+  .subpreview-box{width:12px;height:12px;border-radius:4px;border:1.5px solid var(--muted);margin-top:1px;display:inline-flex;align-items:center;justify-content:center;color:#fff;font-size:9px;line-height:1}
+  .subpreview-item.done{color:var(--muted)}
+  .subpreview-item.done .subpreview-box{background:var(--done);border-color:var(--done)}
+  .subpreview-item.done .subpreview-text{text-decoration:line-through}
+  .subpreview-more{font-size:11px;color:var(--muted);font-weight:600;padding-left:21px}
   .working{font-size:11px;color:var(--doing);font-weight:600;display:flex;align-items:center;gap:6px;margin-top:6px}
   .working .spin{width:9px;height:9px;border:2px solid rgba(224,160,8,.3);border-top-color:var(--doing);
     border-radius:50%;animation:s .8s linear infinite}
@@ -826,6 +833,7 @@ function cardHTML(c){
     <p class="ttl">${esc(c.title)}</p>
     ${c.description?`<p class="desc">${esc(c.description)}</p>`:""}
     <div class="row">${prioBadge(c)}${who}${projChip(c.project)}${dueBadge(c)}${subProgress(c)}${attachBadge(c)}${commentBadge(c)}${historyBadge(c)}</div>
+    ${subPreview(c)}
     ${extra}
   </article>`;
 }
@@ -882,6 +890,19 @@ function subProgress(c){
   const subs=c.subtasks||[]; if(!subs.length) return "";
   const done=subs.filter(s=>s.done).length;
   return `<span class="subprog ${done===subs.length?'alldone':''}">☑ ${done}/${subs.length}</span>`;
+}
+function subPreview(c){
+  const subs=c.subtasks||[]; if(!subs.length) return "";
+  const shown=subs.slice(0,3);
+  const rows=shown.map(s=>{
+    const done=!!s.done;
+    return `<div class="subpreview-item ${done?'done':''}">
+      <span class="subpreview-box">${done?'✓':''}</span>
+      <span class="subpreview-text">${esc(s.text||"Untitled subtask")}</span>
+    </div>`;
+  }).join("");
+  const more=subs.length>shown.length ? `<div class="subpreview-more">+${subs.length-shown.length} more</div>` : "";
+  return `<div class="subpreview">${rows}${more}</div>`;
 }
 
 /* ---- desktop notifications (while board is open) ---- */
