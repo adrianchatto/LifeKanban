@@ -164,6 +164,7 @@
   .due.over{color:#fff;background:var(--ok)}
   .due.met{color:var(--me);background:rgba(17,160,107,.12)}
   .reslink{font-size:12px;color:var(--accent);text-decoration:none;font-weight:600;display:inline-flex;gap:4px;margin-top:8px}
+  .resnote{font-size:12px;color:var(--muted);background:var(--chip);border:1px solid var(--line);border-radius:10px;padding:7px 9px;margin-top:8px;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
   .reslink:hover{text-decoration:underline}
   .working{font-size:11px;color:var(--doing);font-weight:600;display:flex;align-items:center;gap:6px;margin-top:6px}
   .working .spin{width:9px;height:9px;border:2px solid rgba(224,160,8,.3);border-top-color:var(--doing);
@@ -810,6 +811,8 @@ function cardHTML(c){
     extra = `<div class="working"><span class="spin"></span>AI is working…</div>`;
   if(c.result_link)
     extra += `<a class="reslink" href="/results/${encodeURIComponent(c.result_link.replace(/^results\//,""))}" target="_blank">↗ View result</a>`;
+  else if(c.result)
+    extra += `<div class="resnote" title="${esc(c.result)}">${esc(c.result)}</div>`;
   if(c.status==="needs_ok")
     extra += `<div class="working" style="color:var(--ok)">⏸ Waiting for your OK</div>
       <button class="okbtn" data-ok="${c.id}">✓ Approve &amp; run</button>`;

@@ -14,6 +14,7 @@ Usage:
   python3 kanban.py move <id> <todo|doing|waiting|needs_ok|done>
   python3 kanban.py assign <id> <Ch@o|AI>
   python3 kanban.py set-result <id> <relative/path/to/result.md>
+  python3 kanban.py set-result-text <id> [text]  # or read text from stdin
   python3 kanban.py set-due <id> <YYYY-MM-DD|clear>
   python3 kanban.py set-priority <id> <high|medium|low>
   python3 kanban.py normalise-priority  # set any none/blank card -> medium
@@ -518,6 +519,24 @@ def cmd_set_result(args):
     print(json.dumps(c, indent=2, ensure_ascii=False))
 
 
+def cmd_set_result_text(args):
+    if not args:
+        die("set-result-text needs <id> [text]")
+    cid = args[0]
+    text = " ".join(args[1:]) if len(args) > 1 else sys.stdin.read()
+    text = text.strip()
+    with Lock():
+        data = load()
+        c = find(data, cid)
+        if not c:
+            die("no such card: " + cid)
+        c["result"] = text
+        c["updated"] = now()
+        c.setdefault("log", []).append("%s result text saved" % now())
+        save(data)
+    print(json.dumps(c, indent=2, ensure_ascii=False))
+
+
 def cmd_addb64(args):
     """Add a card from a single urlsafe-base64-encoded JSON object.
 
@@ -847,6 +866,7 @@ COMMANDS = {
     "move": cmd_move,
     "assign": cmd_assign,
     "set-result": cmd_set_result,
+    "set-result-text": cmd_set_result_text,
     "set-due": cmd_set_due,
     "set-priority": cmd_set_priority,
     "normalise-priority": cmd_normalise_priority,

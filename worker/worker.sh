@@ -231,7 +231,7 @@ if [ -n "${KANBAN_API_URL:-}" ]; then log "mode: remote API ($KANBAN_API_URL)"; 
 log "AI provider: $AI_PROVIDER ($AI_BIN)"
 
 process_one(){
-  local card id title desc project prompt result rc reason result_file implementation autoship_rc
+  local card id title desc project prompt result rc reason result_file implementation autoship_rc card_pretty
   card="$(kb claim-next 2>&1)" || { log "claim-next failed: $card"; return 1; }
   # claim-next prints "null" (nothing to do) or {"claimed":null,...} (only
   # recovered stale cards) or a card object with an "id".
@@ -244,6 +244,7 @@ process_one(){
   implementation=0
   if is_implementation_card "$title" "$project" "$desc"; then implementation=1; fi
   log "working $id: $title"
+  card_pretty="$(printf '%s' "$card" | python3 -m json.tool 2>/dev/null || printf '%s' "$card")"
 
   prompt="$(cat <<EOF
 You are the LifeKanban worker. Carry out the task on this card and produce the
@@ -252,6 +253,12 @@ finished deliverable as Markdown (not a plan — the actual result).
 Title: $title
 Project: $project
 Details: $desc
+
+Full card JSON, including subtasks/comments/history/attachments when present:
+
+```json
+$card_pretty
+```
 
 Rules:
 - If the task requires an IRREVERSIBLE or external action (send an email or
@@ -286,6 +293,7 @@ EOF
   if [ "$SET_RESULT_LINK" = "1" ]; then
     kb set-result "$id" "$id.md" >/dev/null 2>&1 || true
   fi
+  printf '%s' "$result" | kb set-result-text "$id" >/dev/null 2>&1 || true
 
   if [ "$AI_PROVIDER" = "custom" ] && [ "$implementation" = "1" ]; then
     if ! printf '%s' "$result" | head -n1 | grep -qiE '^NEEDS_OK:'; then
