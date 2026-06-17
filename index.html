@@ -88,7 +88,7 @@
   *{box-sizing:border-box}
   body{margin:0;font:14px/1.5 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
     color:var(--ink);background:var(--bg)}
-  header{display:flex;align-items:center;gap:10px;padding:12px 18px;
+  header{display:flex;align-items:center;gap:10px;padding:10px 18px;
     background:rgba(255,255,255,.82);backdrop-filter:saturate(180%) blur(18px);
     -webkit-backdrop-filter:saturate(180%) blur(18px);border-bottom:1px solid rgba(217,222,232,.82);
     position:sticky;top:0;z-index:5}
@@ -121,12 +121,31 @@
   .menu-item:hover{background:var(--chip)}
   .menu-item .mi{width:18px;display:inline-flex;justify-content:center;color:var(--muted);font-weight:700}
   .menu-item:visited{color:var(--ink)}
-  .board{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;padding:18px;align-items:start}
-  .col{background:rgba(255,255,255,.72);border:1px solid var(--line);border-radius:14px;min-height:120px;
-    display:flex;flex-direction:column}
-  .col h2{font-size:12px;text-transform:uppercase;letter-spacing:.6px;margin:0;padding:13px 15px;
-    display:flex;align-items:center;gap:8px;color:var(--muted)}
-  .col h2 .pill{margin-left:auto;background:#fff;border:1px solid var(--line);border-radius:20px;
+  .task-shell{padding:26px 20px 42px;max-width:1680px;margin:0 auto}
+  .task-title{display:flex;align-items:center;gap:12px;margin:0 0 24px}
+  .task-icon{width:32px;height:32px;border-radius:8px;background:#58bd32;color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:22px;font-weight:800;box-shadow:0 2px 7px rgba(45,130,20,.18)}
+  .task-title h1{margin:0;font-size:34px;line-height:1;font-weight:800;letter-spacing:0;color:var(--ink)}
+  .task-tabs{display:flex;align-items:center;gap:24px;margin:0 0 18px;overflow-x:auto;padding-bottom:4px}
+  .task-tab{border:0;background:transparent;color:rgba(110,116,128,.55);font-size:22px;font-weight:800;padding:0;cursor:pointer;line-height:1.1;white-space:nowrap;box-shadow:none}
+  .task-tab:hover{background:transparent;color:var(--muted)}
+  .task-tab.on{color:var(--ink)}
+  .task-filters{display:flex;align-items:center;gap:10px;margin:0 0 14px;flex-wrap:wrap}
+  .task-filters select{background:rgba(255,255,255,.75)}
+  .board{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:12px;align-items:start}
+  .col{border:0;border-radius:7px;min-height:166px;display:flex;flex-direction:column;overflow:hidden}
+  .col[data-status=todo]{background:#eeeeef}
+  .col[data-status=doing]{background:#fff0d9}
+  .col[data-status=waiting]{background:#e8f3f7}
+  .col[data-status=needs_ok]{background:#fdeae4}
+  .col[data-status=done]{background:#eaf9dc}
+  :root[data-theme="dark"] .col[data-status=todo]{background:rgba(255,255,255,.065)}
+  :root[data-theme="dark"] .col[data-status=doing]{background:rgba(230,173,30,.14)}
+  :root[data-theme="dark"] .col[data-status=waiting]{background:rgba(76,167,199,.14)}
+  :root[data-theme="dark"] .col[data-status=needs_ok]{background:rgba(240,106,82,.15)}
+  :root[data-theme="dark"] .col[data-status=done]{background:rgba(39,184,132,.13)}
+  .col h2{font-size:15px;text-transform:none;letter-spacing:0;margin:0;padding:14px 16px 10px;
+    display:flex;align-items:center;gap:8px;color:var(--muted);font-weight:700}
+  .col h2 .pill{margin-left:auto;background:rgba(255,255,255,.68);border:1px solid rgba(210,216,226,.78);border-radius:999px;
     padding:1px 9px;font-size:11px;color:var(--muted)}
   .tag{width:9px;height:9px;border-radius:50%}
   .col[data-status=todo] .tag{background:var(--todo)}
@@ -134,16 +153,16 @@
   .col[data-status=waiting] .tag{background:var(--waiting)}
   .col[data-status=done] .tag{background:var(--done)}
   .col[data-status=needs_ok] .tag{background:var(--ok)}
-  .cards{flex:1;padding:6px 10px 12px;display:flex;flex-direction:column;gap:10px;min-height:60px}
+  .cards{flex:1;padding:8px 10px 12px;display:flex;flex-direction:column;gap:10px;min-height:72px}
   .cards.drag-over{background:rgba(59,108,246,.07);border-radius:10px}
-  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 13px;
-    box-shadow:var(--shadow);cursor:grab;position:relative}
+  .card{background:var(--panel);border:1px solid rgba(210,216,226,.75);border-radius:9px;padding:13px 14px;
+    box-shadow:0 1px 3px rgba(20,30,60,.08);cursor:grab;position:relative}
   .card:active{cursor:grabbing}
   .ticket-id{display:inline-flex;align-items:center;align-self:flex-start;color:var(--muted);
     background:var(--chip);border:1px solid var(--line);border-radius:6px;padding:1px 6px;
     font-size:10.5px;font-weight:700;line-height:1.4;text-transform:uppercase;letter-spacing:0}
   .card .ticket-id{margin:0 0 6px}
-  .card .ttl{font-weight:600;margin:0 0 6px;font-size:13.5px}
+  .card .ttl{font-weight:700;margin:0 0 6px;font-size:15.5px;line-height:1.28}
   .card .desc{color:var(--muted);font-size:12.5px;margin:0 0 9px;
     display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
   .row{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
@@ -178,7 +197,7 @@
     border-radius:50%;animation:s .8s linear infinite}
   @keyframes s{to{transform:rotate(360deg)}}
   .ghost{opacity:.4}
-  .card.is-done{opacity:.7;box-shadow:none;background:#fbfcfe}
+  .card.is-done{opacity:1;box-shadow:0 1px 3px rgba(20,30,60,.06);background:#fff}
   .card.is-done .ttl{text-decoration:line-through;color:var(--muted)}
   .card.is-done .desc{display:none}
   .col h2.colhead{cursor:pointer;user-select:none}
@@ -228,6 +247,7 @@
   #refreshBtn.spin-now span{display:inline-block;animation:s .6s linear infinite}
   /* list view — grouped by project */
   .listview{padding:14px 22px 40px;max-width:1100px;margin:0 auto}
+  .gridview{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;align-items:start}
   .lv-proj{margin-bottom:22px}
   .lv-phead{display:flex;align-items:center;gap:10px;margin:0 0 8px;font-size:14px;font-weight:700;color:var(--ink)}
   .lv-phead .lv-count{font-size:12px;font-weight:600;color:var(--muted);background:var(--chip);border-radius:999px;padding:1px 8px}
@@ -406,13 +426,8 @@ async function initSession(){
 </head>
 <body>
 <header>
-  <h1>Kanban</h1>
   <span class="dot" id="livedot" title="connection"></span>
   <div class="spacer"></div>
-  <select id="projFilter" title="Filter by project"><option value="">All projects</option></select>
-  <select id="whoFilter" title="Filter by owner">
-    <option value="">Everyone</option><option value="Ch@o">Me</option><option value="AI">AI</option>
-  </select>
   <select id="statusFilter" title="Filter by status" style="display:none">
     <option value="">All statuses</option>
     <option value="todo">To Do</option>
@@ -421,7 +436,7 @@ async function initSession(){
     <option value="needs_ok">Needs OK</option>
     <option value="done">Done</option>
   </select>
-  <div class="seg viewseg" id="viewToggle">
+  <div class="seg viewseg" id="viewToggle" style="display:none">
     <button type="button" data-v="board">Board</button>
     <button type="button" data-v="list">List</button>
     <button type="button" data-v="calendar">Calendar</button>
@@ -443,10 +458,31 @@ async function initSession(){
   <button class="btn primary" id="newBtn">+ New card</button>
 </header>
 
-<div class="board" id="board"></div>
-<div class="listview" id="listview" style="display:none"></div>
-<div class="cal" id="calendar" style="display:none"></div>
-<footer id="foot">Loading…</footer>
+<main class="task-shell">
+  <div class="task-title">
+    <span class="task-icon">✓</span>
+    <h1>Tasks</h1>
+  </div>
+  <nav class="task-tabs" id="taskTabs" aria-label="Task filters">
+    <button type="button" class="task-tab" data-tab="kanban">Kanban</button>
+    <button type="button" class="task-tab" data-tab="today">Today</button>
+    <button type="button" class="task-tab" data-tab="scheduled">Scheduled</button>
+    <button type="button" class="task-tab" data-tab="completed">Completed</button>
+    <button type="button" class="task-tab" data-tab="all">All</button>
+    <button type="button" class="task-tab" data-tab="grid">Grid</button>
+  </nav>
+  <div class="task-filters">
+    <select id="projFilter" title="Filter by project"><option value="">All projects</option></select>
+    <select id="whoFilter" title="Filter by owner">
+      <option value="">Everyone</option><option value="Ch@o">Me</option><option value="AI">AI</option>
+    </select>
+  </div>
+  <div class="board" id="board"></div>
+  <div class="listview" id="listview" style="display:none"></div>
+  <div class="gridview" id="gridview" style="display:none"></div>
+  <div class="cal" id="calendar" style="display:none"></div>
+  <footer id="foot">Loading…</footer>
+</main>
 
 <div class="scrim" id="adminScrim">
   <div class="modal" style="width:min(440px,92vw)">
@@ -683,10 +719,10 @@ async function initSession(){
 
 <script>
 const COLUMNS = [
-  {status:"todo",     name:"To Do"},
-  {status:"doing",    name:"Doing"},
+  {status:"todo",     name:"Not Started"},
+  {status:"doing",    name:"In Progress"},
   {status:"waiting",  name:"Waiting for Others"},
-  {status:"needs_ok", name:"Needs OK"},
+  {status:"needs_ok", name:"Blocked"},
   {status:"done",     name:"Done"},
 ];
 let board = {cards:[], projects:[]};
@@ -730,6 +766,7 @@ function markDone(id){
   playBell(); render(); pushBoard();
 }
 let view = (()=>{ try{return localStorage.getItem("kanban_view")||"board";}catch(e){return "board";} })();
+let taskTab = (()=>{ try{return localStorage.getItem("kanban_task_tab")||"kanban";}catch(e){return "kanban";} })();
 let calCursor = (()=>{ const d=new Date(); return {y:d.getFullYear(), m:d.getMonth()}; })();
 
 const $ = s => document.querySelector(s);
@@ -780,33 +817,59 @@ function render(){
   $("#projFilter").value = pf;
 
   const regularCards = (board.cards||[]).filter(c=>c.kind!=="feature_request");
-  const cards = regularCards.filter(c=>
+  let cards = regularCards.filter(c=>
     (!pf || c.project===pf) && (!wf || normAssignee(c.assignee)===wf));
+  const today = todayISO();
+  const activeTab = taskTab || "kanban";
+  if(activeTab==="today"){
+    cards = cards.filter(c=>c.status!=="done" && !c.recur && c.due===today);
+    view = "board";
+  } else if(activeTab==="completed"){
+    cards = cards.filter(c=>c.status==="done");
+    view = "board";
+  } else if(activeTab==="scheduled"){
+    cards = cards.filter(c=>c.due || c.recur);
+    view = "calendar";
+  } else if(activeTab==="all"){
+    view = "list";
+  } else if(activeTab==="grid"){
+    view = "grid";
+  } else {
+    view = "board";
+  }
 
   if(view==="calendar"){
     $("#board").style.display="none";
     $("#listview").style.display="none";
+    $("#gridview").style.display="none";
     $("#calendar").style.display="block";
     renderCalendar(cards);
   } else if(view==="list"){
     $("#board").style.display="none";
     $("#calendar").style.display="none";
+    $("#gridview").style.display="none";
     $("#listview").style.display="block";
-    const sf = $("#statusFilter").value;
-    renderList(sf ? cards.filter(c=>(c.status||"todo")===sf) : cards);
+    renderList(cards);
+  } else if(view==="grid"){
+    $("#board").style.display="none";
+    $("#calendar").style.display="none";
+    $("#listview").style.display="none";
+    $("#gridview").style.display="grid";
+    renderGrid(cards);
   } else {
     $("#calendar").style.display="none";
     $("#listview").style.display="none";
+    $("#gridview").style.display="none";
     $("#board").style.display="grid";
     renderBoard(cards);
   }
-  // status filter only makes sense on the list view
-  $("#statusFilter").style.display = view==="list" ? "" : "none";
+  $("#statusFilter").style.display = "none";
+  setTaskTabs();
 
   const total = regularCards.length;
   const ai = regularCards.filter(c=>isAIAssignee(c.assignee)).length;
   $("#foot").textContent =
-    `${total} cards · ${ai} assigned to AI · last sync ${new Date().toLocaleTimeString()}`;
+    `${total} cards · ${ai} assigned to AI · ${activeTabLabel(activeTab)} · last sync ${new Date().toLocaleTimeString()}`;
 }
 
 function cardHTML(c){
@@ -1012,6 +1075,23 @@ function renderList(cards){
     b.onclick=(e)=>{ e.stopPropagation(); approveCard(b.dataset.ok); });
   document.querySelectorAll("#listview .lv-row").forEach(r=>
     r.onclick=()=>openEdit(r.dataset.id));
+}
+
+function renderGrid(cards){
+  const list = cards.filter(c=>!c.recur).slice().sort((a,b)=>{
+    const st=(STATUS_ORDER[a.status||"todo"]-STATUS_ORDER[b.status||"todo"]);
+    if(st) return st;
+    return (b.updated||b.created||"").localeCompare(a.updated||a.created||"");
+  });
+  $("#gridview").innerHTML = list.length
+    ? list.map(cardHTML).join("")
+    : `<div class="lv-empty">Nothing to show with the current filters.</div>`;
+  document.querySelectorAll("#gridview .card").forEach(el=>
+    el.onclick=()=>openEdit(el.dataset.id));
+  document.querySelectorAll("#gridview .okbtn").forEach(b=>
+    b.onclick=(e)=>{ e.stopPropagation(); approveCard(b.dataset.ok); });
+  document.querySelectorAll("#gridview .donebtn").forEach(b=>
+    b.onclick=(e)=>{ e.stopPropagation(); markDone(b.dataset.done); });
 }
 
 const MONTHS = ["January","February","March","April","May","June","July",
@@ -1778,6 +1858,16 @@ function setViewToggle(){
   document.querySelectorAll("#viewToggle button").forEach(b=>
     b.classList.toggle("on", b.dataset.v===view));
 }
+function activeTabLabel(tab){
+  return ({kanban:"Kanban",today:"Today",scheduled:"Scheduled",completed:"Completed",all:"All",grid:"Grid"}[tab]||"Kanban");
+}
+function setTaskTabs(){
+  document.querySelectorAll("#taskTabs .task-tab").forEach(b=>
+    b.classList.toggle("on", b.dataset.tab===(taskTab||"kanban")));
+}
+document.querySelectorAll("#taskTabs .task-tab").forEach(b=>
+  b.onclick=()=>{ taskTab=b.dataset.tab||"kanban"; try{localStorage.setItem("kanban_task_tab",taskTab);}catch(_){}
+    setTaskTabs(); render(); });
 document.querySelectorAll("#viewToggle button").forEach(b=>
   b.onclick=()=>{ view=b.dataset.v; try{localStorage.setItem("kanban_view",view);}catch(_){}
     setViewToggle(); render(); });
@@ -1789,6 +1879,7 @@ $("#refreshBtn").onclick=()=>{
 };
 
 setViewToggle();
+setTaskTabs();
 updateAlertBtn();
 initSession().then(ok=>{
   if(!ok) return;
