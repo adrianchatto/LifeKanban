@@ -120,6 +120,14 @@ is_implementation_card(){
 ' "$1" "$2" "$3" | grep -qiE "(add|apply|build|code|colour|color|css|deploy|feature|fix|focus|github|html|implement|javascript|page|pomodoro|python|repo|server|theme|ui|worker)"
 }
 
+inconclusive_result(){
+  # A worker answer is not "done" if it admits it could not inspect the source
+  # material, could not make the requested change, or only produced a plan.
+  # Park those cards for human review instead of moving them to Done.
+  printf '%s' "$1" | grep -qiE \
+    "(could not|couldn't|cannot|can't|unable to|not able to|not available|not accessible|not present|not found|no .*available|no .*could be confirmed|did not include|does not include|was not included|appears .*not present|only goes up to|stale|blocked|needs clarification|clarifying question|would need|would require|I would|I can('|no)t|plan:|next steps?:)"
+}
+
 autoship_changes(){
   local id="$1" title="$2" branch msg status
   [ "$AUTOSHIP" = "1" ] || return 0
@@ -261,14 +269,20 @@ $card_pretty
 ```
 
 Rules:
+- Definition of done: either make the requested change and verify it, or return
+  NEEDS_OK with the reason it cannot be completed safely.
 - If the task requires an IRREVERSIBLE or external action (send an email or
   message, publish, delete, pay, move money), DO NOT perform it. Produce the
   prepared draft/content, and make the VERY FIRST LINE of your reply exactly:
   NEEDS_OK: <one-line reason it needs approval>
 - Otherwise, just output the completed result.
 - For code/app/repository feature work, apply the required edits directly in the
-  local repo, run relevant checks, and summarize the changed files. Do not return
-  standalone code blocks unless you also applied them.
+  local repo, run relevant checks, and summarize the changed files, commit/push/
+  deploy outcome, and verification. Do not return standalone code blocks unless
+  you also applied them.
+- Never claim success from a stale/local snapshot if the card is remote. Use the
+  full card JSON above as the source of truth, and if a referenced card or file
+  is missing, return NEEDS_OK instead of guessing.
 - Do not ask the human for routine permission. If a safe local file edit is
   needed to complete the card, make it. If your worker mode cannot edit files or
   an external or irreversible action is needed, stop with NEEDS_OK as above.
@@ -294,6 +308,13 @@ EOF
     kb set-result "$id" "$id.md" >/dev/null 2>&1 || true
   fi
   printf '%s' "$result" | kb set-result-text "$id" >/dev/null 2>&1 || true
+
+  if inconclusive_result "$result"; then
+    kb log "$id" "worker did not meet done criteria; parked for review instead of marking Done | result: $result_file" >/dev/null
+    kb move "$id" needs_ok >/dev/null
+    log "$id -> needs_ok (worker output was blocked/inconclusive)"
+    return 0
+  fi
 
   if [ "$AI_PROVIDER" = "custom" ] && [ "$implementation" = "1" ]; then
     if ! printf '%s' "$result" | head -n1 | grep -qiE '^NEEDS_OK:'; then
@@ -324,6 +345,11 @@ EOF
       return 0
     fi
     kb log "$id" "worker autoshipped implementation: committed, pushed, and deployed" >/dev/null 2>&1 || true
+  elif [ "$implementation" = "1" ] && [ "$AI_PROVIDER" = "codex" ] && [ "$AUTOSHIP" != "1" ]; then
+    kb log "$id" "implementation card was not autoshipped because KANBAN_WORKER_AUTOSHIP is disabled; parked for review | result: $result_file" >/dev/null
+    kb move "$id" needs_ok >/dev/null
+    log "$id -> needs_ok (implementation not autoshipped)"
+    return 0
   fi
 
   if printf '%s' "$result" | head -n1 | grep -qiE '^NEEDS_OK:'; then
