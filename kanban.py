@@ -472,6 +472,8 @@ def cmd_move(args):
             die("no such card: " + cid)
         old_status = c.get("status")
         c["status"] = status
+        if status != "todo":
+            c.pop("approved", None)
         c["updated"] = now()
         c["log"].append("%s moved to %s" % (now(), status))
         if status == "done" and old_status != "done":
