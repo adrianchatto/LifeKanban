@@ -339,10 +339,25 @@ EOF
     return 0
   fi
 
+  if printf '%s' "$result" | head -n1 | grep -qiE '^NEEDS_OK:'; then
+    reason="$(printf '%s' "$result" | head -n1 | sed -E 's/^[Nn][Ee][Ee][Dd][Ss]_[Oo][Kk]:[[:space:]]*//')"
+    kb log "$id" "worker prepared a draft — needs approval: $reason | result: $result_file" >/dev/null
+    kb move "$id" needs_ok >/dev/null
+    log "$id -> needs_ok ($reason)"
+    return 0
+  fi
+
   if [ "$implementation" = "1" ] && [ "$AI_PROVIDER" = "codex" ] && [ "$AUTOSHIP" = "1" ]; then
     autoship_rc=0
     autoship_changes "$id" "$title" || autoship_rc=$?
     if [ "$autoship_rc" -ne 0 ]; then
+      if [ "$autoship_rc" -eq 12 ]; then
+        kb log "$id" "worker completed with no new code diff; treating as already applied or content-only completion | result: $result_file" >/dev/null 2>&1 || true
+        kb move "$id" done >/dev/null
+        notify_ai_done "$id" "$title" "$project"
+        log "$id -> done (no new code diff)"
+        return 0
+      fi
       kb log "$id" "worker could not autoship implementation changes (rc=$autoship_rc); parked for review | result: $result_file" >/dev/null
       kb move "$id" needs_ok >/dev/null
       log "$id -> needs_ok (autoship failed or no code diff, rc=$autoship_rc)"
@@ -356,17 +371,10 @@ EOF
     return 0
   fi
 
-  if printf '%s' "$result" | head -n1 | grep -qiE '^NEEDS_OK:'; then
-    reason="$(printf '%s' "$result" | head -n1 | sed -E 's/^[Nn][Ee][Ee][Dd][Ss]_[Oo][Kk]:[[:space:]]*//')"
-    kb log "$id" "worker prepared a draft — needs approval: $reason | result: $result_file" >/dev/null
-    kb move "$id" needs_ok >/dev/null
-    log "$id -> needs_ok ($reason)"
-  else
-    kb log "$id" "worker completed; result file on worker host: $result_file" >/dev/null
-    kb move "$id" done >/dev/null
-    notify_ai_done "$id" "$title" "$project"
-    log "$id -> done"
-  fi
+  kb log "$id" "worker completed; result file on worker host: $result_file" >/dev/null
+  kb move "$id" done >/dev/null
+  notify_ai_done "$id" "$title" "$project"
+  log "$id -> done"
   return 0
 }
 
