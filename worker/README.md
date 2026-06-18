@@ -6,7 +6,8 @@ moves the card to **Done** — or to **Needs OK** if the task needs an
 irreversible/external action (send, publish, delete, pay) that you must approve.
 
 It can run in local mode against this checkout's `board.json`, or in remote mode
-against the authenticated HTTP API for a Dockerised board.
+against the board HTTP API for a Dockerised board. Remote mode still uses an API
+token so the worker has a stable identity even when browser login is disabled.
 
 ## Requirements (on the machine that runs the worker)
 

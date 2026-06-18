@@ -15,7 +15,7 @@ LifeKanban now exists in two important places:
 | Mac mini repo | Development/source copy | `/Users/adrianchatto/GitHub/LifeKanban` on branch `rebuild-signup-byoai`. This may also contain local runtime dirt such as `board.json`, `worker/worker.log`, and generated `results/*`. Do not commit those unless explicitly requested. |
 | Proxmox VM | Current server copy | VM `119`, name `lifekanban-ai`, IP `172.22.20.30`, app in `/opt/lifekanban/app`, live data in `/opt/lifekanban/data`. |
 | Docker2/Cloudflare host | Cloudflare tunnel host | IP `172.22.20.2`, hostname `cloudflare`, SSH user `adrianchatto` after Mac mini key injection. Active tunnel config lives under `/etc/cloudflared/`. |
-| Public URL | Cloudflare Access route | `https://lifekanban.chattoweb.com` points to `http://172.22.20.30:8787`. The older `kanban.chattoweb.com` route was intentionally removed from active tunnel configs. |
+| Public URL | Cloudflare tunnel route | `https://lifekanban.chattoweb.com` points to `http://172.22.20.30:8787`. The older `kanban.chattoweb.com` route was intentionally removed from active tunnel configs. If Cloudflare Access is enabled on this hostname, it will still prompt for GitHub before traffic reaches LifeKanban. |
 
 The raw VM endpoint is:
 
@@ -29,7 +29,7 @@ The public endpoint is:
 https://lifekanban.chattoweb.com
 ```
 
-Cloudflare Access may redirect before LifeKanban. LifeKanban itself opens without a browser login by default; set `KANBAN_REQUIRE_LOGIN=1` to restore the app login wall.
+LifeKanban itself opens without a browser login by default; set `KANBAN_REQUIRE_LOGIN=1` to restore the app login wall. Cloudflare Access is separate from the app: if it is enabled on `lifekanban.chattoweb.com`, users will still see the GitHub Auth prompt before LifeKanban receives the request.
 
 Do not commit passwords, `.secret.key`, `users.json`, `app_settings.json`, live board data, worker logs, or generated results. Those are runtime state.
 
@@ -37,7 +37,7 @@ Do not commit passwords, `.secret.key`, `users.json`, `app_settings.json`, live 
 
 ```mermaid
 flowchart LR
-    Browser[Browser / Cloudflare Access user] --> CF[Cloudflare tunnel]
+Browser[Browser user] --> CF[Cloudflare tunnel]
     CF --> Docker2[Docker2 / cloudflare host\n172.22.20.2]
     Docker2 --> VM[LifeKanban VM 119\n172.22.20.30:8787]
     VM --> Server[server.py\nLifeKanban web/API]
@@ -520,13 +520,13 @@ Expected: `200` for all three.
 
 ### Public Host Check
 
-Cloudflare Access may redirect unauthenticated requests:
+Cloudflare Access may redirect unauthenticated requests if it is enabled on the hostname:
 
 ```bash
 curl -sS -D /tmp/lk-public.headers -o /tmp/lk-public.body -w '%{http_code} %{url_effective}\n' https://lifekanban.chattoweb.com/login.html
 ```
 
-Expected: a Cloudflare Access redirect (`302`) unless already authenticated through Access.
+Expected with Access disabled: `200` and the LifeKanban page/API response. Expected with Access enabled: a Cloudflare Access redirect (`302`) unless already authenticated through Access.
 
 ### Optional App Login Check
 
@@ -579,7 +579,7 @@ ssh -i ~/.ssh/codex_proxmox_ed25519 adrian@172.22.20.30 \
 
 ### Public Host Redirects To Cloudflare Access
 
-That is normal when Cloudflare Access is enabled. Authenticate through Cloudflare Access first, then LifeKanban opens directly unless optional app login mode is also enabled.
+That means Cloudflare Access is still protecting the hostname. Disable or bypass the Access application/policy for `lifekanban.chattoweb.com` if the desired behaviour is no GitHub Auth prompt. LifeKanban will then open directly unless optional app login mode is enabled with `KANBAN_REQUIRE_LOGIN=1`.
 
 ### Worker Says No Usable AI CLI Found
 

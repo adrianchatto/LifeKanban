@@ -60,6 +60,6 @@ launchctl load -w "$DEST"
 
 echo "LifeKanban server is now ON."
 echo "It starts at login and stays running in the background."
-echo "Open: http://127.0.0.1:8787/login.html"
+echo "Open: http://127.0.0.1:8787/"
 echo "Log: $LOG"
 osascript -e 'display notification "LifeKanban server is now running in the background." with title "LifeKanban"' 2>/dev/null || true

@@ -149,7 +149,7 @@
     padding:1px 9px;font-size:11px;color:var(--muted)}
   .col-add{width:25px;height:25px;margin-left:2px;border:1px solid rgba(210,216,226,.86);border-radius:8px;
     background:rgba(255,255,255,.78);color:var(--ink);display:inline-flex;align-items:center;justify-content:center;
-    font-size:18px;line-height:1;padding:0;cursor:pointer;box-shadow:0 1px 1px rgba(20,30,60,.04)}
+    font-size:18px;font-weight:800;line-height:1;padding:0;cursor:pointer;box-shadow:0 1px 1px rgba(20,30,60,.04);flex:none}
   .col-add:hover{background:var(--surface);border-color:var(--accent);color:var(--accent)}
   :root[data-theme="dark"] .col-add{background:var(--surface);border-color:var(--line);color:var(--ink)}
   .tag{width:9px;height:9px;border-radius:50%}
@@ -226,21 +226,31 @@
   .scrim.open{display:flex}
   .modal{background:#fff;border-radius:16px;width:min(520px,92vw);box-shadow:0 20px 60px rgba(10,20,40,.3);
     padding:22px 24px;max-height:88vh;overflow:auto}
-  #scrim .modal{width:min(640px,92vw);padding:0}
+  #scrim .modal{width:min(680px,92vw);padding:0}
   .modal h3{margin:0 0 16px;font-size:16px}
-  .modal-title{display:flex;align-items:center;gap:8px;margin:0;padding:20px 24px 14px;border-bottom:1px solid var(--line);
+  .modal-title{display:flex;align-items:center;gap:10px;margin:0;padding:18px 22px 14px;border-bottom:1px solid var(--line);
     position:sticky;top:0;background:var(--panel);z-index:1}
-  .modal-title h3{margin:0}
+  .modal-title-main{display:flex;flex-direction:column;gap:4px;min-width:0}
+  .modal-title h3{margin:0;font-size:18px;line-height:1.15}
+  .modal-context{font-size:12px;font-weight:700;color:var(--muted)}
   .modal-title .ticket-id{font-size:11px}
-  .card-form{padding:18px 24px 22px}
-  .form-section{border:1px solid var(--line);border-radius:12px;background:var(--surface);padding:14px 16px;margin:0 0 14px}
+  .modal-close{margin-left:auto;width:32px;height:32px;border:1px solid var(--line);border-radius:10px;background:var(--surface);
+    color:var(--muted);display:inline-flex;align-items:center;justify-content:center;cursor:pointer;font-size:20px;line-height:1;padding:0}
+  .modal-close:hover{background:var(--chip);color:var(--ink)}
+  .card-form{padding:16px 22px 0}
+  .form-section{border:1px solid var(--line);border-radius:12px;background:var(--surface);padding:14px 16px;margin:0 0 12px}
+  .form-section.primary{border-color:rgba(59,108,246,.28);box-shadow:0 1px 2px rgba(20,30,60,.04)}
+  .section-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 0 12px}
+  .section-head strong{font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}
+  .section-head span{font-size:12px;color:var(--muted)}
   .form-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(190px,.58fr);gap:12px 16px;align-items:start}
   .field-row{display:flex;align-items:flex-end;gap:12px;flex-wrap:wrap}
   .field-row > .field{flex:1 1 220px}
   .inline-field{display:flex;gap:6px}
   .inline-field select{flex:1}
   .section-label{display:block;font-size:12px;font-weight:700;color:var(--muted);margin:0 0 8px}
-  .modal .actions{padding-top:4px}
+  #scrim .actions{position:sticky;bottom:0;margin:6px -22px 0;padding:12px 22px;background:var(--panel);
+    border-top:1px solid var(--line);box-shadow:0 -8px 18px rgba(20,30,60,.05)}
   label{display:block;font-size:12px;font-weight:600;color:var(--muted);margin:12px 0 5px}
   .card-form label:first-child,.field label:first-child,.form-section > label:first-child{margin-top:0}
   input[type=text],textarea,.modal select{width:100%;border:1px solid var(--line);border-radius:9px;padding:9px 11px;background:var(--field);color:var(--ink)}
@@ -343,9 +353,10 @@
   .comment-compose .btn{align-self:flex-start}
   @media(max-width:680px){
     #scrim .modal{width:min(94vw,640px)}
-    .card-form{padding:16px}
+    .card-form{padding:14px 16px 0}
     .form-grid{grid-template-columns:1fr}
     .modal-title{padding-left:16px;padding-right:16px}
+    #scrim .actions{margin-left:-16px;margin-right:-16px;padding-left:16px;padding-right:16px}
   }
   .qm-grid{display:grid;grid-template-columns:1fr;gap:10px}
   .qm-grid textarea{min-height:150px}
@@ -658,18 +669,24 @@ async function initSession(){
 <div class="scrim" id="scrim">
   <div class="modal">
     <div class="modal-title">
-      <h3 id="mTitle">New card</h3>
+      <div class="modal-title-main">
+        <h3 id="mTitle">New card</h3>
+        <span class="modal-context" id="mContext">Not Started</span>
+      </div>
       <span class="ticket-id" id="mTicketId" style="display:none"></span>
+      <button type="button" class="modal-close" id="modalCloseBtn" aria-label="Close">×</button>
     </div>
     <div class="card-form">
       <input type="hidden" id="fId">
-      <div class="form-section">
+      <div class="form-section primary">
+        <div class="section-head"><strong>Task</strong><span>Required</span></div>
         <label>Title</label>
         <input type="text" id="fTitle" placeholder="What needs doing?">
         <label>Description</label>
-        <textarea id="fDesc" placeholder="Detail. For AI cards, be specific about the deliverable."></textarea>
+        <textarea id="fDesc" placeholder="Add context, notes, or an AI deliverable."></textarea>
       </div>
       <div class="form-section">
+        <div class="section-head"><strong>Details</strong></div>
         <div class="form-grid">
           <div class="field">
             <label>Project</label>
@@ -702,6 +719,7 @@ async function initSession(){
         </div>
       </div>
       <div class="form-section">
+        <div class="section-head"><strong>Schedule</strong></div>
         <label>Repeat <span style="font-weight:400">(shows in Calendar, not the columns)</span></label>
         <select id="fRepeat">
           <option value="">Does not repeat</option>
@@ -722,6 +740,7 @@ async function initSession(){
         </div>
       </div>
       <div class="form-section">
+        <div class="section-head"><strong>Checklist</strong></div>
         <label>Subtasks</label>
         <div id="fSubtasks"></div>
         <div class="inline-field" style="margin-top:6px">
@@ -730,6 +749,7 @@ async function initSession(){
         </div>
       </div>
       <div class="form-section">
+        <div class="section-head"><strong>Files</strong></div>
         <label>Attachments <span style="font-weight:400">(drag in, choose a file, or paste a screenshot)</span></label>
         <div id="fDrop" class="drop">
           <span id="fDropText">Drop files here, paste a screenshot, or </span>
@@ -739,6 +759,7 @@ async function initSession(){
         <div id="fAttachments" class="attlist"></div>
       </div>
       <div class="form-section">
+        <div class="section-head"><strong>Updates</strong></div>
         <label>Comments</label>
         <div id="fComments" class="comments"></div>
         <div class="comment-compose">
@@ -1067,7 +1088,7 @@ function renderBoard(cards){
     const isCollapsed = !!collapsedCols[col.status];
     const caret = `<span class="caret">${isCollapsed ? "▸" : "▾"}</span>`;
     const addBtn = col.status==="todo"
-      ? `<button type="button" class="col-add" data-add-status="${col.status}" title="Add card to ${esc(col.name)}" aria-label="Add card to ${esc(col.name)}">+</button>`
+      ? `<button type="button" class="col-add" data-add-status="${col.status}" title="Create card in ${esc(col.name)}" aria-label="Create card in ${esc(col.name)}">+</button>`
       : "";
     const head = `<h2 class="colhead" data-status="${col.status}" title="${isCollapsed?"Show":"Hide"} this column">${caret}<span class="tag"></span>${col.name}<span class="pill">${list.length}</span>${addBtn}</h2>`;
     const collapsed = isCollapsed ? " collapsed" : "";
@@ -1088,8 +1109,12 @@ function renderBoard(cards){
     h.onclick=()=>{ const s=h.dataset.status; collapsedCols[s]=!collapsedCols[s]; saveCollapsed(); render(); });
 }
 
-const STATUS_NAME = { todo:"To Do", doing:"Doing", waiting:"Waiting for Others", needs_ok:"Needs OK", done:"Done" };
+const STATUS_NAME = { todo:"Not Started", doing:"In Progress", waiting:"Waiting for Others", needs_ok:"Blocked", done:"Done" };
 const STATUS_ORDER = { todo:0, doing:1, waiting:2, needs_ok:3, done:4 };
+function statusName(status){
+  const col = COLUMNS.find(c=>c.status===status);
+  return (col && col.name) || STATUS_NAME[status] || status || "Not Started";
+}
 function renderList(cards){
   // cards are already filtered by project + assignee. Group by project, categorised.
   const items = cards.filter(c=>!c.recur);
@@ -1261,6 +1286,7 @@ function openNew(opts){
   editing=null; assigneeChoice="Ch@o"; priorityChoice="medium";
   newCardStatus=(opts && opts.status) || "todo";
   $("#mTitle").textContent="New card";
+  $("#mContext").textContent="New in "+statusName(newCardStatus);
   $("#mTicketId").style.display="none"; $("#mTicketId").textContent="";
   $("#fId").value=""; $("#fTitle").value=""; $("#fDesc").value="";
   $("#fHistoryNote").value="";
@@ -1280,6 +1306,7 @@ function openEdit(id){
   const c = board.cards.find(x=>x.id===id); if(!c)return;
   editing=id; assigneeChoice=normAssignee(c.assignee); priorityChoice=normPrio(c.priority);
   $("#mTitle").textContent="Edit card";
+  $("#mContext").textContent=statusName(c.status);
   $("#mTicketId").style.display="inline-flex"; $("#mTicketId").textContent=c.id;
   $("#fId").value=c.id; $("#fTitle").value=c.title; $("#fDesc").value=c.description||"";
   populateProjectSelect(c.project||"General");
@@ -1522,6 +1549,7 @@ function esc(s){return (s==null?"":String(s)).replace(/&/g,"&amp;").replace(/</g
 $("#newBtn").onclick=openNew;
 $("#saveBtn").onclick=save;
 $("#cancelBtn").onclick=closeScrim;
+$("#modalCloseBtn").onclick=closeScrim;
 $("#delBtn").onclick=del;
 $("#scrim").addEventListener("click",e=>{if(e.target===$("#scrim"))closeScrim();});
 document.querySelectorAll("#fAssignee button").forEach(b=>

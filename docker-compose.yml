@@ -25,11 +25,10 @@ services:
       # Once users.json exists in the volume these are ignored.
       # KANBAN_ADMIN_USER: "Ch@o"
       # KANBAN_ADMIN_PASSWORD: "set-a-real-password"
-      # Only affects optional login mode (KANBAN_REQUIRE_LOGIN=1). When login
-      # mode is used behind HTTPS, mark session cookies Secure. With this on,
-      # logins only work over HTTPS — reach the board via the domain, not
-      # http://<ip>:8787 directly.
-      KANBAN_SECURE_COOKIES: "1"
+      # Optional login mode is off unless KANBAN_REQUIRE_LOGIN=1 is set.
+      # When login mode is used behind HTTPS, set KANBAN_SECURE_COOKIES=1 too.
+      # KANBAN_REQUIRE_LOGIN: "1"
+      # KANBAN_SECURE_COOKIES: "1"
       # Optional: the admin "User guide" link target.
       # KANBAN_GUIDE_URL: "https://app.notion.com/p/3798568cba8981dbbbf4d069543641e4"
     volumes:

@@ -29,9 +29,8 @@ RUN chmod +x /usr/local/bin/docker-entrypoint.sh && mkdir -p /data
 EXPOSE 8787
 VOLUME ["/data"]
 
-# Liveness check against a public, unauthenticated endpoint (the board API now
-# requires a login, so we ping the login page instead).
+# Liveness check against the default open board endpoint.
 HEALTHCHECK --interval=30s --timeout=4s --start-period=5s --retries=3 \
-  CMD python3 -c "import os,urllib.request; urllib.request.urlopen('http://127.0.0.1:'+os.environ.get('KANBAN_PORT','8787')+'/login.html').read()" || exit 1
+  CMD python3 -c "import os,urllib.request; urllib.request.urlopen('http://127.0.0.1:'+os.environ.get('KANBAN_PORT','8787')+'/api/me').read()" || exit 1
 
 ENTRYPOINT ["docker-entrypoint.sh"]
