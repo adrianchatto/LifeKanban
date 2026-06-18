@@ -280,9 +280,10 @@ Rules:
   NEEDS_OK: <one-line reason it needs approval>
 - Otherwise, just output the completed result.
 - For code/app/repository feature work, apply the required edits directly in the
-  local repo, run relevant checks, and summarize the changed files, commit/push/
-  deploy outcome, and verification. Do not return standalone code blocks unless
-  you also applied them.
+  local repo and run relevant local checks. Do not commit, push, SSH, deploy, or
+  start a server yourself; the LifeKanban worker wrapper performs commit/push/
+  deploy after your edits. Summarize the changed files and local checks. Do not
+  return standalone code blocks unless you also applied them.
 - Never claim success from a stale/local snapshot if the card is remote. Use the
   full card JSON above as the source of truth, and if a referenced card or file
   is missing, return NEEDS_OK instead of guessing.

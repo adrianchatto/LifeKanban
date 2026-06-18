@@ -66,6 +66,9 @@ tail -f /Users/adrianchatto/GitHub/LifeKanban/worker/worker.log
 - Codex worker runs use `KANBAN_CODEX_APPROVAL_POLICY=never` by default. That
   means Codex should not sit waiting for command approval; it either completes
   work within the repo sandbox or fails/parks the card with a visible reason.
+- Codex is responsible for local repo edits and local checks only. The wrapper
+  script performs commit, push, and deploy after Codex exits, so Codex does not
+  need SSH/network access to mark a safe code card complete.
 - **Done is gated.** If the AI output says it could not inspect the right data,
   could not access the repo/card, only produced a plan, needs clarification, or
   otherwise did not actually complete the request, the worker parks the card in
