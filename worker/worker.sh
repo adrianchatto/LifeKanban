@@ -268,9 +268,8 @@ Details: $desc
 
 Full card JSON, including subtasks/comments/history/attachments when present:
 
-\`\`\`json
+Card JSON:
 $card_pretty
-\`\`\`
 
 Rules:
 - Definition of done: either make the requested change and verify it, or return
