@@ -657,6 +657,16 @@ def cmd_approve(args):
         c = find(data, cid)
         if not c:
             die("no such card: " + cid)
+        result = str(c.get("result") or "").strip()
+        if re.match(r"(?i)^NEEDS_OK:", result):
+            c.pop("approved", None)
+            c["status"] = "needs_ok"
+            c["updated"] = now()
+            c.setdefault("log", []).append(
+                "%s approval ignored — card is blocked by NEEDS_OK result" % now())
+            save(data)
+            print(json.dumps(c, indent=2, ensure_ascii=False))
+            return
         c["approved"] = True
         c["status"] = "todo"
         c["assignee"] = "AI"

@@ -1529,6 +1529,16 @@ function save(){
 }
 function approveCard(id){
   const c=board.cards.find(x=>x.id===id); if(!c) return;
+  const result=(c.result||"").trim();
+  if(/^NEEDS_OK:/i.test(result)){
+    alert("This card is blocked, not waiting for a normal approval. The latest result explains what needs to happen before it can run again.");
+    c.approved=false;
+    c.status="needs_ok";
+    c.updated=new Date().toISOString();
+    (c.log=c.log||[]).push(new Date().toISOString()+" approval ignored — card is blocked by NEEDS_OK result");
+    render(); pushBoard();
+    return;
+  }
   if(!confirm(`Approve "${c.title}" and let AI carry out the action?`)) return;
   c.approved=true;
   c.status="todo";              // back to To Do so the AI worker reclaims it
