@@ -70,8 +70,7 @@
       .then(function(r){ return r.json().then(function(j){ return {ok:r.ok, j:j}; }); })
       .then(function(res){
         if(!res.ok){ throw new Error(res.j.error||(signup?'Sign up failed':'Sign in failed')); }
-        if(res.j.user && res.j.user.must_change){ location.replace('/settings.html'); }
-        else location.replace('/');
+        location.replace('/');
       })
       .catch(function(ex){ err.textContent=ex.message; err.style.display='block';
         btn.disabled=false; btn.textContent=signup?'Create account':'Sign in'; });
