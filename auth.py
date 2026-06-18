@@ -32,6 +32,8 @@ import json
 import os
 import secrets
 import tempfile
+
+import storage
 import time
 from datetime import datetime, timezone
 
@@ -164,21 +166,11 @@ def verify_password(pw, stored):
 # User store.
 # --------------------------------------------------------------------------- #
 def _load_raw():
-    if not os.path.exists(USERS):
-        return {"version": 1, "next_id": 1, "users": []}
-    with open(USERS, "r", encoding="utf-8") as f:
-        return json.load(f)
+    return storage.load_json(USERS, {"version": 1, "next_id": 1, "users": []})
 
 
 def _save_raw(data):
-    fd, tmp = tempfile.mkstemp(dir=DATA, prefix=".users.", suffix=".tmp")
-    with os.fdopen(fd, "w", encoding="utf-8") as f:
-        json.dump(data, f, indent=2, ensure_ascii=False)
-    os.replace(tmp, USERS)
-    try:
-        os.chmod(USERS, 0o600)
-    except OSError:
-        pass
+    storage.save_json(USERS, data, private=True)
 
 
 def _public(u):
@@ -200,6 +192,9 @@ def _public(u):
         "ai_model": u.get("ai_model"),
         "has_api_key": has_key,
         "api_key_last4": last4,
+        "topbar_color": u.get("topbar_color") or "",
+        "pushover_enabled": bool(u.get("pushover_enabled")),
+        "has_pushover": bool(u.get("pushover_user") and u.get("pushover_token")),
         "must_change": bool(u.get("must_change")),
     }
 
@@ -392,6 +387,48 @@ def get_api_key(username):
         return decrypt_secret(u["api_key"])
     except Exception:
         return None
+
+
+def set_preferences(username, topbar_color=None, pushover_enabled=None,
+                    pushover_user=None, pushover_token=None, clear_pushover=False):
+    """Store account preferences. Pushover secrets are encrypted at rest."""
+    with _Lock():
+        data = _load_raw()
+        u = next((x for x in data["users"] if x["username"] == username), None)
+        if not u:
+            raise ValueError("no such user: " + username)
+        if topbar_color is not None:
+            topbar_color = (topbar_color or "").strip()
+            if topbar_color and not (topbar_color.startswith("#") and len(topbar_color) == 7):
+                raise ValueError("top bar colour must be a #rrggbb value")
+            u["topbar_color"] = topbar_color
+        if pushover_enabled is not None:
+            u["pushover_enabled"] = bool(pushover_enabled)
+        if clear_pushover:
+            u["pushover_user"] = None
+            u["pushover_token"] = None
+            u["pushover_enabled"] = False
+        else:
+            if pushover_user:
+                u["pushover_user"] = encrypt_secret(pushover_user.strip())
+            if pushover_token:
+                u["pushover_token"] = encrypt_secret(pushover_token.strip())
+        _save_raw(data)
+    return _public(u)
+
+
+def get_pushover(username):
+    u = find_user(username)
+    if not u or not u.get("pushover_enabled"):
+        return None
+    try:
+        user = decrypt_secret(u.get("pushover_user"))
+        token = decrypt_secret(u.get("pushover_token"))
+    except Exception:
+        return None
+    if not user or not token:
+        return None
+    return {"user": user, "token": token}
 
 
 # --------------------------------------------------------------------------- #

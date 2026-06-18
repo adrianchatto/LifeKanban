@@ -18,6 +18,7 @@ attachments/
 users.json
 .secret.key
 .users.lock
+app_settings.json
 
 # Worker secrets and output (live on the worker host, not in the repo)
 worker/worker.env

@@ -1,7 +1,7 @@
 # LifeKanban
 
-A personal Kanban board that lives on your Mac, plus a Claude worker that
-processes cards you assign to Claude.
+A personal Kanban board that lives on your Mac, plus an AI worker that
+processes cards you assign to AI.
 
 **Repo:** https://github.com/adrianchatto/LifeKanban
 
@@ -23,6 +23,28 @@ icons, usually along the bottom). To get a permanent clickable icon there:
 That app starts a tiny local server and opens the board in your browser. To turn
 on background due-date alerts (so you're notified even when the board is shut),
 double-click **`Enable Notifications.command`** once.
+
+To let AI-assigned cards run automatically, double-click
+**`Enable AI Worker.command`** once. It installs a local scheduled worker that
+checks the board immediately and then every 15 minutes. Double-click
+**`Disable AI Worker.command`** to turn it off.
+
+To pull near-term calendar commitments into the board, double-click
+**`Enable Calendar Sync.command`** once. It installs a local scheduled importer
+that runs immediately and then hourly, reads macOS Calendar events starting in
+the next two days, and creates To Do cards for events that are not already on
+the board. Imported cards are assigned to `Ch@o`, use project `General`, and
+carry a `Calendar:` title plus the event start/end details in the description.
+The importer stores a Calendar source key on each card, so repeated runs do not
+create duplicates. Use **`Disable Calendar Sync.command`** to turn it off.
+
+First run may trigger macOS privacy approval for Calendar access. To preview
+what would be imported before enabling the schedule:
+
+```bash
+cd /Users/adrianchatto/GitHub/LifeKanban
+python3 sync_calendar.py --dry-run --days 2
+```
 
 > Note: this is a local web app shown in your browser, launched by a Dock icon —
 > not a single-window native app. That's the reliable, no-toolchain approach we
@@ -47,58 +69,72 @@ To keep it handy: drag `Kanban Board.app` to your Dock (or Applications).
 
 ## Using it
 
-- **Columns:** To Do → Doing → Needs OK → Done. Drag cards between them.
+- **Columns:** To Do → Doing → Waiting for Others → Needs OK → Done. Drag cards between them.
 - **New card:** "+ New card". Set a title, description, project, and assignee.
-- **Assignee:** *Me* (you) or *Claude*.
+- **History:** open a card, type a note in "History update", and save to append a timestamped entry to that card's scrollable history.
+- **Assignee:** *Me* (you) or *AI*.
 - **Filters:** by project and by owner, top-right.
 
-## Accounts & logins
+## Access and accounts
 
-The board now sits behind a login. Each user has their own board, their own
-results and attachments, and provides their own AI API key (used by the
-"Add by chat" assistant). Sign-up is **admin-only** — there's no public
-registration; you create accounts internally.
+The board is open by default: visiting `/` loads the app without a browser
+login. Existing account records are still used as the data owner for settings,
+API keys, results and attachments, and API tokens still work for programmatic
+clients like the AI worker.
 
-**First-time setup (once).** Create the first admin from the terminal:
+If you ever want the old login wall back, start the server with
+`KANBAN_REQUIRE_LOGIN=1`. In that mode, each user has their own board, their
+own results and attachments, and provides their own AI API key (used by the
+"Add by chat" assistant). Users can sign up from `/login.html`; the first
+signup becomes the admin, and later signups become normal users. Admins can
+also create or manage accounts internally.
+
+**First-time setup (once).** Open the app, choose **Sign up**, and create the
+first account. That first account becomes the admin. You can also create it
+from the terminal:
 
 ```bash
 cd ~/Documents/Claude/Projects/Kanban
 python3 kanban.py user-add <name> --admin        # prompts for a password
 ```
 
-Then open the board and sign in. New users created from the admin panel start
-with a temporary password and are prompted to set their own.
+Then open the board. If `KANBAN_REQUIRE_LOGIN=1` is enabled, sign in with that
+account. New users created from the admin panel start with a temporary password
+and are prompted to set their own.
 
 **Day-to-day.**
 
-- **Log in / out:** the login page is `/login.html`; the account menu (top-right
-  of the board) has *Settings*, *Admin* (admins only), and *Log out*.
-- **Create users:** *Admin* → *Create a user* (username, temporary password,
+- **Log in / out:** only applies when `KANBAN_REQUIRE_LOGIN=1`; the login page
+  is `/login.html`; the account menu (top-right of the board) has *Settings*,
+  *Admin* (admins only), and *Log out*.
+- **Create users:** *Settings* → *Users* → *Create a user* (username, temporary password,
   role). You can reset passwords, switch roles, or delete users there too. The
   CLI commands (`user-add`, `user-list`, `user-del`, `user-passwd`, `user-role`)
   do the same from the terminal.
 - **API key:** each user sets their own under *Settings*. It's stored
-  **encrypted** on the server (never in clear text, never committed to GitHub)
-  and only ever sent back to that user's own browser.
+  **encrypted** on the server (never in clear text, never committed to GitHub).
+  The chat assistant calls the board's `/api/ai/parse` endpoint, which uses that
+  user's chosen provider/model/key server-side.
 
-**Security notes.** Passwords are PBKDF2-hashed; sessions are HttpOnly,
-SameSite=Strict cookies; state-changing requests carry a CSRF token; repeated
-failed logins are throttled. The files `users.json`, `.secret.key` and other
-users' `boards/` are gitignored — keep `.secret.key` safe, as losing it means
-stored API keys can no longer be decrypted (users would just re-enter them).
-**If you serve this beyond your own Mac, put it behind HTTPS and set
-`KANBAN_SECURE_COOKIES=1`.**
+**Security notes.** Open mode has no browser authentication, so only expose it
+where you are comfortable with anyone who can reach the URL using the board. If
+you enable `KANBAN_REQUIRE_LOGIN=1`, passwords are PBKDF2-hashed; sessions are
+HttpOnly, SameSite=Strict cookies; state-changing requests carry a CSRF token;
+and repeated failed logins are throttled. The files `users.json`, `.secret.key`
+and other users' `boards/` are gitignored — keep `.secret.key` safe, as losing
+it means stored API keys can no longer be decrypted (users would just re-enter
+them). **If you serve login mode beyond your own Mac, put it behind HTTPS and
+set `KANBAN_SECURE_COOKIES=1`.**
 
-## API access for the Claude worker (remote / Docker)
+## API access for the AI worker (remote / Docker)
 
-When the board runs behind a login (e.g. in Docker on another host), the worker
-can't use the local `board.json` and there's no anonymous API. Instead, give it
-an **API token**:
+When the worker can't use the local `board.json` directly, give it an
+**API token**:
 
 1. Mint a token for the board's owner (run on the host, inside the container):
 
    ```bash
-   docker exec -it lifekanban python3 kanban.py token-add Ch@o "claude-worker"
+   docker exec -it lifekanban python3 kanban.py token-add Ch@o "ai-worker"
    ```
 
    The token (`lk_…`) is printed once — copy it.
@@ -107,7 +143,7 @@ an **API token**:
 
    ```bash
    KANBAN_API_URL=http://172.22.20.5:8787 KANBAN_API_TOKEN=lk_… \
-     python3 kanban.py add "Buy milk" --assignee Claude
+     python3 kanban.py add "Buy milk" --assignee AI
    # add / move / claim-next / set-result / log all work over the API
    ```
 
@@ -117,6 +153,11 @@ board), replaces the browser login, and is exempt from CSRF. Revoke with
 have network access to the board's host. (Result *files* produced remotely
 aren't yet uploaded to the container — cards and their fields sync, but a
 `↗ View result` link needs the file to live in the board's results area.)
+
+
+## Agent handover / maintainer notes
+
+Future Codex or Claude Code agents should start with [`docs/AGENT_HANDOVER.md`](docs/AGENT_HANDOVER.md). It documents the live VM, Cloudflare tunnel, service layout, worker setup, runtime data rules, feature inventory, and safe deployment/verification steps.
 
 ## User guide
 
@@ -129,26 +170,40 @@ The source copy lives at `docs/USER_GUIDE.md`. **When you add or change a
 feature, update both `docs/USER_GUIDE.md` and the Notion page** (and add a dated
 line to the Changelog) so the guide stays current.
 
-## How Claude cards work
+## How AI cards work
 
-Any card assigned to **Claude** and sitting in **To Do** gets picked up
+Any card assigned to **AI** and sitting in **To Do** gets picked up
 automatically by a scheduled worker (about every 15 minutes):
 
-1. Card moves to **Doing** (you'll see "Claude is working…").
-2. Claude does the work and saves the result into `results/`.
+1. Card moves to **Doing** (you'll see "AI is working…").
+2. The AI worker does the work and saves the result into `results/`.
 3. Card moves to **Done** with a **↗ View result** link.
 
+If an admin has configured Pushover, AI-assigned cards send a push alert when
+they newly move into **Done**. Cards assigned to you do not send completion
+pushes.
+
+Feature-request cards created from the Feature Requests page include their
+GitHub issue link. When one of those cards newly moves into **Done**,
+LifeKanban closes the linked issue with GitHub CLI and records the outcome in
+the card log. If GitHub is unavailable or unauthenticated, the card still
+finishes and the log shows the close failure.
+
 If a card needs something irreversible (send an email, post a message, publish,
-delete), Claude does the prep, then parks the card in **Needs OK** and waits for
+delete), the AI worker does the prep, then parks the card in **Needs OK** and waits for
 your explicit go-ahead — it won't take the irreversible step on its own.
 
-You can also just tell Claude in chat: **"process my board"** to run it now
+You can also ask the worker in chat: **"process my board"** to run it now
 instead of waiting for the schedule.
+
+On macOS, enable this automation by double-clicking **`Enable AI Worker.command`**.
+The worker defaults to Codex CLI when it is installed, and can be configured in
+`worker/worker.env`.
 
 ## Creating cards from chat
 
-While talking to Claude about anything, say **"build an action for that"** and
-Claude will capture it as a card on this board, assigned to you or to Claude.
+While talking to an AI assistant about anything, say **"build an action for that"** and
+it can capture it as a card on this board, assigned to you or to AI.
 
 ## Files
 
@@ -159,11 +214,12 @@ Claude will capture it as a card on this board, assigned to you or to Claude.
 | `board.json` | All your cards (the source of truth) |
 | `server.py` | Local web server for the board |
 | `index.html` | The board UI |
-| `kanban.py` | CLI used by Claude and the worker |
-| `results/` | Deliverables Claude produces |
+| `kanban.py` | CLI used by the board and the worker |
+| `sync_calendar.py` | Imports macOS Calendar events due in the next two days into the board |
+| `results/` | Deliverables the AI worker produces |
 | `skills/` | Reusable action skills (`kanban` + your own) |
 
-Don't hand-edit `board.json` while the board is open — use the UI or let Claude
+Don't hand-edit `board.json` while the board is open — use the UI or let the worker
 use the CLI.
 
 ## Pushing to GitHub

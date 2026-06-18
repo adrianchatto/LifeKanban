@@ -22,8 +22,10 @@ if [ ! -d "$DATA/results" ]; then
   fi
 fi
 
-# Bootstrap the first admin account. The board requires a login, so an empty
-# user store would lock everyone out. On first run (no users.json yet):
+# Bootstrap the first admin account when credentials are provided. The board
+# opens without a browser login by default, but an admin account is still useful
+# for account-backed settings, API tokens, and optional login mode. On first run
+# (no users.json yet):
 #   * if KANBAN_ADMIN_USER and KANBAN_ADMIN_PASSWORD are set, create that admin;
 #   * otherwise print the command to create one manually.
 # users.json and the encryption key live in the data volume, so this only
@@ -33,14 +35,14 @@ if [ ! -f "$DATA/users.json" ]; then
     echo "First run: creating admin user '$KANBAN_ADMIN_USER'…"
     if python3 kanban.py user-add "$KANBAN_ADMIN_USER" --admin \
          --password "$KANBAN_ADMIN_PASSWORD" --must-change >/dev/null 2>&1; then
-      echo "Admin '$KANBAN_ADMIN_USER' created — sign in and change the password."
+      echo "Admin '$KANBAN_ADMIN_USER' created."
     else
       echo "WARNING: admin bootstrap failed (password must be >= 8 chars?)."
     fi
   else
-    echo "WARNING: no users exist yet and the board requires a login."
+    echo "No users exist yet. The board will still open in default open mode."
     echo "Set KANBAN_ADMIN_USER and KANBAN_ADMIN_PASSWORD (compose env) for"
-    echo "automatic setup, or create one now with:"
+    echo "automatic admin setup, or create one later with:"
     echo "  docker exec -it lifekanban python3 kanban.py user-add <name> --admin"
   fi
 fi

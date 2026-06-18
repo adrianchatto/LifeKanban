@@ -1,74 +1,89 @@
-# Running the Kanban worker on your Mac (local, no-login setup)
+# Running the Kanban AI worker on your Mac
 
 ## How this works now
 
-The board runs **locally with no login**: `server.py` on `127.0.0.1:8787`, with
-all data in this repo's `board.json`. There are no users, passwords, or API
-tokens any more.
-
-The worker runs the purpose-built `worker/worker.sh` **on your Mac** in **local
-file mode** — it edits `board.json` directly via `kanban.py`. No API URL, no
-token, and it doesn't even need the web server running. The board UI and the
-worker both read/write the same `board.json` through an atomic file lock, so they
-can't corrupt each other.
+The worker runs `worker/worker.sh` **on your Mac**. In local mode it edits this
+checkout's `board.json` directly via `kanban.py`. In remote/Docker mode it talks
+to the board API with a token from `worker/worker.env`.
 
 > The old **Cowork scheduled task** is retired. It ran in an isolated sandbox
-> that can't reach your Mac's files or run the `claude` CLI, so it could never
+> that can't reach your Mac's files or run the AI CLI, so it could never
 > actually do the work. Don't re-enable it.
 
 ## Prerequisites
 
-- Claude Code CLI installed and logged in (this is what does each card's work):
+- Codex CLI installed and logged in (this is what does each card's work):
 
   ```bash
-  which claude && claude --version
+  /Applications/Codex.app/Contents/Resources/codex --version
   ```
 
-  If `which claude` prints a path that isn't on launchd's minimal PATH, set
-  `CLAUDE_BIN` to that absolute path in `worker/worker.env`.
+  If Codex lives somewhere else, set `KANBAN_AI_BIN` to that absolute path in
+  `worker/worker.env`.
 - `python3` is available (it is, on macOS).
 
 ## Setup
 
-### 1. Test it by hand
+### 1. Enable the schedule
+
+Double-click:
 
 ```bash
-bash /Users/adrianchatto/Documents/Claude/Projects/Kanban/worker/worker.sh
+Enable AI Worker.command
+```
+
+That installs a LaunchAgent, runs once immediately, and then runs every 15
+minutes.
+
+### 2. Test it by hand
+
+```bash
+bash /Users/adrianchatto/GitHub/LifeKanban/worker/worker.sh
 ```
 
 You should see `mode: local board.json`. If a card is waiting in **To Do**
-assigned to **Claude**, you'll then see `working <id>: <title>` … `<id> -> done`,
+assigned to **AI**, you'll then see `working <id>: <title>` … `<id> -> done`,
 and the card moves To Do → Doing → Done (or Needs OK) on the board.
 
-### 2. Schedule it with launchd (every 15 minutes)
-
-```bash
-cp /Users/adrianchatto/Documents/Claude/Projects/Kanban/com.chatto.kanban.worker.plist ~/Library/LaunchAgents/
-launchctl unload ~/Library/LaunchAgents/com.chatto.kanban.worker.plist 2>/dev/null
-launchctl load  ~/Library/LaunchAgents/com.chatto.kanban.worker.plist
-```
-
-This mirrors your existing `com.chatto.kanban.server` job. It runs once on load
-and every 15 minutes after. Logs go to `worker/worker.log`. The job exits between
-runs (it's a periodic task, not a daemon) and self-locks so overlapping fires are
-safe.
+Logs go to `worker/worker.log`. The job exits between runs (it's a periodic task,
+not a daemon) and self-locks so overlapping fires are safe.
 
 Check it's registered:
 
 ```bash
 launchctl list | grep com.chatto.kanban.worker
-tail -f /Users/adrianchatto/Documents/Claude/Projects/Kanban/worker/worker.log
+tail -f /Users/adrianchatto/GitHub/LifeKanban/worker/worker.log
 ```
 
 ## Notes / known limits
 
-- The worker only ever **claims cards assigned to Claude**; your own (Ch@o) cards
+- The worker only ever **claims cards assigned to AI**; your own (Ch@o) cards
   are never touched.
+- Approval mode is intentionally low-friction: safe local code/app changes are
+  expected to be made automatically, committed, pushed, and deployed. The worker
+  only asks for approval when the card needs an external or irreversible action,
+  or when it genuinely cannot complete the request.
+- Codex worker runs use `KANBAN_CODEX_APPROVAL_POLICY=never` by default. That
+  means Codex should not sit waiting for command approval; it either completes
+  work within the repo sandbox or fails/parks the card with a visible reason.
+- Codex is responsible for local repo edits and local checks only. The wrapper
+  script performs commit, push, and deploy after Codex exits, so Codex does not
+  need SSH/network access to mark a safe code card complete.
+- **Done is gated.** If the AI output says it could not inspect the right data,
+  could not access the repo/card, only produced a plan, needs clarification, or
+  otherwise did not actually complete the request, the worker parks the card in
+  **Needs OK** instead of moving it to Done.
+- Code/app feature cards must be handled by a code-capable worker. Autoship is
+  enabled by default, so those cards only move to Done after the worker has
+  produced a repo diff, committed it, pushed it, and run the configured deploy
+  command. If that does not happen, the card is moved to **Needs OK** with the
+  result attached.
 - Risky/irreversible steps (send, publish, delete, pay) are **not** performed.
   The worker prepares the draft, logs `NEEDS_OK: <reason>`, and moves the card to
   **Needs OK** for you to approve. Approve from the card (or
   `python3 kanban.py approve <id>`) and the next run carries out the action.
-- Result files are written to `worker-results/<id>.md` on your Mac. The card log
-  records the path.
+- Result files are written to `worker-results/<id>.md` on your Mac, and the
+  result text is also saved back onto the card so the VM UI can show what
+  happened.
 - The Mac only processes cards while it's **awake and online**. If it's been
   asleep, cards are picked up on the next run after it wakes.

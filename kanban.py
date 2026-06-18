@@ -3,23 +3,24 @@
 kanban.py - command line helper for the Kanban board.
 
 Single source of truth is board.json next to this file. Both the local
-server (via the UI) and the Claude worker use this module so all writes
+server (via the UI) and the AI worker use this module so all writes
 go through one atomic read-modify-write path.
 
 Usage:
-  python3 kanban.py list [--assignee Claude] [--status todo]
+  python3 kanban.py list [--assignee AI] [--status todo]
   python3 kanban.py add "Title" [--desc "..."] [--project General]
-                              [--assignee Ch@o|Claude] [--status todo]
+                              [--assignee Ch@o|AI] [--status todo]
                               [--priority high|medium|low]
-  python3 kanban.py move <id> <todo|doing|done|needs_ok>
-  python3 kanban.py assign <id> <Ch@o|Claude>
+  python3 kanban.py move <id> <todo|doing|waiting|needs_ok|done>
+  python3 kanban.py assign <id> <Ch@o|AI>
   python3 kanban.py set-result <id> <relative/path/to/result.md>
+  python3 kanban.py set-result-text <id> [text]  # or read text from stdin
   python3 kanban.py set-due <id> <YYYY-MM-DD|clear>
   python3 kanban.py set-priority <id> <high|medium|low>
   python3 kanban.py normalise-priority  # set any none/blank card -> medium
   python3 kanban.py log <id> "message"
   python3 kanban.py get <id>
-  python3 kanban.py claim-next        # next Claude+todo card -> doing, prints JSON
+  python3 kanban.py claim-next        # next AI+todo card -> doing, prints JSON
   python3 kanban.py requeue-stale     # recover cards orphaned in 'doing'
   python3 kanban.py user-add <name> [--admin] [--password X]  # create a login
   python3 kanban.py user-list
@@ -38,12 +39,17 @@ All commands print JSON to stdout so they are easy to parse.
 """
 import json
 import os
+import re
+import subprocess
 import sys
 import time
 import tempfile
 from datetime import datetime, timezone
+from urllib import request as urlrequest
+from urllib import parse as urlparse
 
 import auth  # accounts, sessions, secret storage (shared with the web server)
+import storage
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
 # Data dir can be relocated (e.g. a mounted Docker volume) via KANBAN_DATA.
@@ -51,15 +57,160 @@ ROOT = os.path.dirname(os.path.abspath(__file__))
 DATA = os.environ.get("KANBAN_DATA", ROOT)
 BOARD = os.path.join(DATA, "board.json")
 LOCK = os.path.join(DATA, ".board.lock")
-VALID_STATUS = ("todo", "doing", "done", "needs_ok")
-VALID_ASSIGNEE = ("Ch@o", "Claude")
+VALID_STATUS = ("todo", "doing", "waiting", "needs_ok", "done")
+VALID_ASSIGNEE = ("Ch@o", "AI")
+AI_ASSIGNEES = ("AI", "Claude")  # "Claude" is a legacy value kept for old cards.
 VALID_PRIORITY = ("high", "medium", "low")
+APP_SETTINGS = os.path.join(DATA, "app_settings.json")
+GH_BINS = ("/opt/homebrew/bin/gh", "gh")
+
+
+def _load_app_settings():
+    data = storage.load_json(APP_SETTINGS, {})
+    return data if isinstance(data, dict) else {}
+
+
+def notify_done(card):
+    settings = _load_app_settings()
+    po = settings.get("pushover") or {}
+    if not po.get("enabled"):
+        return
+    try:
+        user_key = auth.decrypt_secret(po.get("user_key"))
+        app_token = auth.decrypt_secret(po.get("app_token"))
+    except Exception:
+        return
+    if not user_key or not app_token:
+        return
+    title = completion_title(card)
+    msg = completion_message(card)
+    payload = {
+        "token": app_token,
+        "user": user_key,
+        "title": title[:250],
+        "message": msg,
+        "url": "http://127.0.0.1:8787/",
+        "url_title": "Open LifeKanban",
+    }
+    data = urlparse.urlencode(payload).encode("utf-8")
+    req = urlrequest.Request("https://api.pushover.net/1/messages.json", data=data, method="POST",
+                             headers={"Content-Type": "application/x-www-form-urlencoded"})
+    try:
+        urlrequest.urlopen(req, timeout=12).close()
+    except Exception:
+        pass
+
+
+def github_issue_url(card):
+    issue_pattern = r"(?:https?://)?github\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+/issues/\d+"
+    issue_url = str(card.get("github_issue_url") or "").strip()
+    match = re.search(issue_pattern, issue_url)
+    if match:
+        url = match.group(0)
+        return url if url.startswith(("http://", "https://")) else "https://" + url
+
+    desc = str(card.get("description") or "")
+    match = re.search(issue_pattern, desc)
+    if match:
+        url = match.group(0)
+        return url if url.startswith(("http://", "https://")) else "https://" + url
+
+    repo = str(card.get("github_repo") or "").strip()
+    number = str(card.get("github_issue_number") or "").strip()
+    if re.match(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$", repo) and number.isdigit():
+        return "https://github.com/%s/issues/%s" % (repo, number)
+    return None
+
+
+def _one_line(value):
+    return re.sub(r"\s+", " ", str(value or "")).strip()
+
+
+def completion_title(card):
+    title = _one_line(card.get("title"))
+    prefix = "LifeKanban done: " + str(card.get("id", "card"))
+    if title:
+        return (prefix + " - " + title)[:250]
+    return prefix[:250]
+
+
+def completion_message(card):
+    lines = [
+        "Card: " + str(card.get("id", "unknown")),
+        "Title: " + (_one_line(card.get("title")) or "Card completed"),
+    ]
+    project = _one_line(card.get("project"))
+    if project:
+        lines.append("Project: " + project)
+    priority = _one_line(card.get("priority"))
+    if priority:
+        lines.append("Priority: " + priority)
+    due = _one_line(card.get("due"))
+    if due:
+        lines.append("Due: " + due)
+    description = str(card.get("description") or "").strip()
+    if description:
+        lines.extend(["", "Description:", description])
+    result = _one_line(card.get("result"))
+    if result:
+        lines.extend(["", "Result: " + result])
+    issue_url = github_issue_url(card)
+    if issue_url:
+        lines.extend(["", "GitHub issue: " + issue_url])
+    return "\n".join(lines)[:1024]
+
+
+def github_issue_ref(card):
+    """Return (repo, issue_number) for a GitHub-linked feature card."""
+    issue_url = str(card.get("github_issue_url") or "")
+    if not issue_url:
+        issue_url = str(card.get("description") or "")
+    match = re.search(r"github\.com/([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)/issues/(\d+)",
+                      issue_url)
+    if match:
+        return match.group(1), match.group(2)
+
+    repo = str(card.get("github_repo") or "").strip()
+    number = str(card.get("github_issue_number") or "").strip()
+    if re.match(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$", repo) and number.isdigit():
+        return repo, number
+    return None, None
+
+
+def close_github_issue(card):
+    repo, number = github_issue_ref(card)
+    if not repo or not number or card.get("github_issue_closed_at"):
+        return False
+
+    message = "Completed by LifeKanban card %s." % card.get("id", "unknown")
+    last_error = ""
+    for gh in GH_BINS:
+        cmd = [gh, "issue", "close", number, "--repo", repo,
+               "--reason", "completed", "--comment", message]
+        try:
+            proc = subprocess.run(cmd, cwd=ROOT, text=True, capture_output=True, timeout=30)
+        except FileNotFoundError:
+            continue
+        except Exception as e:
+            last_error = str(e)
+            continue
+        if proc.returncode == 0:
+            card["github_issue_closed_at"] = now()
+            card.setdefault("log", []).append(
+                "%s closed GitHub issue %s#%s" % (now(), repo, number))
+            return True
+        last_error = (proc.stderr or proc.stdout or "gh issue close failed").strip()
+
+    card.setdefault("log", []).append(
+        "%s could not close GitHub issue %s#%s: %s" %
+        (now(), repo, number, last_error[:300] or "gh not available"))
+    return False
 
 # Self-healing for orphaned cards. A worker run claims a card (todo -> doing)
 # then does the work in the same pass. If that run crashes, times out, or errors
 # before finishing, the card is stranded in "doing" and — because claim-next only
 # ever looks at todo — would never be retried. So before claiming, we requeue any
-# Claude card that has sat in "doing" longer than STALE_DOING_MIN (its `updated`
+# AI card that has sat in "doing" longer than STALE_DOING_MIN (its `updated`
 # stamp moves forward whenever the worker logs progress, so a genuinely active
 # card is safe). A card that keeps failing is poison: after MAX_REQUEUES bounces
 # we park it in needs_ok for Ch@o to look at instead of looping forever.
@@ -78,6 +229,17 @@ def norm_priority(v):
     return v if v in VALID_PRIORITY else "medium"
 
 
+def norm_assignee(v):
+    v = (v or "Ch@o").strip()
+    aliases = {"Claude": "AI", "claude": "AI", "ai": "AI", "AI": "AI",
+               "me": "Ch@o", "Me": "Ch@o", "Ch@o": "Ch@o"}
+    return aliases.get(v, v)
+
+
+def is_ai_assignee(v):
+    return v in AI_ASSIGNEES
+
+
 def now():
     return datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
 
@@ -94,14 +256,14 @@ def parse_ts(s):
 
 
 def requeue_stale(data):
-    """Recover Claude cards orphaned in 'doing'. Mutates `data` in place and
+    """Recover AI cards orphaned in 'doing'. Mutates `data` in place and
     returns a list of {id,title,action,age_min} describing what changed. The
     caller is responsible for save() (so it can run inside an existing Lock)."""
     actions = []
     cutoff_secs = STALE_DOING_MIN * 60
     current = datetime.now(timezone.utc)
     for c in data.get("cards", []):
-        if c.get("assignee") != "Claude" or c.get("status") != "doing":
+        if not is_ai_assignee(c.get("assignee")) or c.get("status") != "doing":
             continue
         ts = parse_ts(c.get("updated"))
         if ts is None:
@@ -218,14 +380,15 @@ def _api(method, body=None):
         die("could not reach API at %s: %s" % (url, e))
 
 
+def empty_board():
+    return {"version": 1, "updated": now(), "projects": ["General"],
+            "next_id": 1, "cards": []}
+
+
 def load():
     if _remote():
         return _api("GET")
-    if not os.path.exists(BOARD):
-        return {"version": 1, "updated": now(), "projects": ["General"],
-                "next_id": 1, "cards": []}
-    with open(BOARD, "r", encoding="utf-8") as f:
-        return json.load(f)
+    return storage.load_json(BOARD, empty_board())
 
 
 def save(data):
@@ -233,10 +396,7 @@ def save(data):
     if _remote():
         _api("POST", data)
         return
-    fd, tmp = tempfile.mkstemp(dir=DATA, prefix=".board.", suffix=".tmp")
-    with os.fdopen(fd, "w", encoding="utf-8") as f:
-        json.dump(data, f, indent=2, ensure_ascii=False)
-    os.replace(tmp, BOARD)
+    storage.save_json(BOARD, data)
 
 
 def find(data, cid):
@@ -257,7 +417,8 @@ def cmd_list(args):
     cards = data["cards"]
     flt = parse_flags(args)
     if "assignee" in flt:
-        cards = [c for c in cards if c["assignee"] == flt["assignee"]]
+        want = norm_assignee(flt["assignee"])
+        cards = [c for c in cards if norm_assignee(c.get("assignee")) == want]
     if "status" in flt:
         cards = [c for c in cards if c["status"] == flt["status"]]
     print(json.dumps(cards, indent=2, ensure_ascii=False))
@@ -275,7 +436,7 @@ def cmd_add(args):
             "title": title,
             "description": flt.get("desc", ""),
             "project": flt.get("project", "General"),
-            "assignee": flt.get("assignee", "Ch@o"),
+            "assignee": norm_assignee(flt.get("assignee", "Ch@o")),
             "priority": norm_priority(flt.get("priority")),
             "status": flt.get("status", "todo"),
             "due": flt.get("due") or None,
@@ -309,13 +470,19 @@ def cmd_move(args):
         c = find(data, cid)
         if not c:
             die("no such card: " + cid)
+        old_status = c.get("status")
         c["status"] = status
+        if status != "todo":
+            c.pop("approved", None)
         c["updated"] = now()
         c["log"].append("%s moved to %s" % (now(), status))
-        if status == "done":
+        if status == "done" and old_status != "done":
             # Successful completion clears the recovery counter so a card that
             # was rescued once isn't penalised if it's ever reworked later.
             c.pop("requeue_count", None)
+            close_github_issue(c)
+            if not _remote() and is_ai_assignee(c.get("assignee")):
+                notify_done(c)
         save(data)
     print(json.dumps(c, indent=2, ensure_ascii=False))
 
@@ -323,7 +490,7 @@ def cmd_move(args):
 def cmd_assign(args):
     if len(args) < 2:
         die("assign needs <id> <assignee>")
-    cid, who = args[0], args[1]
+    cid, who = args[0], norm_assignee(args[1])
     if who not in VALID_ASSIGNEE:
         die("bad assignee: " + who)
     with Lock():
@@ -354,6 +521,24 @@ def cmd_set_result(args):
     print(json.dumps(c, indent=2, ensure_ascii=False))
 
 
+def cmd_set_result_text(args):
+    if not args:
+        die("set-result-text needs <id> [text]")
+    cid = args[0]
+    text = " ".join(args[1:]) if len(args) > 1 else sys.stdin.read()
+    text = text.strip()
+    with Lock():
+        data = load()
+        c = find(data, cid)
+        if not c:
+            die("no such card: " + cid)
+        c["result"] = text
+        c["updated"] = now()
+        c.setdefault("log", []).append("%s result text saved" % now())
+        save(data)
+    print(json.dumps(c, indent=2, ensure_ascii=False))
+
+
 def cmd_addb64(args):
     """Add a card from a single urlsafe-base64-encoded JSON object.
 
@@ -378,7 +563,7 @@ def cmd_addb64(args):
             "title": spec["title"],
             "description": spec.get("description", ""),
             "project": spec.get("project", "General"),
-            "assignee": spec.get("assignee", "Ch@o"),
+            "assignee": norm_assignee(spec.get("assignee", "Ch@o")),
             "priority": norm_priority(spec.get("priority")),
             "status": spec.get("status", "todo"),
             "due": spec.get("due") or None,
@@ -463,7 +648,7 @@ def cmd_set_priority(args):
 
 def cmd_approve(args):
     """Approve a needs_ok card: flag approved and send back to todo so the
-    Claude worker reclaims it and performs the previously-paused action."""
+    AI worker reclaims it and performs the previously-paused action."""
     if not args:
         die("approve needs <id>")
     cid = args[0]
@@ -472,9 +657,19 @@ def cmd_approve(args):
         c = find(data, cid)
         if not c:
             die("no such card: " + cid)
+        result = str(c.get("result") or "").strip()
+        if re.match(r"(?i)^NEEDS_OK:", result):
+            c.pop("approved", None)
+            c["status"] = "needs_ok"
+            c["updated"] = now()
+            c.setdefault("log", []).append(
+                "%s approval ignored — card is blocked by NEEDS_OK result" % now())
+            save(data)
+            print(json.dumps(c, indent=2, ensure_ascii=False))
+            return
         c["approved"] = True
         c["status"] = "todo"
-        c["assignee"] = "Claude"
+        c["assignee"] = "AI"
         c["updated"] = now()
         c["log"].append("%s approved by Ch@o — proceed with the action" % now())
         save(data)
@@ -506,7 +701,7 @@ def cmd_get(args):
 
 
 def cmd_claim_next(args):
-    """Atomically take the oldest Claude+todo card into doing.
+    """Atomically take the oldest AI+todo card into doing.
 
     First recovers any card orphaned in 'doing' (see requeue_stale) so a crashed
     earlier pass can't strand work forever. A freshly requeued card becomes
@@ -515,7 +710,7 @@ def cmd_claim_next(args):
         data = load()
         recovered = requeue_stale(data)
         todo = [c for c in data["cards"]
-                if c["assignee"] == "Claude" and c["status"] == "todo"]
+                if is_ai_assignee(c.get("assignee")) and c["status"] == "todo"]
         todo.sort(key=lambda c: c["created"])
         if not todo:
             if recovered:
@@ -527,8 +722,10 @@ def cmd_claim_next(args):
             return
         c = todo[0]
         c["status"] = "doing"
+        if c.get("assignee") == "Claude":
+            c["assignee"] = "AI"
         c["updated"] = now()
-        c["log"].append("%s claimed by Claude worker" % now())
+        c["log"].append("%s claimed by AI worker" % now())
         save(data)
     print(json.dumps(c, indent=2, ensure_ascii=False))
 
@@ -621,7 +818,7 @@ def cmd_user_role(args):
 
 def cmd_token_add(args):
     """token-add <username> [name]  — create an API token for programmatic
-    access (e.g. the remote Claude worker). Prints the token ONCE."""
+    access (e.g. the remote AI worker). Prints the token ONCE."""
     if not args:
         die("token-add needs a username")
     name = args[1] if len(args) > 1 else "worker"
@@ -681,6 +878,7 @@ COMMANDS = {
     "move": cmd_move,
     "assign": cmd_assign,
     "set-result": cmd_set_result,
+    "set-result-text": cmd_set_result_text,
     "set-due": cmd_set_due,
     "set-priority": cmd_set_priority,
     "normalise-priority": cmd_normalise_priority,

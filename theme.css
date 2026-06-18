@@ -1,0 +1,49 @@
+/*
+  LifeKanban colour scheme
+
+  Change the values in this file to reskin the site. The HTML pages keep their
+  layout rules inline, but all primary colour tokens are read from here.
+*/
+:root{
+  --lk-bg:#eef1f7;
+  --lk-panel:#ffffff;
+  --lk-surface:#ffffff;
+  --lk-ink:#1b2030;
+  --lk-muted:#737b8c;
+  --lk-line:#e3e7f0;
+  --lk-accent:#3b6cf6;
+  --lk-ai:#7a5cff;
+  --lk-me:#11a06b;
+  --lk-todo:#8a93a6;
+  --lk-doing:#e0a008;
+  --lk-waiting:#3b8ca8;
+  --lk-done:#11a06b;
+  --lk-danger:#e0533b;
+  --lk-field:#fbfcfe;
+  --lk-chip:#f1f3f9;
+  --lk-chip-ink:#3b4252;
+  --lk-shadow:0 1px 3px rgba(20,30,60,.07),0 6px 18px rgba(20,30,60,.05);
+  --lk-page-bg:#f7f8fb;
+  --lk-page-ink:#1d2330;
+  --lk-page-muted:#6b7385;
+  --lk-page-line:#e4e7ef;
+
+  --lk-dark-bg:#0f131a;
+  --lk-dark-panel:#1a212e;
+  --lk-dark-surface:#222b3b;
+  --lk-dark-ink:#e7eaf1;
+  --lk-dark-muted:#98a2b6;
+  --lk-dark-line:#2a3344;
+  --lk-dark-accent:#5b82f8;
+  --lk-dark-ai:#9a7cff;
+  --lk-dark-me:#27b884;
+  --lk-dark-todo:#8a93a6;
+  --lk-dark-doing:#e6ad1e;
+  --lk-dark-waiting:#4ca7c7;
+  --lk-dark-done:#27b884;
+  --lk-dark-danger:#f06a52;
+  --lk-dark-field:#222b3b;
+  --lk-dark-chip:#2a3344;
+  --lk-dark-chip-ink:#c6cedd;
+  --lk-dark-shadow:0 1px 3px rgba(0,0,0,.45),0 6px 18px rgba(0,0,0,.35);
+}
