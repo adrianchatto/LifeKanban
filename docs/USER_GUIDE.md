@@ -1,20 +1,22 @@
 # LifeKanban — User Guide
 
-> **Audience:** anyone using the LifeKanban board. **Maintained by:** AI — this page is updated whenever the app changes. _Last updated: 10 June 2026._
+> **Audience:** anyone using the LifeKanban board. **Maintained by:** AI — this page is updated whenever the app changes. _Last updated: 18 June 2026._
 >
 > _This file is the source copy of the guide that is published to Notion. When features change, update this file and the Notion page together._
 
-LifeKanban is a personal Kanban board that runs on a Mac, with a built-in AI worker that can carry out cards you assign to it. Each person has their own account, their own board, and supplies their own AI API key. This guide explains how to use it.
+LifeKanban is a personal Kanban board that runs on a Mac, with a built-in AI worker that can carry out cards you assign to it. The board opens without a browser login by default. Existing accounts are still used for stored settings, API keys, results, attachments, and optional login mode. This guide explains how to use it.
 
-## Signing in
+## Opening the board
 
-The board sits behind a login. Open the board's web address and you'll see the sign-in page.
+Open the board's web address and the app loads directly.
 
-- Enter your **username** and **password**.
+If the server is started with `KANBAN_REQUIRE_LOGIN=1`, the old login flow is restored:
+
+- Enter your **username** and **password** on `/login.html`.
 - If you were given a **temporary password**, you'll see a banner after signing in prompting you to set your own. Do that under **Settings** before anything else.
 - Sessions stay active for about 12 hours, then you'll be asked to sign in again. Use **Log out** (top-right account menu) to end a session immediately.
 
-Use **Sign up** on the login page to create an account. The first account becomes the admin; later signups are normal users. Admins can also create accounts manually (see **Administration**).
+Use **Sign up** on the login page to create an account when login mode is enabled. The first account becomes the admin; later signups are normal users. Admins can also create accounts manually (see **Administration**).
 
 ## The board
 
@@ -106,9 +108,8 @@ The same actions are available from the terminal via `kanban.py` (`user-add`, `u
 
 ## API tokens (for automation / the remote worker)
 
-If the board runs behind a login (for example in Docker on another machine), an
-automated client such as the AI worker can't use a browser session. Instead
-it uses an **API token** that acts as a specific user:
+If an automated client such as the AI worker cannot use the local `board.json`,
+it can use an **API token** that acts as a specific user:
 
 - An admin mints one on the host with `python3 kanban.py token-add <username> "label"` (printed once).
 - The client sends it as a bearer token; it then reads and writes that user's board over the API, with no login screen and no CSRF token needed.
@@ -119,19 +120,20 @@ Keep tokens secret — anyone holding one can act as that user on their board.
 ## Security notes
 
 - Passwords are stored hashed (PBKDF2), never in plain text.
-- Sessions use HttpOnly, SameSite=Strict cookies; state-changing actions carry a CSRF token; repeated failed logins are throttled.
+- Open mode has no browser authentication, so only expose it where you are comfortable with anyone who can reach the URL using the board.
+- In optional login mode, sessions use HttpOnly, SameSite=Strict cookies; state-changing actions carry a CSRF token; repeated failed logins are throttled.
 - API keys are encrypted at rest with a server-side key (`.secret.key`). Keep that file safe — losing it means stored API keys must be re-entered.
-- If the board is served beyond a single Mac, it must be put behind HTTPS with `KANBAN_SECURE_COOKIES=1`.
+- If optional login mode is served beyond a single Mac, it must be put behind HTTPS with `KANBAN_SECURE_COOKIES=1`.
 
 ## Setup & running (Mac)
 
 - Double-click **Kanban Board.app** to start the local server and open the board in the browser. **Start Kanban.command** is a fallback launcher.
 - **Enable Notifications.command** turns on background due-date alerts; **Disable Notifications.command** turns them off.
-- First admin account (one-off): `python3 kanban.py user-add <name> --admin`.
+- First admin account, if you want account-backed settings or optional login mode: `python3 kanban.py user-add <name> --admin`.
 
 ## Troubleshooting
 
-- **Can't sign in** — check the username/password; after several failed attempts there's a short lockout. Ask an admin to reset your password if needed.
+- **Can't sign in** — only applies when `KANBAN_REQUIRE_LOGIN=1`; check the username/password. After several failed attempts there's a short lockout. Ask an admin to reset your password if needed.
 - **Chat assistant ignores my key** — confirm the key, provider, and model are all set under Settings.
 - **An AI card looks stuck** — it will be retried automatically on the next worker pass; no action needed.
 
@@ -162,6 +164,7 @@ Docker `/data` volume and are preserved across rebuilds.
 
 ## Changelog
 
+- **18 June 2026** — Removed the default browser login requirement. The board now opens directly, while `KANBAN_REQUIRE_LOGIN=1` restores the old login wall if needed.
 - **15 June 2026** — Added an optional Supabase storage backend for LifeKanban JSON documents, plus SQL bootstrap and migration tooling. Live cutover still requires Supabase project URL/service-role credentials.
 - **15 June 2026** — Added a protected mobile-first Pomodoro page at `/pomodoro.html`, linked it under Tools, redirected mobile board visits there with a full-board escape hatch, and hardened the worker so BYOAI text results do not falsely mark implementation cards Done. Added a Mac-side autoship path for Codex implementation cards: commit, push, and deploy via `scripts/deploy-to-lifekanban-ai.sh`.
 - **12 June 2026** — Added macOS Calendar sync: an hourly importer creates deduplicated To Do cards for Calendar events starting in the next two days.

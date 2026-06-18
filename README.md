@@ -75,10 +75,16 @@ To keep it handy: drag `Kanban Board.app` to your Dock (or Applications).
 - **Assignee:** *Me* (you) or *AI*.
 - **Filters:** by project and by owner, top-right.
 
-## Accounts & logins
+## Access and accounts
 
-The board now sits behind a login. Each user has their own board, their own
-results and attachments, and provides their own AI API key (used by the
+The board is open by default: visiting `/` loads the app without a browser
+login. Existing account records are still used as the data owner for settings,
+API keys, results and attachments, and API tokens still work for programmatic
+clients like the AI worker.
+
+If you ever want the old login wall back, start the server with
+`KANBAN_REQUIRE_LOGIN=1`. In that mode, each user has their own board, their
+own results and attachments, and provides their own AI API key (used by the
 "Add by chat" assistant). Users can sign up from `/login.html`; the first
 signup becomes the admin, and later signups become normal users. Admins can
 also create or manage accounts internally.
@@ -92,13 +98,15 @@ cd ~/Documents/Claude/Projects/Kanban
 python3 kanban.py user-add <name> --admin        # prompts for a password
 ```
 
-Then open the board and sign in. New users created from the admin panel start
-with a temporary password and are prompted to set their own.
+Then open the board. If `KANBAN_REQUIRE_LOGIN=1` is enabled, sign in with that
+account. New users created from the admin panel start with a temporary password
+and are prompted to set their own.
 
 **Day-to-day.**
 
-- **Log in / out:** the login page is `/login.html`; the account menu (top-right
-  of the board) has *Settings*, *Admin* (admins only), and *Log out*.
+- **Log in / out:** only applies when `KANBAN_REQUIRE_LOGIN=1`; the login page
+  is `/login.html`; the account menu (top-right of the board) has *Settings*,
+  *Admin* (admins only), and *Log out*.
 - **Create users:** *Settings* → *Users* → *Create a user* (username, temporary password,
   role). You can reset passwords, switch roles, or delete users there too. The
   CLI commands (`user-add`, `user-list`, `user-del`, `user-passwd`, `user-role`)
@@ -108,19 +116,20 @@ with a temporary password and are prompted to set their own.
   The chat assistant calls the board's `/api/ai/parse` endpoint, which uses that
   user's chosen provider/model/key server-side.
 
-**Security notes.** Passwords are PBKDF2-hashed; sessions are HttpOnly,
-SameSite=Strict cookies; state-changing requests carry a CSRF token; repeated
-failed logins are throttled. The files `users.json`, `.secret.key` and other
-users' `boards/` are gitignored — keep `.secret.key` safe, as losing it means
-stored API keys can no longer be decrypted (users would just re-enter them).
-**If you serve this beyond your own Mac, put it behind HTTPS and set
-`KANBAN_SECURE_COOKIES=1`.**
+**Security notes.** Open mode has no browser authentication, so only expose it
+where you are comfortable with anyone who can reach the URL using the board. If
+you enable `KANBAN_REQUIRE_LOGIN=1`, passwords are PBKDF2-hashed; sessions are
+HttpOnly, SameSite=Strict cookies; state-changing requests carry a CSRF token;
+and repeated failed logins are throttled. The files `users.json`, `.secret.key`
+and other users' `boards/` are gitignored — keep `.secret.key` safe, as losing
+it means stored API keys can no longer be decrypted (users would just re-enter
+them). **If you serve login mode beyond your own Mac, put it behind HTTPS and
+set `KANBAN_SECURE_COOKIES=1`.**
 
 ## API access for the AI worker (remote / Docker)
 
-When the board runs behind a login (e.g. in Docker on another host), the worker
-can't use the local `board.json` and there's no anonymous API. Instead, give it
-an **API token**:
+When the worker can't use the local `board.json` directly, give it an
+**API token**:
 
 1. Mint a token for the board's owner (run on the host, inside the container):
 

@@ -48,6 +48,10 @@ PORT = int(os.environ.get("KANBAN_PORT", "8787"))
 # (you MUST do this in any deployment reachable beyond localhost).
 COOKIE_NAME = "kanban_session"
 SECURE_COOKIES = os.environ.get("KANBAN_SECURE_COOKIES", "0") == "1"
+# The app is now open by default. Set KANBAN_REQUIRE_LOGIN=1 to restore the
+# previous username/password gate while keeping API-token worker access.
+REQUIRE_LOGIN = os.environ.get("KANBAN_REQUIRE_LOGIN", "0") == "1"
+OPEN_CSRF = "open-access"
 
 
 def guide_url():
@@ -101,6 +105,38 @@ CRON_MACROS = {
 
 def _empty_board():
     return {"version": 1, "projects": ["General"], "next_id": 1, "cards": []}
+
+
+def _open_access_user():
+    """Return the account/data owner used when browser login is disabled."""
+    users = auth._load_raw().get("users", [])
+    if users:
+        for u in users:
+            if u.get("board", "board.json") == "board.json":
+                return u
+        for u in users:
+            if u.get("role") == "admin":
+                return u
+        return users[0]
+    return {
+        "id": "open",
+        "username": "Open access",
+        "role": "admin",
+        "board": "board.json",
+        "results_dir": "results",
+        "attach_dir": "attachments",
+        "created": None,
+    }
+
+
+def _session_for_user(user, via):
+    return {
+        "uid": user["id"],
+        "username": user["username"],
+        "role": user.get("role", "user"),
+        "csrf": OPEN_CSRF if via == "open" else None,
+        "via": via,
+    }
 
 
 def _load_app_settings():
@@ -629,7 +665,8 @@ class Handler(BaseHTTPRequestHandler):
 
     def resolve_session(self):
         """Authenticate a request by API token first (programmatic clients like
-        the AI worker), then by browser session cookie."""
+        the AI worker), then by browser session cookie. When login is disabled,
+        browser/API requests fall through to the open-access data owner."""
         tok = self._bearer_token()
         if tok:
             u = auth.verify_token(tok)
@@ -640,7 +677,18 @@ class Handler(BaseHTTPRequestHandler):
         if s:
             s = dict(s)
             s["via"] = "cookie"
+            return s
+        if not REQUIRE_LOGIN:
+            return _session_for_user(_open_access_user(), "open")
         return s
+
+    def user_for_session(self, session):
+        u = auth.find_user(session["username"]) if session else None
+        if u:
+            return u
+        if session and session.get("via") == "open":
+            return _open_access_user()
+        return None
 
     def require_user(self):
         """Return the session dict, or send 401 and return None."""
@@ -664,6 +712,8 @@ class Handler(BaseHTTPRequestHandler):
         # browser sends automatically, so cross-site forgery doesn't apply.
         if session and session.get("via") == "token":
             return True
+        if session and session.get("via") == "open":
+            return True
         token = self.headers.get("X-Kanban-CSRF", "")
         import hmac as _hmac
         if not session or not _hmac.compare_digest(token, session.get("csrf", "")):
@@ -674,7 +724,7 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         path = self.path.split("?", 1)[0]
         if path == "/" or path == "/index.html":
-            if not self.current_session():
+            if REQUIRE_LOGIN and not self.current_session():
                 self._redirect("/login.html")
                 return
             try:
@@ -684,7 +734,7 @@ class Handler(BaseHTTPRequestHandler):
                 self._send(404, "index.html missing", "text/plain")
             return
         if path == "/pomodoro.html":
-            if not self.current_session():
+            if REQUIRE_LOGIN and not self.current_session():
                 self._redirect("/login.html")
                 return
             try:
@@ -708,7 +758,7 @@ class Handler(BaseHTTPRequestHandler):
             s = self.require_user()
             if not s:
                 return
-            u = auth.find_user(s["username"])
+            u = self.user_for_session(s)
             if not u:
                 self._json(401, {"error": "not authenticated"})
                 return
@@ -716,6 +766,7 @@ class Handler(BaseHTTPRequestHandler):
             self._json(200, {"user": pub, "csrf": s["csrf"],
                              "ai_provider": u.get("ai_provider"),
                              "ai_model": u.get("ai_model"),
+                             "login_required": REQUIRE_LOGIN,
                              "guide_url": (guide_url() if s.get("role") == "admin" else None)})
             return
         if path == "/api/admin/users":
@@ -740,7 +791,7 @@ class Handler(BaseHTTPRequestHandler):
             s = self.require_user()
             if not s:
                 return
-            u = auth.find_user(s["username"])
+            u = self.user_for_session(s)
             board = storage.load_json(auth.board_path(u), _empty_board())
             self._send(200, json.dumps(board, ensure_ascii=False), "application/json")
             return
@@ -748,14 +799,14 @@ class Handler(BaseHTTPRequestHandler):
             s = self.require_user()
             if not s:
                 return
-            u = auth.find_user(s["username"])
+            u = self.user_for_session(s)
             self._serve_result(path[len("/results/"):], auth.results_dir(u))
             return
         if path.startswith("/attachments/"):
             s = self.require_user()
             if not s:
                 return
-            u = auth.find_user(s["username"])
+            u = self.user_for_session(s)
             self._serve_attachment(path[len("/attachments/"):], auth.attach_dir(u))
             return
         name = path.lstrip("/")
@@ -888,7 +939,7 @@ class Handler(BaseHTTPRequestHandler):
             if body is None or not isinstance(body.get("cards"), list):
                 self._json(400, {"error": "board must have a cards list"})
                 return
-            u = auth.find_user(s["username"])
+            u = self.user_for_session(s)
             bp = auth.board_path(u)
             old = storage.load_json(bp, {"cards": []})
             done_cards = _ai_done_notifications(old, body)
@@ -902,7 +953,7 @@ class Handler(BaseHTTPRequestHandler):
             s = self.require_user()
             if not s or not self.check_csrf(s):
                 return
-            self._handle_upload(auth.attach_dir(auth.find_user(s["username"])))
+            self._handle_upload(auth.attach_dir(self.user_for_session(s)))
             return
 
         if path == "/api/account/password":
@@ -910,7 +961,10 @@ class Handler(BaseHTTPRequestHandler):
             if not s or not self.check_csrf(s):
                 return
             body = self._read_json() or {}
-            u = auth.find_user(s["username"])
+            u = self.user_for_session(s)
+            if not auth.find_user(s["username"]):
+                self._json(400, {"error": "password changes require a user account"})
+                return
             if not auth.verify_password(body.get("old_password", ""), u["password"]):
                 self._json(403, {"error": "current password is incorrect"})
                 return
@@ -926,6 +980,9 @@ class Handler(BaseHTTPRequestHandler):
             s = self.require_user()
             if not s or not self.check_csrf(s):
                 return
+            if not auth.find_user(s["username"]):
+                self._json(400, {"error": "AI keys require a user account"})
+                return
             body = self._read_json() or {}
             try:
                 pub = auth.set_api_key(s["username"], body.get("api_key") or None,
@@ -940,6 +997,9 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/account/preferences":
             s = self.require_user()
             if not s or not self.check_csrf(s):
+                return
+            if not auth.find_user(s["username"]):
+                self._json(400, {"error": "preferences require a user account"})
                 return
             body = self._read_json() or {}
             try:
@@ -988,7 +1048,7 @@ class Handler(BaseHTTPRequestHandler):
             if not text:
                 self._json(400, {"error": "text required"})
                 return
-            u = auth.find_user(s["username"])
+            u = self.user_for_session(s)
             provider = (u.get("ai_provider") or "").strip().lower()
             model = (u.get("ai_model") or "").strip()
             api_key = auth.get_api_key(s["username"])
@@ -1019,7 +1079,7 @@ class Handler(BaseHTTPRequestHandler):
             if len(text) > 12000:
                 self._json(400, {"error": "text is too long"})
                 return
-            u = auth.find_user(s["username"])
+            u = self.user_for_session(s)
             provider = (u.get("ai_provider") or "").strip().lower()
             model = (u.get("ai_model") or "").strip()
             api_key = auth.get_api_key(s["username"])
@@ -1165,6 +1225,9 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/account/apikey":
             s = self.require_user()
             if not s or not self.check_csrf(s):
+                return
+            if not auth.find_user(s["username"]):
+                self._json(400, {"error": "AI keys require a user account"})
                 return
             auth.set_api_key(s["username"], None)
             self._json(200, {"ok": True})
@@ -1411,9 +1474,14 @@ def main():
     os.makedirs(ATTACH, exist_ok=True)
     os.makedirs(auth.BOARDS_DIR, exist_ok=True)
     if auth.user_count() == 0:
-        print("WARNING: no users exist yet. Create the first admin with:\n"
-              "  python3 kanban.py user-add <name> --admin\n"
-              "Until then, login will reject everyone.")
+        if REQUIRE_LOGIN:
+            print("WARNING: no users exist yet. Create the first admin with:\n"
+                  "  python3 kanban.py user-add <name> --admin\n"
+                  "Until then, login will reject everyone.")
+        else:
+            print("No users exist yet. The board will open in default open mode.\n"
+                  "Create an admin later with:\n"
+                  "  python3 kanban.py user-add <name> --admin")
     httpd = ThreadingHTTPServer((HOST, PORT), Handler)
     url = "http://%s:%d/" % (HOST, PORT)
     print("Kanban board running at " + url)

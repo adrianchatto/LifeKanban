@@ -29,7 +29,7 @@ The public endpoint is:
 https://lifekanban.chattoweb.com
 ```
 
-Cloudflare Access may redirect before the LifeKanban login page. After Cloudflare Access, LifeKanban has its own app login.
+Cloudflare Access may redirect before LifeKanban. LifeKanban itself opens without a browser login by default; set `KANBAN_REQUIRE_LOGIN=1` to restore the app login wall.
 
 Do not commit passwords, `.secret.key`, `users.json`, `app_settings.json`, live board data, worker logs, or generated results. Those are runtime state.
 
@@ -69,7 +69,7 @@ Bootstrap order:
 2. Keep the server stopped or in maintenance while migrating.
 3. Run `scripts/migrate-json-to-supabase.py` on the VM with `KANBAN_DATA=/opt/lifekanban/data` and the Supabase env vars above.
 4. Add the env vars to `lifekanban-server.service` and any local worker/API process that needs direct local mode.
-5. Restart `lifekanban-server.service` and verify login, `/api/board`, card save, and worker claim/move.
+5. Restart `lifekanban-server.service` and verify `/`, `/api/me`, `/api/board`, card save, and worker claim/move. If `KANBAN_REQUIRE_LOGIN=1` is configured, verify the login flow too.
 6. Keep `/opt/lifekanban/data` as rollback until Supabase has been stable for a few days.
 
 Do not expose the service-role key to browser JavaScript or commit it to Git.
@@ -528,9 +528,9 @@ curl -sS -D /tmp/lk-public.headers -o /tmp/lk-public.body -w '%{http_code} %{url
 
 Expected: a Cloudflare Access redirect (`302`) unless already authenticated through Access.
 
-### App Login Check
+### Optional App Login Check
 
-Use a known admin account or reset one on the VM. Do not commit credentials. From the VM, password reset can be done with `auth.set_password`:
+Only run this when `KANBAN_REQUIRE_LOGIN=1` is configured. Use a known admin account or reset one on the VM. Do not commit credentials. From the VM, password reset can be done with `auth.set_password`:
 
 ```bash
 ssh -i ~/.ssh/codex_proxmox_ed25519 \
@@ -579,7 +579,7 @@ ssh -i ~/.ssh/codex_proxmox_ed25519 adrian@172.22.20.30 \
 
 ### Public Host Redirects To Cloudflare Access
 
-That is normal. Authenticate through Cloudflare Access first, then LifeKanban's own login appears.
+That is normal when Cloudflare Access is enabled. Authenticate through Cloudflare Access first, then LifeKanban opens directly unless optional app login mode is also enabled.
 
 ### Worker Says No Usable AI CLI Found
 

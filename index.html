@@ -147,6 +147,11 @@
     display:flex;align-items:center;gap:8px;color:var(--muted);font-weight:700}
   .col h2 .pill{margin-left:auto;background:rgba(255,255,255,.68);border:1px solid rgba(210,216,226,.78);border-radius:999px;
     padding:1px 9px;font-size:11px;color:var(--muted)}
+  .col-add{width:25px;height:25px;margin-left:2px;border:1px solid rgba(210,216,226,.86);border-radius:8px;
+    background:rgba(255,255,255,.78);color:var(--ink);display:inline-flex;align-items:center;justify-content:center;
+    font-size:18px;line-height:1;padding:0;cursor:pointer;box-shadow:0 1px 1px rgba(20,30,60,.04)}
+  .col-add:hover{background:var(--surface);border-color:var(--accent);color:var(--accent)}
+  :root[data-theme="dark"] .col-add{background:var(--surface);border-color:var(--line);color:var(--ink)}
   .tag{width:9px;height:9px;border-radius:50%}
   .col[data-status=todo] .tag{background:var(--todo)}
   .col[data-status=doing] .tag{background:var(--doing)}
@@ -221,11 +226,23 @@
   .scrim.open{display:flex}
   .modal{background:#fff;border-radius:16px;width:min(520px,92vw);box-shadow:0 20px 60px rgba(10,20,40,.3);
     padding:22px 24px;max-height:88vh;overflow:auto}
+  #scrim .modal{width:min(640px,92vw);padding:0}
   .modal h3{margin:0 0 16px;font-size:16px}
-  .modal-title{display:flex;align-items:center;gap:8px;margin:0 0 16px}
+  .modal-title{display:flex;align-items:center;gap:8px;margin:0;padding:20px 24px 14px;border-bottom:1px solid var(--line);
+    position:sticky;top:0;background:var(--panel);z-index:1}
   .modal-title h3{margin:0}
   .modal-title .ticket-id{font-size:11px}
+  .card-form{padding:18px 24px 22px}
+  .form-section{border:1px solid var(--line);border-radius:12px;background:var(--surface);padding:14px 16px;margin:0 0 14px}
+  .form-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(190px,.58fr);gap:12px 16px;align-items:start}
+  .field-row{display:flex;align-items:flex-end;gap:12px;flex-wrap:wrap}
+  .field-row > .field{flex:1 1 220px}
+  .inline-field{display:flex;gap:6px}
+  .inline-field select{flex:1}
+  .section-label{display:block;font-size:12px;font-weight:700;color:var(--muted);margin:0 0 8px}
+  .modal .actions{padding-top:4px}
   label{display:block;font-size:12px;font-weight:600;color:var(--muted);margin:12px 0 5px}
+  .card-form label:first-child,.field label:first-child,.form-section > label:first-child{margin-top:0}
   input[type=text],textarea,.modal select{width:100%;border:1px solid var(--line);border-radius:9px;padding:9px 11px;background:var(--field);color:var(--ink)}
   textarea{min-height:84px;resize:vertical}
   .seg{display:inline-flex;border:1px solid var(--line);border-radius:11px;overflow:hidden;background:var(--chip);padding:2px;gap:2px}
@@ -324,6 +341,12 @@
   .comment-compose{display:flex;gap:8px;margin-top:8px}
   .comment-compose textarea{min-height:58px;flex:1}
   .comment-compose .btn{align-self:flex-start}
+  @media(max-width:680px){
+    #scrim .modal{width:min(94vw,640px)}
+    .card-form{padding:16px}
+    .form-grid{grid-template-columns:1fr}
+    .modal-title{padding-left:16px;padding-right:16px}
+  }
   .qm-grid{display:grid;grid-template-columns:1fr;gap:10px}
   .qm-grid textarea{min-height:150px}
   .qm-output{background:var(--field)}
@@ -374,6 +397,7 @@ window.__csrf = '';
 window.__me = null;
 window.__ai = {};
 window.__prefs = {};
+window.__loginRequired = false;
 function topbarInkFor(color){
   const m=/^#([0-9a-f]{6})$/i.exec((color||"").trim());
   if(!m) return "var(--ink)";
@@ -394,6 +418,7 @@ async function initSession(){
   const d = await r.json();
   window.__csrf = d.csrf || '';
   window.__me = d.user || null;
+  window.__loginRequired = !!d.login_required;
   window.__ai = {provider:d.ai_provider||'', model:d.ai_model||'',
                  hasKey:!!(d.user&&d.user.has_api_key), last4:(d.user&&d.user.api_key_last4)||''};
   window.__prefs = {
@@ -636,83 +661,103 @@ async function initSession(){
       <h3 id="mTitle">New card</h3>
       <span class="ticket-id" id="mTicketId" style="display:none"></span>
     </div>
-    <input type="hidden" id="fId">
-    <label>Title</label>
-    <input type="text" id="fTitle" placeholder="What needs doing?">
-    <label>Description</label>
-    <textarea id="fDesc" placeholder="Detail. For AI cards, be specific about the deliverable."></textarea>
-    <div class="row" style="gap:24px">
-      <div style="flex:1">
-        <label>Project</label>
-        <div style="display:flex;gap:6px">
-          <select id="fProject" style="flex:1"></select>
-          <button type="button" class="btn" id="fAddProj" title="Add a new project">＋</button>
+    <div class="card-form">
+      <input type="hidden" id="fId">
+      <div class="form-section">
+        <label>Title</label>
+        <input type="text" id="fTitle" placeholder="What needs doing?">
+        <label>Description</label>
+        <textarea id="fDesc" placeholder="Detail. For AI cards, be specific about the deliverable."></textarea>
+      </div>
+      <div class="form-section">
+        <div class="form-grid">
+          <div class="field">
+            <label>Project</label>
+            <div class="inline-field">
+              <select id="fProject"></select>
+              <button type="button" class="btn" id="fAddProj" title="Add a new project">＋</button>
+            </div>
+          </div>
+          <div class="field">
+            <label>Due date <span style="font-weight:400">(optional)</span></label>
+            <input type="date" id="fDue">
+          </div>
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label>Assignee</label>
+            <div class="seg" id="fAssignee">
+              <button type="button" data-v="Ch@o">Me</button>
+              <button type="button" data-v="AI">AI</button>
+            </div>
+          </div>
+          <div class="field">
+            <label>Priority</label>
+            <div class="seg prio" id="fPriority">
+              <button type="button" data-v="high">High</button>
+              <button type="button" data-v="medium">Medium</button>
+              <button type="button" data-v="low">Low</button>
+            </div>
+          </div>
         </div>
       </div>
-      <div>
-        <label>Assignee</label>
-        <div class="seg" id="fAssignee">
-          <button type="button" data-v="Ch@o">Me</button>
-          <button type="button" data-v="AI">AI</button>
+      <div class="form-section">
+        <label>Repeat <span style="font-weight:400">(shows in Calendar, not the columns)</span></label>
+        <select id="fRepeat">
+          <option value="">Does not repeat</option>
+          <option value="daily">Daily</option>
+          <option value="weekdays">Every weekday (Mon–Fri)</option>
+          <option value="weekly">Weekly on…</option>
+          <option value="monthly">Monthly on a date</option>
+        </select>
+        <div id="fWeekdays" class="wd" style="display:none">
+          <button type="button" data-d="0">Mon</button><button type="button" data-d="1">Tue</button>
+          <button type="button" data-d="2">Wed</button><button type="button" data-d="3">Thu</button>
+          <button type="button" data-d="4">Fri</button><button type="button" data-d="5">Sat</button>
+          <button type="button" data-d="6">Sun</button>
+        </div>
+        <div id="fMonthly" style="display:none">
+          <label>Day of month</label>
+          <input type="number" id="fMonthDay" min="1" max="31" value="1" style="width:90px">
         </div>
       </div>
-    </div>
-    <label>Priority</label>
-    <div class="seg prio" id="fPriority">
-      <button type="button" data-v="high">High</button>
-      <button type="button" data-v="medium">Medium</button>
-      <button type="button" data-v="low">Low</button>
-    </div>
-    <label>Due date <span style="font-weight:400">(optional)</span></label>
-    <input type="date" id="fDue">
-    <label>Repeat <span style="font-weight:400">(shows in Calendar, not the columns)</span></label>
-    <select id="fRepeat">
-      <option value="">Does not repeat</option>
-      <option value="daily">Daily</option>
-      <option value="weekdays">Every weekday (Mon–Fri)</option>
-      <option value="weekly">Weekly on…</option>
-      <option value="monthly">Monthly on a date</option>
-    </select>
-    <div id="fWeekdays" class="wd" style="display:none">
-      <button type="button" data-d="0">Mon</button><button type="button" data-d="1">Tue</button>
-      <button type="button" data-d="2">Wed</button><button type="button" data-d="3">Thu</button>
-      <button type="button" data-d="4">Fri</button><button type="button" data-d="5">Sat</button>
-      <button type="button" data-d="6">Sun</button>
-    </div>
-    <div id="fMonthly" style="display:none">
-      <label>Day of month</label>
-      <input type="number" id="fMonthDay" min="1" max="31" value="1" style="width:90px">
-    </div>
-    <label>Subtasks</label>
-    <div id="fSubtasks"></div>
-    <div style="display:flex;gap:6px;margin-top:6px">
-      <input type="text" id="fSubInput" placeholder="Add a subtask…">
-      <button type="button" class="btn" id="fSubAdd">Add</button>
-    </div>
-    <label>Attachments <span style="font-weight:400">(drag in, choose a file, or paste a screenshot)</span></label>
-    <div id="fDrop" class="drop">
-      <span id="fDropText">Drop files here, paste a screenshot, or </span>
-      <button type="button" class="btn" id="fAttachBtn">Choose file</button>
-      <input type="file" id="fAttachInput" multiple style="display:none">
-    </div>
-    <div id="fAttachments" class="attlist"></div>
-    <label>Comments</label>
-    <div id="fComments" class="comments"></div>
-    <div class="comment-compose">
-      <textarea id="fCommentInput" placeholder="Add a comment…"></textarea>
-      <button type="button" class="btn" id="fCommentAdd">Add</button>
-    </div>
-    <label>History update <span style="font-weight:400">(optional)</span></label>
-    <textarea id="fHistoryNote" class="history-note" placeholder="Add a dated update for this card…"></textarea>
-    <div class="log" id="mLog">
-      <strong>History</strong>
-      <div class="history-list" id="mHistoryList"></div>
-    </div>
-    <div class="actions">
-      <button class="btn danger" id="delBtn" style="display:none">Delete</button>
-      <div class="spacer"></div>
-      <button class="btn" id="cancelBtn">Cancel</button>
-      <button class="btn primary" id="saveBtn">Save</button>
+      <div class="form-section">
+        <label>Subtasks</label>
+        <div id="fSubtasks"></div>
+        <div class="inline-field" style="margin-top:6px">
+          <input type="text" id="fSubInput" placeholder="Add a subtask…">
+          <button type="button" class="btn" id="fSubAdd">Add</button>
+        </div>
+      </div>
+      <div class="form-section">
+        <label>Attachments <span style="font-weight:400">(drag in, choose a file, or paste a screenshot)</span></label>
+        <div id="fDrop" class="drop">
+          <span id="fDropText">Drop files here, paste a screenshot, or </span>
+          <button type="button" class="btn" id="fAttachBtn">Choose file</button>
+          <input type="file" id="fAttachInput" multiple style="display:none">
+        </div>
+        <div id="fAttachments" class="attlist"></div>
+      </div>
+      <div class="form-section">
+        <label>Comments</label>
+        <div id="fComments" class="comments"></div>
+        <div class="comment-compose">
+          <textarea id="fCommentInput" placeholder="Add a comment…"></textarea>
+          <button type="button" class="btn" id="fCommentAdd">Add</button>
+        </div>
+        <label>History update <span style="font-weight:400">(optional)</span></label>
+        <textarea id="fHistoryNote" class="history-note" placeholder="Add a dated update for this card…"></textarea>
+      </div>
+      <div class="log" id="mLog">
+        <strong>History</strong>
+        <div class="history-list" id="mHistoryList"></div>
+      </div>
+      <div class="actions">
+        <button class="btn danger" id="delBtn" style="display:none">Delete</button>
+        <div class="spacer"></div>
+        <button class="btn" id="cancelBtn">Cancel</button>
+        <button class="btn primary" id="saveBtn">Save</button>
+      </div>
     </div>
   </div>
 </div>
@@ -726,7 +771,7 @@ const COLUMNS = [
   {status:"done",     name:"Done"},
 ];
 let board = {cards:[], projects:[]};
-let editing = null, assigneeChoice = "Ch@o", priorityChoice = "medium", paused = false, dragId = null;
+let editing = null, assigneeChoice = "Ch@o", priorityChoice = "medium", newCardStatus = "todo", paused = false, dragId = null;
 function normAssignee(v){ return v==="Claude" ? "AI" : (v||"Ch@o"); }
 function isAIAssignee(v){ return normAssignee(v)==="AI"; }
 const PRIORITY_RANK = { high:0, medium:1, low:2, none:1 };
@@ -1021,7 +1066,10 @@ function renderBoard(cards){
       : `<div class="empty">—</div>`;
     const isCollapsed = !!collapsedCols[col.status];
     const caret = `<span class="caret">${isCollapsed ? "▸" : "▾"}</span>`;
-    const head = `<h2 class="colhead" data-status="${col.status}" title="${isCollapsed?"Show":"Hide"} this column">${caret}<span class="tag"></span>${col.name}<span class="pill">${list.length}</span></h2>`;
+    const addBtn = col.status==="todo"
+      ? `<button type="button" class="col-add" data-add-status="${col.status}" title="Add card to ${esc(col.name)}" aria-label="Add card to ${esc(col.name)}">+</button>`
+      : "";
+    const head = `<h2 class="colhead" data-status="${col.status}" title="${isCollapsed?"Show":"Hide"} this column">${caret}<span class="tag"></span>${col.name}<span class="pill">${list.length}</span>${addBtn}</h2>`;
     const collapsed = isCollapsed ? " collapsed" : "";
     return `<section class="col" data-status="${col.status}">
       ${head}
@@ -1034,6 +1082,8 @@ function renderBoard(cards){
     b.onclick=(e)=>{ e.stopPropagation(); approveCard(b.dataset.ok); });
   document.querySelectorAll(".donebtn").forEach(b=>
     b.onclick=(e)=>{ e.stopPropagation(); markDone(b.dataset.done); });
+  document.querySelectorAll(".col-add").forEach(b=>
+    b.onclick=(e)=>{ e.stopPropagation(); openNew({status:b.dataset.addStatus||"todo"}); });
   document.querySelectorAll(".colhead").forEach(h=>
     h.onclick=()=>{ const s=h.dataset.status; collapsedCols[s]=!collapsedCols[s]; saveCollapsed(); render(); });
 }
@@ -1207,8 +1257,9 @@ function wireDnD(){
 }
 
 /* ---- modal ---- */
-function openNew(){
+function openNew(opts){
   editing=null; assigneeChoice="Ch@o"; priorityChoice="medium";
+  newCardStatus=(opts && opts.status) || "todo";
   $("#mTitle").textContent="New card";
   $("#mTicketId").style.display="none"; $("#mTicketId").textContent="";
   $("#fId").value=""; $("#fTitle").value=""; $("#fDesc").value="";
@@ -1435,7 +1486,7 @@ function save(){
     const card = {
       id:"k-"+String(n).padStart(3,"0"),
       title, description:desc, project, assignee:assigneeChoice, priority:priorityChoice,
-      status:"todo", due, recur, subtasks:editSubtasks.map(s=>({text:s.text, done:!!s.done})),
+      status:newCardStatus, due, recur, subtasks:editSubtasks.map(s=>({text:s.text, done:!!s.done})),
       attachments:editAttachments.map(a=>({...a})), skill:null, result_link:null,
       comments:editComments.map(cm=>({...cm})),
       created:new Date().toISOString(), updated:new Date().toISOString(),
@@ -1517,9 +1568,10 @@ function openProjects(){ renderProjectManager(); $("#projScrim").classList.add("
 function openAdminPanel(){
   refreshAiStatus();
   const me=window.__me||{};
-  $("#accountName").textContent = me.username ? "Signed in as "+me.username : "Account";
+  $("#accountName").textContent = window.__loginRequired && me.username ? "Signed in as "+me.username : "Open access";
   $("#usersRow").style.display = me.role==="admin" ? "flex" : "none";
   $("#cronRow").style.display = me.role==="admin" ? "flex" : "none";
+  $("#logoutBtn").closest(".adminrow").style.display = window.__loginRequired ? "flex" : "none";
   $("#adminScrim").classList.add("open");
 }
 $("#menuSettings").onclick=()=>{ closeToolsMenu(); openAdminPanel(); };
@@ -2132,17 +2184,7 @@ initSession().then(ok=>{
 
   function kcHelp(){
     kcAddMsg("bot",
-      "Tell me a task in plain English and I’ll add it to your board.\n\n"+
-      "Examples:\n"+
-      "• Pay parking tomorrow\n"+
-      "• Review PR for NEO-015 by 12/06/2026\n"+
-      "• Have AI draft the status report due Friday\n"+
-      "• Submit timesheet every Friday\n"+
-      "• Buy milk #Home\n\n"+
-      "I read dates (today, tomorrow, Friday, 15 June, 12/06/2026, in 3 days), projects "+
-      "(a name or #tag), who it’s for (say “AI” to assign the worker), and repeats (daily, "+
-      "weekly, every Monday, monthly). You can also ask “what’s on my board” or “what’s due today”.\n\n"+
-      "To set up projects, say “add project NEO-015” (or “create projects Home, Work and Admin”).");
+      "Type a task or ask about your board.");
   }
 
   function kcAnswer(raw){
@@ -2409,7 +2451,6 @@ initSession().then(ok=>{
   document.body.appendChild(panel);
 
   function kcOpen(){ panel.classList.add("open"); launcher.style.display="none";
-    if(!kcHist.length) kcHelp();
     setTimeout(()=>{ const i=document.getElementById("kcInput"); if(i) i.focus(); }, 60); }
   function kcCloseFn(){ panel.classList.remove("open"); launcher.style.display="inline-flex"; }
   window.kcClose = kcCloseFn;            // used by kcEditDraft
