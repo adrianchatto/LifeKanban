@@ -26,6 +26,8 @@
 #   KANBAN_CLAUDE_ARGS    legacy alias for KANBAN_AI_ARGS when provider=claude
 #   KANBAN_WORKER_RESULTS where to store result files (default: <repo>/worker-results)
 #   KANBAN_WORKER_MAX     max cards to process per run (default: 3)
+#   KANBAN_WORKER_AUTOSHIP safe code cards commit/push/deploy automatically (default: 1)
+#   KANBAN_CODEX_APPROVAL_POLICY Codex CLI approval policy for worker runs (default: never)
 set -euo pipefail
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
@@ -47,8 +49,9 @@ RESULTS_DIR="${KANBAN_WORKER_RESULTS:-}"
 SET_RESULT_LINK="${KANBAN_WORKER_SET_RESULT:-}"
 MAX_CARDS="${KANBAN_WORKER_MAX:-3}"
 LOCK_DIR="${KANBAN_WORKER_LOCK:-${TMPDIR:-/tmp}/kanban-worker.lock.d}"
-AUTOSHIP="${KANBAN_WORKER_AUTOSHIP:-0}"
+AUTOSHIP="${KANBAN_WORKER_AUTOSHIP:-1}"
 DEPLOY_CMD="${KANBAN_WORKER_DEPLOY_CMD:-}"
+CODEX_APPROVAL_POLICY="${KANBAN_CODEX_APPROVAL_POLICY:-never}"
 
 detect_ai(){
   case "$AI_PROVIDER" in
@@ -155,6 +158,7 @@ run_ai(){
     codex)
       set +e
       "$AI_BIN" exec -C "$REPO_DIR" --skip-git-repo-check --sandbox workspace-write \
+        -c "approval_policy=\"$CODEX_APPROVAL_POLICY\"" \
         -o "$final_file" $AI_ARGS "$prompt" >"$RESULTS_DIR/$id.out" 2>"$RESULTS_DIR/$id.err"
       rc=$?
       set -e
